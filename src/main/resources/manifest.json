@@ -1,0 +1,20 @@
+{
+    "Group": "Moxinat",
+    "Name": "ForcesOfGravium",
+    "Version": "0.0.0-pre",
+    "Description": "Pre-release version of the ForcesOfGravium mod.",
+    "Authors": [
+        {
+            "Name": "Moxinat"
+        }
+    ],
+    "Website": "",
+    "DisabledByDefault": false,
+    "IncludesAssetPack": true,
+    "Dependencies": {
+        "Hytale:EntityModule": "*"
+    },
+    "OptionalDependencies": {},
+    "ServerVersion": "*",
+    "Main": "dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin"
+}
