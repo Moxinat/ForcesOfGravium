@@ -92,11 +92,7 @@ public final class CableNetworkUpdater {
         boolean fiveCrossEastWestUpDownNorth = east && west && up && down && north;
         boolean fiveCrossEastWestUpDownSouth = east && west && up && down && south;
         boolean fiveCrossNorthSouthUpDownEast = north && south && up && down && east;
-        boolean fiveCrossNorthSouthUpDownWest = north && south && up && down && west;
-        boolean fiveCross = connectionCount == 5
-                && (fiveCrossHorizontalUp || fiveCrossHorizontalDown
-                || fiveCrossEastWestUpDownNorth || fiveCrossEastWestUpDownSouth
-                || fiveCrossNorthSouthUpDownEast || fiveCrossNorthSouthUpDownWest);
+        boolean fiveCross = connectionCount == 5;
         boolean allConnect = connectionCount == 6;
         boolean fourCurveNorthEast = up && down && north && east;
         boolean fourCurveEastSouth = up && down && east && south;
@@ -299,10 +295,10 @@ public final class CableNetworkUpdater {
             } else if (up && down) {
                 if (north) {
                     targetRotation = RotationTuple.of(Rotation.None, Rotation.None, Rotation.Ninety);
-                } else if (south) {
-                    targetRotation = RotationTuple.of(Rotation.OneEighty, Rotation.None, Rotation.Ninety);
                 } else if (east) {
                     targetRotation = RotationTuple.of(Rotation.TwoSeventy, Rotation.None, Rotation.Ninety);
+                } else if (south) {
+                    targetRotation = RotationTuple.of(Rotation.OneEighty, Rotation.None, Rotation.Ninety);
                 } else {
                     targetRotation = RotationTuple.of(Rotation.Ninety, Rotation.None, Rotation.Ninety);
                 }
