@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 
 import javax.annotation.Nonnull;
 
@@ -48,6 +49,7 @@ public final class GravityPowderLogic {
 
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
+            GravityPowderBlockDataStore.putDefault(world, target);
             CableNetworkUpdater.onConnectablePlaced(world, target);
         }
     }
@@ -78,6 +80,7 @@ public final class GravityPowderLogic {
 
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
+            GravityPowderBlockDataStore.remove(world, target);
             CableNetworkUpdater.onConnectableBroken(world, target);
         }
     }
