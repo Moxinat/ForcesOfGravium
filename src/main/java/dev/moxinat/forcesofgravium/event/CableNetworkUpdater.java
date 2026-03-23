@@ -1,17 +1,34 @@
 package dev.moxinat.forcesofgravium.event;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.PositionDistance;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
+
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
 
 public final class CableNetworkUpdater {
 
-    public static final String GRAVITY_POWDER_BLOCK_ID = "Gravity_Powder_Default";
-    public static final String INVERTER_BLOCK_ID = "Inverter_Block";
+    public static final String GRAVITY_POWDER_BLOCK_ID = ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID;
+    public static final String INVERTER_BLOCK_ID = ConnectableRegistry.INVERTER_BLOCK_ID;
+    public static final int CONNECTION_EAST = 1;
+    public static final int CONNECTION_WEST = 1 << 1;
+    public static final int CONNECTION_SOUTH = 1 << 2;
+    public static final int CONNECTION_NORTH = 1 << 3;
+    public static final int CONNECTION_UP = 1 << 4;
+    public static final int CONNECTION_DOWN = 1 << 5;
 
     private static final String ONE_CONNECT_STATE = "OneConnect";
     private static final String STRAIGHT_STATE = "Straight";
@@ -22,7 +39,9 @@ public final class CableNetworkUpdater {
     private static final String FIVE_CROSS_STATE = "FiveCross";
     private static final String ALL_CONNECT_STATE = "AllConnect";
     private static final String T_CONNECT_STATE = "TConnect";
-    private static final String STATE_PREFIX = "*" + GRAVITY_POWDER_BLOCK_ID + "_State_";
+    private static final String MODE_OFF = "off";
+    private static final String MODE_PUSH = "push";
+    private static final String MODE_PULL = "pull";
 
     private CableNetworkUpdater() {
     }
@@ -46,7 +65,7 @@ public final class CableNetworkUpdater {
             return true;
         }
 
-        return !isGravityPowderId(blockType.getId());
+        return !ConnectableRegistry.isGravityPowderId(blockType.getId());
     }
 
     public static boolean isNotInverter(BlockType blockType) {
@@ -54,17 +73,15 @@ public final class CableNetworkUpdater {
             return true;
         }
 
-        return !INVERTER_BLOCK_ID.equals(blockType.getId());
+        return !ConnectableRegistry.isInverterId(blockType.getId());
     }
 
     private static void refreshAround(World world, Vector3i center, Vector3i treatAsEmpty) {
-        refreshAt(world, center.getX(), center.getY(), center.getZ(), treatAsEmpty);
-        refreshAt(world, center.getX() + 1, center.getY(), center.getZ(), treatAsEmpty);
-        refreshAt(world, center.getX() - 1, center.getY(), center.getZ(), treatAsEmpty);
-        refreshAt(world, center.getX(), center.getY(), center.getZ() + 1, treatAsEmpty);
-        refreshAt(world, center.getX(), center.getY(), center.getZ() - 1, treatAsEmpty);
-        refreshAt(world, center.getX(), center.getY() + 1, center.getZ(), treatAsEmpty);
-        refreshAt(world, center.getX(), center.getY() - 1, center.getZ(), treatAsEmpty);
+        List<Vector3i> positions = positionsAround(center);
+        updateGravityPowderModes(world, positions, treatAsEmpty);
+        for (Vector3i position : positions) {
+            refreshAt(world, position.getX(), position.getY(), position.getZ(), treatAsEmpty);
+        }
     }
 
     private static void refreshAt(World world, int x, int y, int z, Vector3i treatAsEmpty) {
@@ -73,12 +90,15 @@ public final class CableNetworkUpdater {
             return;
         }
 
-        boolean east = isConnectable(world, x + 1, y, z, treatAsEmpty);
-        boolean west = isConnectable(world, x - 1, y, z, treatAsEmpty);
-        boolean south = isConnectable(world, x, y, z + 1, treatAsEmpty);
-        boolean north = isConnectable(world, x, y, z - 1, treatAsEmpty);
-        boolean up = isConnectable(world, x, y + 1, z, treatAsEmpty);
-        boolean down = isConnectable(world, x, y - 1, z, treatAsEmpty);
+        String modeStateSuffix = modeStateSuffix(world, x, y, z);
+
+        boolean east = isConnectable(world, x + 1, y, z, treatAsEmpty, WorldSide.WEST);
+        boolean west = isConnectable(world, x - 1, y, z, treatAsEmpty, WorldSide.EAST);
+        boolean south = isConnectable(world, x, y, z + 1, treatAsEmpty, WorldSide.NORTH);
+        boolean north = isConnectable(world, x, y, z - 1, treatAsEmpty, WorldSide.SOUTH);
+        boolean up = isConnectable(world, x, y + 1, z, treatAsEmpty, WorldSide.DOWN);
+        boolean down = isConnectable(world, x, y - 1, z, treatAsEmpty, WorldSide.UP);
+        GravityPowderBlockDataStore.setConnectionsMask(world, new Vector3i(x, y, z), buildConnectionsMask(east, west, south, north, up, down));
         int connectionCount = (east ? 1 : 0) + (west ? 1 : 0) + (south ? 1 : 0) + (north ? 1 : 0) + (up ? 1 : 0) + (down ? 1 : 0);
 
         boolean straightEastWest = east && west && !north && !south && !up && !down;
@@ -136,7 +156,7 @@ public final class CableNetworkUpdater {
         }
 
         if (straight) {
-            String straightBlockKey = baseType.getBlockKeyForState(STRAIGHT_STATE);
+            String straightBlockKey = stateBlockKey(baseType, STRAIGHT_STATE, modeStateSuffix);
             if (straightBlockKey == null) {
                 return;
             }
@@ -154,7 +174,7 @@ public final class CableNetworkUpdater {
         }
 
         if (connectionCount == 1) {
-            String oneConnectBlockKey = baseType.getBlockKeyForState(ONE_CONNECT_STATE);
+            String oneConnectBlockKey = stateBlockKey(baseType, ONE_CONNECT_STATE, modeStateSuffix);
             if (oneConnectBlockKey == null) {
                 return;
             }
@@ -179,7 +199,7 @@ public final class CableNetworkUpdater {
         }
 
         if (fiveCross) {
-            String fiveCrossBlockKey = baseType.getBlockKeyForState(FIVE_CROSS_STATE);
+            String fiveCrossBlockKey = stateBlockKey(baseType, FIVE_CROSS_STATE, modeStateSuffix);
             if (fiveCrossBlockKey == null) {
                 return;
             }
@@ -204,7 +224,7 @@ public final class CableNetworkUpdater {
         }
 
         if (allConnect) {
-            String allConnectBlockKey = baseType.getBlockKeyForState(ALL_CONNECT_STATE);
+            String allConnectBlockKey = stateBlockKey(baseType, ALL_CONNECT_STATE, modeStateSuffix);
             if (allConnectBlockKey == null) {
                 return;
             }
@@ -214,7 +234,7 @@ public final class CableNetworkUpdater {
         }
 
         if (fourCurve) {
-            String fourCurveBlockKey = baseType.getBlockKeyForState(FOUR_CURVE_STATE);
+            String fourCurveBlockKey = stateBlockKey(baseType, FOUR_CURVE_STATE, modeStateSuffix);
             if (fourCurveBlockKey == null) {
                 return;
             }
@@ -251,7 +271,7 @@ public final class CableNetworkUpdater {
         }
 
         if (cross) {
-            String crossBlockKey = baseType.getBlockKeyForState(CROSS_STATE);
+            String crossBlockKey = stateBlockKey(baseType, CROSS_STATE, modeStateSuffix);
             if (crossBlockKey == null) {
                 return;
             }
@@ -270,7 +290,7 @@ public final class CableNetworkUpdater {
         }
 
         if (tConnect) {
-            String tConnectBlockKey = baseType.getBlockKeyForState(T_CONNECT_STATE);
+            String tConnectBlockKey = stateBlockKey(baseType, T_CONNECT_STATE, modeStateSuffix);
             if (tConnectBlockKey == null) {
                 return;
             }
@@ -311,7 +331,7 @@ public final class CableNetworkUpdater {
         }
 
         if (threeDCurve) {
-            String threeDCurveBlockKey = baseType.getBlockKeyForState(THREE_D_CURVE_STATE);
+            String threeDCurveBlockKey = stateBlockKey(baseType, THREE_D_CURVE_STATE, modeStateSuffix);
             if (threeDCurveBlockKey == null) {
                 return;
             }
@@ -340,7 +360,7 @@ public final class CableNetworkUpdater {
         }
 
         if (curve) {
-            String curveBlockKey = baseType.getBlockKeyForState(CURVE_STATE);
+            String curveBlockKey = stateBlockKey(baseType, CURVE_STATE, modeStateSuffix);
             if (curveBlockKey == null) {
                 return;
             }
@@ -382,18 +402,14 @@ public final class CableNetworkUpdater {
             return;
         }
 
-        String defaultStateKey = baseType.getDefaultStateKey();
-        if (defaultStateKey == null) {
-            defaultStateKey = "default";
-        }
-        String defaultBlockKey = baseType.getBlockKeyForState(defaultStateKey);
+        String defaultBlockKey = stateBlockKey(baseType, null, modeStateSuffix);
         if (defaultBlockKey == null) {
             defaultBlockKey = GRAVITY_POWDER_BLOCK_ID;
         }
         chunk.placeBlock(x, y, z, defaultBlockKey, RotationTuple.of(Rotation.None, Rotation.None, Rotation.None), 0, false);
     }
 
-    private static boolean isConnectable(World world, int x, int y, int z, Vector3i treatAsEmpty) {
+    private static boolean isConnectable(World world, int x, int y, int z, Vector3i treatAsEmpty, WorldSide requiredWorldSide) {
         if (treatAsEmpty != null && treatAsEmpty.getX() == x && treatAsEmpty.getY() == y && treatAsEmpty.getZ() == z) {
             return false;
         }
@@ -404,10 +420,377 @@ public final class CableNetworkUpdater {
         }
 
         String id = blockType.getId();
-        return isGravityPowderId(id) || INVERTER_BLOCK_ID.equals(id);
+        if (!ConnectableRegistry.isConnectable(id)) {
+            return false;
+        }
+
+        BlockAccessor chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(x, z));
+        if (chunk == null) {
+            return false;
+        }
+
+        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, new Vector3i(x, y, z), RotationTuple.NONE);
+        return hasLocalSideFacingWorldSide(id, rotation, requiredWorldSide);
     }
 
-    private static boolean isGravityPowderId(String id) {
-        return GRAVITY_POWDER_BLOCK_ID.equals(id) || (id != null && id.startsWith(STATE_PREFIX));
+    private static void updateGravityPowderModes(World world, List<Vector3i> positions, Vector3i treatAsEmpty) {
+        List<GravityPowderStateUpdate> updates = new ArrayList<>();
+        for (Vector3i position : positions) {
+            if (isTreatAsEmpty(position, treatAsEmpty) || isNotGravityPowder(world.getBlockType(position.getX(), position.getY(), position.getZ()))) {
+                continue;
+            }
+            updates.add(computeGravityPowderStateUpdate(world, position, treatAsEmpty));
+        }
+
+        for (GravityPowderStateUpdate update : updates) {
+            GravityPowderBlockDataStore.setPositionDistances(world, update.position(), update.positionDistances());
+            GravityPowderBlockDataStore.setNextMode(world, update.position(), update.nextMode());
+        }
+
+        for (GravityPowderStateUpdate update : updates) {
+            GravityPowderBlockDataStore.setCurrentMode(world, update.position(), update.nextMode());
+        }
+    }
+
+    private static GravityPowderStateUpdate computeGravityPowderStateUpdate(World world, Vector3i position, Vector3i treatAsEmpty) {
+        GravityPowderBlockData selfData = GravityPowderBlockDataStore.getOrCreate(world, position);
+        List<NeighborGravityPowderData> neighbors = neighboringGravityPowders(world, position, treatAsEmpty);
+        boolean hasSourceNeighbor = hasSourceNeighbor(world, position, treatAsEmpty);
+        List<PositionDistance> retainedDistances = retainReachableDistances(position, selfData.positionDistances(), neighbors);
+
+        ModeDistances pushCandidate = mergedCandidate(neighbors, MODE_PUSH);
+        ModeDistances pullCandidate = mergedCandidate(neighbors, MODE_PULL);
+        String currentMode = selfData.currentMode();
+
+        if (MODE_OFF.equals(currentMode)) {
+            if (pushCandidate != null) {
+                return new GravityPowderStateUpdate(position, MODE_PUSH, pushCandidate.positionDistances());
+            }
+            if (pullCandidate != null) {
+                return new GravityPowderStateUpdate(position, MODE_PULL, pullCandidate.positionDistances());
+            }
+        }
+
+        if (MODE_PULL.equals(currentMode) && pushCandidate != null) {
+            return new GravityPowderStateUpdate(position, MODE_PUSH, pushCandidate.positionDistances());
+        }
+
+        if (MODE_PUSH.equals(currentMode) && pushCandidate != null) {
+            return new GravityPowderStateUpdate(position, MODE_PUSH, pushCandidate.positionDistances());
+        }
+
+        if (MODE_PULL.equals(currentMode) && pullCandidate != null) {
+            return new GravityPowderStateUpdate(position, MODE_PULL, pullCandidate.positionDistances());
+        }
+
+        if (!retainedDistances.equals(selfData.positionDistances())) {
+            if (!retainedDistances.isEmpty()) {
+                return new GravityPowderStateUpdate(position, currentMode, retainedDistances);
+            }
+            if (!hasSourceNeighbor) {
+                return new GravityPowderStateUpdate(position, MODE_OFF, List.of());
+            }
+        } else if (!hasSourceNeighbor && retainedDistances.isEmpty()) {
+            return new GravityPowderStateUpdate(position, MODE_OFF, List.of());
+        }
+
+        return new GravityPowderStateUpdate(position, currentMode, retainedDistances.isEmpty() ? selfData.positionDistances() : retainedDistances);
+    }
+
+    private static List<PositionDistance> retainReachableDistances(Vector3i position, List<PositionDistance> positionDistances, List<NeighborGravityPowderData> neighbors) {
+        List<PositionDistance> retained = new ArrayList<>();
+        for (PositionDistance ownDistance : positionDistances) {
+            if (isTargetAdjacent(position, ownDistance) || hasNeighborWithSmallerDistance(ownDistance, neighbors)) {
+                retained.add(ownDistance);
+            }
+        }
+        return List.copyOf(retained);
+    }
+
+    private static boolean hasNeighborWithSmallerDistance(PositionDistance ownDistance, List<NeighborGravityPowderData> neighbors) {
+        for (NeighborGravityPowderData neighbor : neighbors) {
+            for (PositionDistance neighborDistance : neighbor.data().positionDistances()) {
+                if (sameTarget(ownDistance, neighborDistance) && neighborDistance.distance() < ownDistance.distance()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static ModeDistances mergedCandidate(List<NeighborGravityPowderData> neighbors, String mode) {
+        List<PositionDistance> merged = new ArrayList<>();
+        for (NeighborGravityPowderData neighbor : neighbors) {
+            if (!mode.equals(neighbor.data().currentMode())) {
+                continue;
+            }
+
+            for (PositionDistance neighborDistance : neighbor.data().positionDistances()) {
+                mergeDistance(merged, new PositionDistance(
+                        neighborDistance.x(),
+                        neighborDistance.y(),
+                        neighborDistance.z(),
+                        neighborDistance.distance() + 1
+                ));
+            }
+        }
+
+        if (merged.isEmpty()) {
+            return null;
+        }
+        return new ModeDistances(mode, List.copyOf(merged));
+    }
+
+    private static void mergeDistance(List<PositionDistance> distances, PositionDistance candidate) {
+        for (int i = 0; i < distances.size(); i++) {
+            PositionDistance existing = distances.get(i);
+            if (sameTarget(existing, candidate)) {
+                if (candidate.distance() < existing.distance()) {
+                    distances.set(i, candidate);
+                }
+                return;
+            }
+        }
+        distances.add(candidate);
+    }
+
+    private static boolean sameTarget(PositionDistance first, PositionDistance second) {
+        return first.x() == second.x() && first.y() == second.y() && first.z() == second.z();
+    }
+
+    private static boolean isTargetAdjacent(Vector3i position, PositionDistance target) {
+        int dx = Math.abs(position.getX() - target.x());
+        int dy = Math.abs(position.getY() - target.y());
+        int dz = Math.abs(position.getZ() - target.z());
+        return dx + dy + dz == 1;
+    }
+
+    private static List<NeighborGravityPowderData> neighboringGravityPowders(World world, Vector3i position, Vector3i treatAsEmpty) {
+        List<NeighborGravityPowderData> neighbors = new ArrayList<>();
+        addNeighboringGravityPowder(world, neighbors, new Vector3i(position.getX() + 1, position.getY(), position.getZ()), treatAsEmpty);
+        addNeighboringGravityPowder(world, neighbors, new Vector3i(position.getX() - 1, position.getY(), position.getZ()), treatAsEmpty);
+        addNeighboringGravityPowder(world, neighbors, new Vector3i(position.getX(), position.getY(), position.getZ() + 1), treatAsEmpty);
+        addNeighboringGravityPowder(world, neighbors, new Vector3i(position.getX(), position.getY(), position.getZ() - 1), treatAsEmpty);
+        addNeighboringGravityPowder(world, neighbors, new Vector3i(position.getX(), position.getY() + 1, position.getZ()), treatAsEmpty);
+        addNeighboringGravityPowder(world, neighbors, new Vector3i(position.getX(), position.getY() - 1, position.getZ()), treatAsEmpty);
+        return neighbors;
+    }
+
+    private static void addNeighboringGravityPowder(World world, List<NeighborGravityPowderData> neighbors, Vector3i neighborPosition, Vector3i treatAsEmpty) {
+        if (isTreatAsEmpty(neighborPosition, treatAsEmpty)) {
+            return;
+        }
+
+        GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, neighborPosition);
+        if (data == null) {
+            return;
+        }
+
+        BlockType blockType = world.getBlockType(neighborPosition.getX(), neighborPosition.getY(), neighborPosition.getZ());
+        if (isNotGravityPowder(blockType)) {
+            return;
+        }
+
+        neighbors.add(new NeighborGravityPowderData(neighborPosition, data));
+    }
+
+    private static boolean hasSourceNeighbor(World world, Vector3i position, Vector3i treatAsEmpty) {
+        return isSourceNeighbor(world, position.getX() + 1, position.getY(), position.getZ(), treatAsEmpty, WorldSide.WEST)
+                || isSourceNeighbor(world, position.getX() - 1, position.getY(), position.getZ(), treatAsEmpty, WorldSide.EAST)
+                || isSourceNeighbor(world, position.getX(), position.getY(), position.getZ() + 1, treatAsEmpty, WorldSide.NORTH)
+                || isSourceNeighbor(world, position.getX(), position.getY(), position.getZ() - 1, treatAsEmpty, WorldSide.SOUTH)
+                || isSourceNeighbor(world, position.getX(), position.getY() + 1, position.getZ(), treatAsEmpty, WorldSide.DOWN)
+                || isSourceNeighbor(world, position.getX(), position.getY() - 1, position.getZ(), treatAsEmpty, WorldSide.UP);
+    }
+
+    private static boolean isSourceNeighbor(World world, int x, int y, int z, Vector3i treatAsEmpty, WorldSide requiredWorldSide) {
+        if (isTreatAsEmpty(new Vector3i(x, y, z), treatAsEmpty)) {
+            return false;
+        }
+
+        BlockType blockType = world.getBlockType(x, y, z);
+        if (blockType == null || !ConnectableRegistry.isSource(blockType.getId())) {
+            return false;
+        }
+
+        BlockAccessor chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(x, z));
+        if (chunk == null) {
+            return false;
+        }
+
+        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, new Vector3i(x, y, z), RotationTuple.NONE);
+        return hasLocalSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide);
+    }
+
+    private static boolean isTreatAsEmpty(Vector3i position, Vector3i treatAsEmpty) {
+        return treatAsEmpty != null
+                && treatAsEmpty.getX() == position.getX()
+                && treatAsEmpty.getY() == position.getY()
+                && treatAsEmpty.getZ() == position.getZ();
+    }
+
+    private static List<Vector3i> positionsAround(Vector3i center) {
+        LinkedHashSet<Vector3i> positions = new LinkedHashSet<>();
+        positions.add(center);
+        positions.add(new Vector3i(center.getX() + 1, center.getY(), center.getZ()));
+        positions.add(new Vector3i(center.getX() - 1, center.getY(), center.getZ()));
+        positions.add(new Vector3i(center.getX(), center.getY(), center.getZ() + 1));
+        positions.add(new Vector3i(center.getX(), center.getY(), center.getZ() - 1));
+        positions.add(new Vector3i(center.getX(), center.getY() + 1, center.getZ()));
+        positions.add(new Vector3i(center.getX(), center.getY() - 1, center.getZ()));
+        return List.copyOf(positions);
+    }
+
+    private static String modeStateSuffix(World world, int x, int y, int z) {
+        GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, new Vector3i(x, y, z));
+        if (data == null) {
+            return "";
+        }
+
+        return switch (data.currentMode()) {
+            case MODE_PUSH -> "Push";
+            case MODE_PULL -> "Pull";
+            default -> "";
+        };
+    }
+
+    private static String stateBlockKey(BlockType baseType, String baseState, String modeSuffix) {
+        String stateName = stateName(baseType, baseState, modeSuffix);
+        return stateName == null ? null : baseType.getBlockKeyForState(stateName);
+    }
+
+    private static String stateName(BlockType baseType, String baseState, String modeSuffix) {
+        if (baseState == null || baseState.isBlank()) {
+            String defaultStateKey = baseType.getDefaultStateKey();
+            if (defaultStateKey == null || defaultStateKey.isBlank() || "default".equals(defaultStateKey)) {
+                return modeSuffix.isEmpty() ? defaultStateKey : null;
+            }
+
+            String modeState = defaultStateKey + modeSuffix;
+            if (!modeSuffix.isEmpty() && baseType.getBlockKeyForState(modeState) != null) {
+                return modeState;
+            }
+            return defaultStateKey;
+        }
+
+        String modeState = baseState + modeSuffix;
+        if (!modeSuffix.isEmpty() && baseType.getBlockKeyForState(modeState) != null) {
+            return modeState;
+        }
+        return baseState;
+    }
+
+    private static boolean hasLocalSideFacingWorldSide(String blockId, RotationTuple rotation, WorldSide requiredWorldSide) {
+        RotationTuple resolvedRotation = rotation == null ? RotationTuple.NONE : rotation;
+        return isLocalSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_FRONT, requiredWorldSide)
+                || isLocalSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_BACK, requiredWorldSide)
+                || isLocalSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_RIGHT, requiredWorldSide)
+                || isLocalSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_LEFT, requiredWorldSide)
+                || isLocalSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_TOP, requiredWorldSide)
+                || isLocalSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_BOTTOM, requiredWorldSide);
+    }
+
+    private static boolean isLocalSideFacingWorldSide(String blockId, RotationTuple rotation, int localSideMask, WorldSide requiredWorldSide) {
+        return ConnectableRegistry.isConnectableOnSide(blockId, localSideMask)
+                && worldSideForLocalSide(rotation, localSideMask) == requiredWorldSide;
+    }
+
+    private static WorldSide worldSideForLocalSide(RotationTuple rotation, int localSideMask) {
+        Vector3d rotated = rotation.rotate(localNormal(localSideMask));
+        int x = (int) Math.round(rotated.getX());
+        int y = (int) Math.round(rotated.getY());
+        int z = (int) Math.round(rotated.getZ());
+        return WorldSide.fromVector(x, y, z);
+    }
+
+    private static Vector3d localNormal(int localSideMask) {
+        if (localSideMask == ConnectableRegistry.SIDE_FRONT) {
+            return new Vector3d(0, 0, -1);
+        }
+        if (localSideMask == ConnectableRegistry.SIDE_BACK) {
+            return new Vector3d(0, 0, 1);
+        }
+        if (localSideMask == ConnectableRegistry.SIDE_RIGHT) {
+            return new Vector3d(1, 0, 0);
+        }
+        if (localSideMask == ConnectableRegistry.SIDE_LEFT) {
+            return new Vector3d(-1, 0, 0);
+        }
+        if (localSideMask == ConnectableRegistry.SIDE_TOP) {
+            return new Vector3d(0, 1, 0);
+        }
+        if (localSideMask == ConnectableRegistry.SIDE_BOTTOM) {
+            return new Vector3d(0, -1, 0);
+        }
+        throw new IllegalArgumentException("Unknown local side mask: " + localSideMask);
+    }
+
+    private static int buildConnectionsMask(boolean east, boolean west, boolean south, boolean north, boolean up, boolean down) {
+        int mask = 0;
+        if (east) {
+            mask |= CONNECTION_EAST;
+        }
+        if (west) {
+            mask |= CONNECTION_WEST;
+        }
+        if (south) {
+            mask |= CONNECTION_SOUTH;
+        }
+        if (north) {
+            mask |= CONNECTION_NORTH;
+        }
+        if (up) {
+            mask |= CONNECTION_UP;
+        }
+        if (down) {
+            mask |= CONNECTION_DOWN;
+        }
+        return mask;
+    }
+
+    private enum WorldSide {
+        EAST(1, 0, 0),
+        WEST(-1, 0, 0),
+        SOUTH(0, 0, 1),
+        NORTH(0, 0, -1),
+        UP(0, 1, 0),
+        DOWN(0, -1, 0);
+
+        private final int x;
+        private final int y;
+        private final int z;
+
+        WorldSide(int x, int y, int z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        private static WorldSide fromVector(int x, int y, int z) {
+            for (WorldSide side : values()) {
+                if (side.x == x && side.y == y && side.z == z) {
+                    return side;
+                }
+            }
+            throw new IllegalArgumentException("Unsupported world direction vector: " + x + "," + y + "," + z);
+        }
+    }
+
+    private record NeighborGravityPowderData(Vector3i position, GravityPowderBlockData data) {
+    }
+
+    private record ModeDistances(String mode, List<PositionDistance> positionDistances) {
+        private ModeDistances {
+            Objects.requireNonNull(mode, "mode");
+            positionDistances = List.copyOf(positionDistances);
+        }
+    }
+
+    private record GravityPowderStateUpdate(Vector3i position, String nextMode, List<PositionDistance> positionDistances) {
+        private GravityPowderStateUpdate {
+            Objects.requireNonNull(position, "position");
+            Objects.requireNonNull(nextMode, "nextMode");
+            positionDistances = List.copyOf(positionDistances);
+        }
     }
 }

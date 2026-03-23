@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
 
@@ -36,7 +38,7 @@ public final class InverterLogic {
         @Override
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull PlaceBlockEvent event) {
             ItemStack itemInHand = event.getItemInHand();
-            if (itemInHand == null || !CableNetworkUpdater.INVERTER_BLOCK_ID.equals(itemInHand.getItemId())) {
+            if (itemInHand == null || !ConnectableRegistry.INVERTER_BLOCK_ID.equals(itemInHand.getItemId())) {
                 return;
             }
 
@@ -48,6 +50,7 @@ public final class InverterLogic {
 
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
+            ConnectableRotationStore.put(world, target, event.getRotation());
             CableNetworkUpdater.onConnectablePlaced(world, target);
         }
     }
@@ -78,6 +81,7 @@ public final class InverterLogic {
 
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
+            ConnectableRotationStore.remove(world, target);
             CableNetworkUpdater.onConnectableBroken(world, target);
         }
     }
