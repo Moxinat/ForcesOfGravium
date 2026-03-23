@@ -19,10 +19,13 @@ public final class ConnectableRegistry {
 
     private static final Map<String, Integer> CONNECTABLE_SIDE_MASKS = Map.of(
             GRAVITY_POWDER_BLOCK_ID, ALL_SIDES_MASK,
-            INVERTER_BLOCK_ID, ALL_SIDES_MASK
+            INVERTER_BLOCK_ID, ALL_SIDES_MASK,
+            "Rock_Crystal_Blue_Block", ALL_SIDES_MASK
     );
 
-    private static final Set<String> SOURCE_BLOCK_IDS = Set.of();
+    private static final Set<String> SOURCE_BLOCK_IDS = Set.of(
+            "Rock_Crystal_Blue_Block"
+    );
 
     private static final Set<String> MACHINE_BLOCK_IDS = Set.of();
 
@@ -31,6 +34,10 @@ public final class ConnectableRegistry {
 
     public static boolean isConnectable(@Nullable String blockId) {
         return getConnectableSidesMask(blockId) != 0;
+    }
+
+    public static boolean isNotConnectable(@Nullable String blockId) {
+        return !isConnectable(blockId);
     }
 
     public static int getConnectableSidesMask(@Nullable String blockId) {

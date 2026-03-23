@@ -65,6 +65,13 @@ public final class GravityPowderBlockDataStore {
         });
     }
 
+    public static void setNextPositionDistances(@Nonnull World world, @Nonnull Vector3i position, @Nonnull List<PositionDistance> nextPositionDistances) {
+        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
+            GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
+            return data.withNextPositionDistances(nextPositionDistances);
+        });
+    }
+
     public static void addPositionDistance(@Nonnull World world, @Nonnull Vector3i position, @Nonnull Vector3i targetPosition, int distance) {
         DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
             GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
@@ -91,39 +98,45 @@ public final class GravityPowderBlockDataStore {
             int connectionsMask,
             @Nonnull String currentMode,
             @Nonnull String nextMode,
-            @Nonnull List<PositionDistance> positionDistances
+            @Nonnull List<PositionDistance> positionDistances,
+            @Nonnull List<PositionDistance> nextPositionDistances
     ) {
 
         public GravityPowderBlockData {
             currentMode = Objects.requireNonNull(currentMode, "currentMode");
             nextMode = Objects.requireNonNull(nextMode, "nextMode");
             positionDistances = List.copyOf(Objects.requireNonNull(positionDistances, "positionDistances"));
+            nextPositionDistances = List.copyOf(Objects.requireNonNull(nextPositionDistances, "nextPositionDistances"));
         }
 
         public static @Nonnull GravityPowderBlockData defaultData() {
-            return new GravityPowderBlockData(0, "off", "off", List.of());
+            return new GravityPowderBlockData(0, "off", "off", List.of(), List.of());
         }
 
         public @Nonnull GravityPowderBlockData withConnectionsMask(int value) {
-            return new GravityPowderBlockData(value, currentMode, nextMode, positionDistances);
+            return new GravityPowderBlockData(value, currentMode, nextMode, positionDistances, nextPositionDistances);
         }
 
         public @Nonnull GravityPowderBlockData withCurrentMode(@Nonnull String value) {
-            return new GravityPowderBlockData(connectionsMask, Objects.requireNonNull(value, "currentMode"), nextMode, positionDistances);
+            return new GravityPowderBlockData(connectionsMask, Objects.requireNonNull(value, "currentMode"), nextMode, positionDistances, nextPositionDistances);
         }
 
         public @Nonnull GravityPowderBlockData withNextMode(@Nonnull String value) {
-            return new GravityPowderBlockData(connectionsMask, currentMode, Objects.requireNonNull(value, "nextMode"), positionDistances);
+            return new GravityPowderBlockData(connectionsMask, currentMode, Objects.requireNonNull(value, "nextMode"), positionDistances, nextPositionDistances);
         }
 
         public @Nonnull GravityPowderBlockData withPositionDistances(@Nonnull List<PositionDistance> value) {
-            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, value);
+            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, value, nextPositionDistances);
+        }
+
+        public @Nonnull GravityPowderBlockData withNextPositionDistances(@Nonnull List<PositionDistance> value) {
+            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, positionDistances, value);
         }
 
         public @Nonnull GravityPowderBlockData withAddedPositionDistance(@Nonnull Vector3i targetPosition, int distance) {
             List<PositionDistance> updated = new java.util.ArrayList<>(positionDistances);
             updated.add(PositionDistance.from(targetPosition, distance));
-            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, updated);
+            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, updated, nextPositionDistances);
         }
     }
 

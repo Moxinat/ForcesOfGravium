@@ -5,9 +5,9 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import dev.moxinat.forcesofgravium.commands.ForcesOfGraviumCommand;
 import dev.moxinat.forcesofgravium.event.BlockPlacementEvents;
+import dev.moxinat.forcesofgravium.event.ConnectableLogic;
+import dev.moxinat.forcesofgravium.event.ConnectablePropagationSystem;
 import dev.moxinat.forcesofgravium.event.ForcesOfGraviumEvents;
-import dev.moxinat.forcesofgravium.event.GravityPowderLogic;
-import dev.moxinat.forcesofgravium.event.InverterLogic;
 
 import javax.annotation.Nonnull;
 
@@ -24,9 +24,8 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         );
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ForcesOfGraviumEvents::onPlayerReady);
         this.getEntityStoreRegistry().registerSystem(new BlockPlacementEvents.PlaceBlockRotationSystem());
-        this.getEntityStoreRegistry().registerSystem(new GravityPowderLogic.PlaceSystem());
-        this.getEntityStoreRegistry().registerSystem(new GravityPowderLogic.BreakSystem());
-        this.getEntityStoreRegistry().registerSystem(new InverterLogic.PlaceSystem());
-        this.getEntityStoreRegistry().registerSystem(new InverterLogic.BreakSystem());
+        this.getEntityStoreRegistry().registerSystem(new ConnectableLogic.PlaceSystem());
+        this.getEntityStoreRegistry().registerSystem(new ConnectableLogic.BreakSystem());
+        this.getEntityStoreRegistry().registerSystem(new ConnectablePropagationSystem());
     }
 }

@@ -15,9 +15,15 @@ import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.PositionDist
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class CableNetworkUpdater {
 
@@ -42,22 +48,27 @@ public final class CableNetworkUpdater {
     private static final String MODE_OFF = "off";
     private static final String MODE_PUSH = "push";
     private static final String MODE_PULL = "pull";
+    private static final Map<World, Set<Vector3i>> PENDING_CURRENT = new ConcurrentHashMap<>();
+    private static final Map<World, Set<Vector3i>> PENDING_NEXT = new ConcurrentHashMap<>();
 
     private CableNetworkUpdater() {
     }
 
     public static void onConnectablePlaced(World world, Vector3i target) {
-        world.execute(() -> {
-            refreshAround(world, target, null);
-            world.execute(() -> refreshAround(world, target, null));
-        });
+        enqueueCurrent(world, positionsAround(target));
     }
 
     public static void onConnectableBroken(World world, Vector3i target) {
-        world.execute(() -> {
-            refreshAround(world, target, target);
-            world.execute(() -> refreshAround(world, target, null));
-        });
+        enqueueCurrent(world, positionsAround(target));
+    }
+
+    public static void tickPropagation() {
+        Set<World> worlds = new HashSet<>();
+        worlds.addAll(PENDING_CURRENT.keySet());
+        worlds.addAll(PENDING_NEXT.keySet());
+        for (World world : worlds) {
+            tickWorld(world);
+        }
     }
 
     public static boolean isNotGravityPowder(BlockType blockType) {
@@ -76,11 +87,55 @@ public final class CableNetworkUpdater {
         return !ConnectableRegistry.isInverterId(blockType.getId());
     }
 
-    private static void refreshAround(World world, Vector3i center, Vector3i treatAsEmpty) {
-        List<Vector3i> positions = positionsAround(center);
-        updateGravityPowderModes(world, positions, treatAsEmpty);
+    private static void tickWorld(World world) {
+        Set<Vector3i> current = PENDING_CURRENT.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet());
+        if (current.isEmpty()) {
+            Set<Vector3i> next = PENDING_NEXT.remove(world);
+            if (next == null || next.isEmpty()) {
+                PENDING_CURRENT.remove(world, current);
+                return;
+            }
+            current.addAll(next);
+        }
+
+        List<Vector3i> positions = List.copyOf(current);
+        current.clear();
+        if (positions.isEmpty()) {
+            return;
+        }
+
+        List<GravityPowderStateUpdate> plannedUpdates = new ArrayList<>();
         for (Vector3i position : positions) {
-            refreshAt(world, position.getX(), position.getY(), position.getZ(), treatAsEmpty);
+            if (isNotGravityPowder(world.getBlockType(position.getX(), position.getY(), position.getZ()))) {
+                continue;
+            }
+            plannedUpdates.add(computeGravityPowderStateUpdate(world, position));
+        }
+
+        Set<Vector3i> changedPositions = new LinkedHashSet<>();
+        for (GravityPowderStateUpdate update : plannedUpdates) {
+            GravityPowderBlockData existing = GravityPowderBlockDataStore.getOrCreate(world, update.position());
+            GravityPowderBlockDataStore.setNextMode(world, update.position(), update.nextMode());
+            GravityPowderBlockDataStore.setNextPositionDistances(world, update.position(), update.nextPositionDistances());
+
+            boolean changed = !existing.currentMode().equals(update.nextMode())
+                    || !existing.positionDistances().equals(update.nextPositionDistances());
+            if (changed) {
+                GravityPowderBlockDataStore.setCurrentMode(world, update.position(), update.nextMode());
+                GravityPowderBlockDataStore.setPositionDistances(world, update.position(), update.nextPositionDistances());
+                changedPositions.add(update.position());
+            }
+        }
+
+        for (Vector3i position : positions) {
+            refreshAt(world, position.getX(), position.getY(), position.getZ(), null);
+        }
+
+        if (!changedPositions.isEmpty()) {
+            Set<Vector3i> nextQueue = PENDING_NEXT.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet());
+            for (Vector3i changedPosition : changedPositions) {
+                nextQueue.addAll(positionsAround(changedPosition));
+            }
         }
     }
 
@@ -420,7 +475,7 @@ public final class CableNetworkUpdater {
         }
 
         String id = blockType.getId();
-        if (!ConnectableRegistry.isConnectable(id)) {
+        if (ConnectableRegistry.isNotConnectable(id)) {
             return false;
         }
 
@@ -433,30 +488,16 @@ public final class CableNetworkUpdater {
         return hasLocalSideFacingWorldSide(id, rotation, requiredWorldSide);
     }
 
-    private static void updateGravityPowderModes(World world, List<Vector3i> positions, Vector3i treatAsEmpty) {
-        List<GravityPowderStateUpdate> updates = new ArrayList<>();
-        for (Vector3i position : positions) {
-            if (isTreatAsEmpty(position, treatAsEmpty) || isNotGravityPowder(world.getBlockType(position.getX(), position.getY(), position.getZ()))) {
-                continue;
-            }
-            updates.add(computeGravityPowderStateUpdate(world, position, treatAsEmpty));
-        }
-
-        for (GravityPowderStateUpdate update : updates) {
-            GravityPowderBlockDataStore.setPositionDistances(world, update.position(), update.positionDistances());
-            GravityPowderBlockDataStore.setNextMode(world, update.position(), update.nextMode());
-        }
-
-        for (GravityPowderStateUpdate update : updates) {
-            GravityPowderBlockDataStore.setCurrentMode(world, update.position(), update.nextMode());
-        }
-    }
-
-    private static GravityPowderStateUpdate computeGravityPowderStateUpdate(World world, Vector3i position, Vector3i treatAsEmpty) {
+    private static GravityPowderStateUpdate computeGravityPowderStateUpdate(World world, Vector3i position) {
         GravityPowderBlockData selfData = GravityPowderBlockDataStore.getOrCreate(world, position);
-        List<NeighborGravityPowderData> neighbors = neighboringGravityPowders(world, position, treatAsEmpty);
-        boolean hasSourceNeighbor = hasSourceNeighbor(world, position, treatAsEmpty);
+        List<NeighborGravityPowderData> neighbors = neighboringGravityPowders(world, position, null);
+        List<Vector3i> sourceNeighbors = sourceNeighbors(world, position, null);
+        boolean hasSourceNeighbor = !sourceNeighbors.isEmpty();
         List<PositionDistance> retainedDistances = retainReachableDistances(position, selfData.positionDistances(), neighbors);
+
+        if (hasSourceNeighbor) {
+            return new GravityPowderStateUpdate(position, MODE_PUSH, sourceNeighborDistances(sourceNeighbors));
+        }
 
         ModeDistances pushCandidate = mergedCandidate(neighbors, MODE_PUSH);
         ModeDistances pullCandidate = mergedCandidate(neighbors, MODE_PULL);
@@ -484,17 +525,17 @@ public final class CableNetworkUpdater {
         }
 
         if (!retainedDistances.equals(selfData.positionDistances())) {
-            if (!retainedDistances.isEmpty()) {
-                return new GravityPowderStateUpdate(position, currentMode, retainedDistances);
-            }
-            if (!hasSourceNeighbor) {
+            if (retainedDistances.isEmpty()) {
                 return new GravityPowderStateUpdate(position, MODE_OFF, List.of());
             }
-        } else if (!hasSourceNeighbor && retainedDistances.isEmpty()) {
+            return new GravityPowderStateUpdate(position, currentMode, retainedDistances);
+        }
+
+        if (retainedDistances.isEmpty()) {
             return new GravityPowderStateUpdate(position, MODE_OFF, List.of());
         }
 
-        return new GravityPowderStateUpdate(position, currentMode, retainedDistances.isEmpty() ? selfData.positionDistances() : retainedDistances);
+        return new GravityPowderStateUpdate(position, currentMode, selfData.positionDistances());
     }
 
     private static List<PositionDistance> retainReachableDistances(Vector3i position, List<PositionDistance> positionDistances, List<NeighborGravityPowderData> neighbors) {
@@ -594,32 +635,44 @@ public final class CableNetworkUpdater {
         neighbors.add(new NeighborGravityPowderData(neighborPosition, data));
     }
 
-    private static boolean hasSourceNeighbor(World world, Vector3i position, Vector3i treatAsEmpty) {
-        return isSourceNeighbor(world, position.getX() + 1, position.getY(), position.getZ(), treatAsEmpty, WorldSide.WEST)
-                || isSourceNeighbor(world, position.getX() - 1, position.getY(), position.getZ(), treatAsEmpty, WorldSide.EAST)
-                || isSourceNeighbor(world, position.getX(), position.getY(), position.getZ() + 1, treatAsEmpty, WorldSide.NORTH)
-                || isSourceNeighbor(world, position.getX(), position.getY(), position.getZ() - 1, treatAsEmpty, WorldSide.SOUTH)
-                || isSourceNeighbor(world, position.getX(), position.getY() + 1, position.getZ(), treatAsEmpty, WorldSide.DOWN)
-                || isSourceNeighbor(world, position.getX(), position.getY() - 1, position.getZ(), treatAsEmpty, WorldSide.UP);
+    private static List<Vector3i> sourceNeighbors(World world, Vector3i position, Vector3i treatAsEmpty) {
+        List<Vector3i> sources = new ArrayList<>();
+        addSourceNeighbor(world, sources, position.getX() + 1, position.getY(), position.getZ(), treatAsEmpty, WorldSide.WEST);
+        addSourceNeighbor(world, sources, position.getX() - 1, position.getY(), position.getZ(), treatAsEmpty, WorldSide.EAST);
+        addSourceNeighbor(world, sources, position.getX(), position.getY(), position.getZ() + 1, treatAsEmpty, WorldSide.NORTH);
+        addSourceNeighbor(world, sources, position.getX(), position.getY(), position.getZ() - 1, treatAsEmpty, WorldSide.SOUTH);
+        addSourceNeighbor(world, sources, position.getX(), position.getY() + 1, position.getZ(), treatAsEmpty, WorldSide.DOWN);
+        addSourceNeighbor(world, sources, position.getX(), position.getY() - 1, position.getZ(), treatAsEmpty, WorldSide.UP);
+        return List.copyOf(sources);
     }
 
-    private static boolean isSourceNeighbor(World world, int x, int y, int z, Vector3i treatAsEmpty, WorldSide requiredWorldSide) {
+    private static void addSourceNeighbor(World world, List<Vector3i> sources, int x, int y, int z, Vector3i treatAsEmpty, WorldSide requiredWorldSide) {
         if (isTreatAsEmpty(new Vector3i(x, y, z), treatAsEmpty)) {
-            return false;
+            return;
         }
 
         BlockType blockType = world.getBlockType(x, y, z);
         if (blockType == null || !ConnectableRegistry.isSource(blockType.getId())) {
-            return false;
+            return;
         }
 
         BlockAccessor chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(x, z));
         if (chunk == null) {
-            return false;
+            return;
         }
 
         RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, new Vector3i(x, y, z), RotationTuple.NONE);
-        return hasLocalSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide);
+        if (hasLocalSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide)) {
+            sources.add(new Vector3i(x, y, z));
+        }
+    }
+
+    private static List<PositionDistance> sourceNeighborDistances(List<Vector3i> sourceNeighbors) {
+        List<PositionDistance> distances = new ArrayList<>();
+        for (Vector3i sourceNeighbor : sourceNeighbors) {
+            mergeDistance(distances, PositionDistance.from(sourceNeighbor, 1));
+        }
+        return List.copyOf(distances);
     }
 
     private static boolean isTreatAsEmpty(Vector3i position, Vector3i treatAsEmpty) {
@@ -639,6 +692,13 @@ public final class CableNetworkUpdater {
         positions.add(new Vector3i(center.getX(), center.getY() + 1, center.getZ()));
         positions.add(new Vector3i(center.getX(), center.getY() - 1, center.getZ()));
         return List.copyOf(positions);
+    }
+
+    private static void enqueueCurrent(World world, Collection<Vector3i> positions) {
+        if (positions.isEmpty()) {
+            return;
+        }
+        PENDING_CURRENT.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet()).addAll(positions);
     }
 
     private static String modeStateSuffix(World world, int x, int y, int z) {
@@ -786,11 +846,11 @@ public final class CableNetworkUpdater {
         }
     }
 
-    private record GravityPowderStateUpdate(Vector3i position, String nextMode, List<PositionDistance> positionDistances) {
+    private record GravityPowderStateUpdate(Vector3i position, String nextMode, List<PositionDistance> nextPositionDistances) {
         private GravityPowderStateUpdate {
             Objects.requireNonNull(position, "position");
             Objects.requireNonNull(nextMode, "nextMode");
-            positionDistances = List.copyOf(positionDistances);
+            nextPositionDistances = List.copyOf(nextPositionDistances);
         }
     }
 }
