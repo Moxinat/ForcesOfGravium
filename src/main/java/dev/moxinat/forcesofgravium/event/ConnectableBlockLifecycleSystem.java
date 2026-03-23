@@ -16,13 +16,14 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
+import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
 
-public final class ConnectableLogic {
+public final class ConnectableBlockLifecycleSystem {
 
-    private ConnectableLogic() {
+    private ConnectableBlockLifecycleSystem() {
     }
 
     public static final class PlaceSystem extends EntityEventSystem<EntityStore, PlaceBlockEvent> {
@@ -55,7 +56,7 @@ public final class ConnectableLogic {
                 GravityPowderBlockDataStore.putDefault(world, target);
             }
             ConnectableRotationStore.put(world, target, event.getRotation());
-            CableNetworkUpdater.onConnectablePlaced(world, target);
+            ConnectablePropagationScheduler.onConnectablePlaced(world, target);
         }
     }
 
@@ -89,7 +90,7 @@ public final class ConnectableLogic {
             if (ConnectableRegistry.isGravityPowderId(brokenType.getId())) {
                 GravityPowderBlockDataStore.remove(world, target);
             }
-            CableNetworkUpdater.onConnectableBroken(world, target);
+            ConnectablePropagationScheduler.onConnectableBroken(world, target);
         }
     }
 }

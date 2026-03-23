@@ -1,0 +1,155 @@
+package dev.moxinat.forcesofgravium.logic.gravity;
+
+import com.hypixel.hytale.math.vector.Vector3i;
+import com.hypixel.hytale.server.core.universe.world.World;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.PositionDistance;
+import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+public final class GravityPowderStateCalculator {
+
+    public static final String MODE_OFF = "off";
+    public static final String MODE_PUSH = "push";
+    public static final String MODE_PULL = "pull";
+
+    private GravityPowderStateCalculator() {
+    }
+
+    public static GravityPowderStateUpdate computeStateUpdate(World world, Vector3i position) {
+        GravityPowderBlockData selfData = GravityPowderBlockDataStore.getOrCreate(world, position);
+        List<GravityPowderBlockData> neighbors = ConnectableNeighborResolver.neighboringGravityPowderData(world, position, null);
+        List<Vector3i> sourceNeighbors = ConnectableNeighborResolver.sourceNeighbors(world, position, null);
+        boolean hasSourceNeighbor = !sourceNeighbors.isEmpty();
+        List<PositionDistance> retainedDistances = retainReachableDistances(position, selfData.positionDistances(), neighbors);
+
+        if (hasSourceNeighbor) {
+            return new GravityPowderStateUpdate(position, MODE_PUSH, ConnectableNeighborResolver.sourceNeighborDistances(sourceNeighbors));
+        }
+
+        ModeDistances pushCandidate = mergedCandidate(neighbors, MODE_PUSH);
+        ModeDistances pullCandidate = mergedCandidate(neighbors, MODE_PULL);
+        String currentMode = selfData.currentMode();
+
+        if (MODE_OFF.equals(currentMode)) {
+            if (pushCandidate != null) {
+                return new GravityPowderStateUpdate(position, MODE_PUSH, pushCandidate.positionDistances());
+            }
+            if (pullCandidate != null) {
+                return new GravityPowderStateUpdate(position, MODE_PULL, pullCandidate.positionDistances());
+            }
+        }
+
+        if (MODE_PULL.equals(currentMode) && pushCandidate != null) {
+            return new GravityPowderStateUpdate(position, MODE_PUSH, pushCandidate.positionDistances());
+        }
+
+        if (MODE_PUSH.equals(currentMode) && pushCandidate != null) {
+            return new GravityPowderStateUpdate(position, MODE_PUSH, pushCandidate.positionDistances());
+        }
+
+        if (MODE_PULL.equals(currentMode) && pullCandidate != null) {
+            return new GravityPowderStateUpdate(position, MODE_PULL, pullCandidate.positionDistances());
+        }
+
+        if (!retainedDistances.equals(selfData.positionDistances())) {
+            if (retainedDistances.isEmpty()) {
+                return new GravityPowderStateUpdate(position, MODE_OFF, List.of());
+            }
+            return new GravityPowderStateUpdate(position, currentMode, retainedDistances);
+        }
+
+        if (retainedDistances.isEmpty()) {
+            return new GravityPowderStateUpdate(position, MODE_OFF, List.of());
+        }
+
+        return new GravityPowderStateUpdate(position, currentMode, selfData.positionDistances());
+    }
+
+    private static List<PositionDistance> retainReachableDistances(Vector3i position, List<PositionDistance> positionDistances, List<GravityPowderBlockData> neighbors) {
+        List<PositionDistance> retained = new ArrayList<>();
+        for (PositionDistance ownDistance : positionDistances) {
+            if (isTargetAdjacent(position, ownDistance) || hasNeighborWithSmallerDistance(ownDistance, neighbors)) {
+                retained.add(ownDistance);
+            }
+        }
+        return List.copyOf(retained);
+    }
+
+    private static boolean hasNeighborWithSmallerDistance(PositionDistance ownDistance, List<GravityPowderBlockData> neighbors) {
+        for (GravityPowderBlockData neighbor : neighbors) {
+            for (PositionDistance neighborDistance : neighbor.positionDistances()) {
+                if (sameTarget(ownDistance, neighborDistance) && neighborDistance.distance() < ownDistance.distance()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static ModeDistances mergedCandidate(List<GravityPowderBlockData> neighbors, String mode) {
+        List<PositionDistance> merged = new ArrayList<>();
+        for (GravityPowderBlockData neighbor : neighbors) {
+            if (!mode.equals(neighbor.currentMode())) {
+                continue;
+            }
+
+            for (PositionDistance neighborDistance : neighbor.positionDistances()) {
+                mergeDistance(merged, new PositionDistance(
+                        neighborDistance.x(),
+                        neighborDistance.y(),
+                        neighborDistance.z(),
+                        neighborDistance.distance() + 1
+                ));
+            }
+        }
+
+        if (merged.isEmpty()) {
+            return null;
+        }
+        return new ModeDistances(mode, List.copyOf(merged));
+    }
+
+    private static void mergeDistance(List<PositionDistance> distances, PositionDistance candidate) {
+        for (int i = 0; i < distances.size(); i++) {
+            PositionDistance existing = distances.get(i);
+            if (sameTarget(existing, candidate)) {
+                if (candidate.distance() < existing.distance()) {
+                    distances.set(i, candidate);
+                }
+                return;
+            }
+        }
+        distances.add(candidate);
+    }
+
+    private static boolean sameTarget(PositionDistance first, PositionDistance second) {
+        return first.x() == second.x() && first.y() == second.y() && first.z() == second.z();
+    }
+
+    private static boolean isTargetAdjacent(Vector3i position, PositionDistance target) {
+        int dx = Math.abs(position.getX() - target.x());
+        int dy = Math.abs(position.getY() - target.y());
+        int dz = Math.abs(position.getZ() - target.z());
+        return dx + dy + dz == 1;
+    }
+
+    private record ModeDistances(String mode, List<PositionDistance> positionDistances) {
+        private ModeDistances {
+            Objects.requireNonNull(mode, "mode");
+            positionDistances = List.copyOf(positionDistances);
+        }
+    }
+
+    public record GravityPowderStateUpdate(Vector3i position, String nextMode, List<PositionDistance> nextPositionDistances) {
+        public GravityPowderStateUpdate {
+            Objects.requireNonNull(position, "position");
+            Objects.requireNonNull(nextMode, "nextMode");
+            nextPositionDistances = List.copyOf(nextPositionDistances);
+        }
+    }
+}
