@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public final class GravityPowderBlockDataStore {
 
@@ -72,6 +73,34 @@ public final class GravityPowderBlockDataStore {
         });
     }
 
+    public static void setLossTicks(@Nonnull World world, @Nonnull Vector3i position, int lossTicks) {
+        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
+            GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
+            return data.withLossTicks(lossTicks);
+        });
+    }
+
+    public static void setNextLossTicks(@Nonnull World world, @Nonnull Vector3i position, int nextLossTicks) {
+        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
+            GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
+            return data.withNextLossTicks(nextLossTicks);
+        });
+    }
+
+    public static void setStable(@Nonnull World world, @Nonnull Vector3i position, boolean stable) {
+        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
+            GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
+            return data.withStable(stable);
+        });
+    }
+
+    public static void setNextStable(@Nonnull World world, @Nonnull Vector3i position, boolean nextStable) {
+        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
+            GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
+            return data.withNextStable(nextStable);
+        });
+    }
+
     public static void addPositionDistance(@Nonnull World world, @Nonnull Vector3i position, @Nonnull Vector3i targetPosition, int distance) {
         DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
             GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
@@ -94,10 +123,24 @@ public final class GravityPowderBlockDataStore {
         return DATA.size();
     }
 
+    public static @Nonnull Map<Vector3i, GravityPowderBlockData> snapshotForWorld(@Nonnull World world) {
+        String worldId = world.getName();
+        return DATA.entrySet().stream()
+                .filter(entry -> entry.getKey().worldId().equals(worldId))
+                .collect(Collectors.toMap(
+                        entry -> new Vector3i(entry.getKey().x(), entry.getKey().y(), entry.getKey().z()),
+                        Map.Entry::getValue
+                ));
+    }
+
     public record GravityPowderBlockData(
             int connectionsMask,
             @Nonnull String currentMode,
             @Nonnull String nextMode,
+            boolean stable,
+            boolean nextStable,
+            int lossTicks,
+            int nextLossTicks,
             @Nonnull List<PositionDistance> positionDistances,
             @Nonnull List<PositionDistance> nextPositionDistances
     ) {
@@ -110,33 +153,49 @@ public final class GravityPowderBlockDataStore {
         }
 
         public static @Nonnull GravityPowderBlockData defaultData() {
-            return new GravityPowderBlockData(0, "off", "off", List.of(), List.of());
+            return new GravityPowderBlockData(0, "off", "off", false, false, 0, 0, List.of(), List.of());
         }
 
         public @Nonnull GravityPowderBlockData withConnectionsMask(int value) {
-            return new GravityPowderBlockData(value, currentMode, nextMode, positionDistances, nextPositionDistances);
+            return new GravityPowderBlockData(value, currentMode, nextMode, stable, nextStable, lossTicks, nextLossTicks, positionDistances, nextPositionDistances);
         }
 
         public @Nonnull GravityPowderBlockData withCurrentMode(@Nonnull String value) {
-            return new GravityPowderBlockData(connectionsMask, Objects.requireNonNull(value, "currentMode"), nextMode, positionDistances, nextPositionDistances);
+            return new GravityPowderBlockData(connectionsMask, Objects.requireNonNull(value, "currentMode"), nextMode, stable, nextStable, lossTicks, nextLossTicks, positionDistances, nextPositionDistances);
         }
 
         public @Nonnull GravityPowderBlockData withNextMode(@Nonnull String value) {
-            return new GravityPowderBlockData(connectionsMask, currentMode, Objects.requireNonNull(value, "nextMode"), positionDistances, nextPositionDistances);
+            return new GravityPowderBlockData(connectionsMask, currentMode, Objects.requireNonNull(value, "nextMode"), stable, nextStable, lossTicks, nextLossTicks, positionDistances, nextPositionDistances);
+        }
+
+        public @Nonnull GravityPowderBlockData withStable(boolean value) {
+            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, value, nextStable, lossTicks, nextLossTicks, positionDistances, nextPositionDistances);
+        }
+
+        public @Nonnull GravityPowderBlockData withNextStable(boolean value) {
+            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, stable, value, lossTicks, nextLossTicks, positionDistances, nextPositionDistances);
+        }
+
+        public @Nonnull GravityPowderBlockData withLossTicks(int value) {
+            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, stable, nextStable, value, nextLossTicks, positionDistances, nextPositionDistances);
+        }
+
+        public @Nonnull GravityPowderBlockData withNextLossTicks(int value) {
+            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, stable, nextStable, lossTicks, value, positionDistances, nextPositionDistances);
         }
 
         public @Nonnull GravityPowderBlockData withPositionDistances(@Nonnull List<PositionDistance> value) {
-            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, value, nextPositionDistances);
+            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, stable, nextStable, lossTicks, nextLossTicks, value, nextPositionDistances);
         }
 
         public @Nonnull GravityPowderBlockData withNextPositionDistances(@Nonnull List<PositionDistance> value) {
-            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, positionDistances, value);
+            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, stable, nextStable, lossTicks, nextLossTicks, positionDistances, value);
         }
 
         public @Nonnull GravityPowderBlockData withAddedPositionDistance(@Nonnull Vector3i targetPosition, int distance) {
             List<PositionDistance> updated = new java.util.ArrayList<>(positionDistances);
             updated.add(PositionDistance.from(targetPosition, distance));
-            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, updated, nextPositionDistances);
+            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, stable, nextStable, lossTicks, nextLossTicks, updated, nextPositionDistances);
         }
     }
 
