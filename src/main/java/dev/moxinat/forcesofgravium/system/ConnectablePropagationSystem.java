@@ -5,10 +5,12 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
 
+import javax.annotation.Nonnull;
+
 public final class ConnectablePropagationSystem extends TickingSystem<EntityStore> {
 
     @Override
-    public void tick(float delta, int tick, Store<EntityStore> store) {
+    public void tick(float delta, int tick, @Nonnull Store<EntityStore> store) {
         ConnectablePropagationScheduler.tickPropagation();
     }
 }

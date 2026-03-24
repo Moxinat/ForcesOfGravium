@@ -151,7 +151,8 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         if (args.length == 0) {
             return 0;
         }
-        if (getName().equalsIgnoreCase(args[0])) {
+        String commandName = getName();
+        if (commandName != null && commandName.equalsIgnoreCase(args[0])) {
             return 1;
         }
         return 0;

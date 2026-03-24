@@ -74,7 +74,7 @@ public final class ConnectableBlockLifecycleSystem {
         @Override
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull BreakBlockEvent event) {
             BlockType brokenType = event.getBlockType();
-            if (brokenType == null || ConnectableRegistry.isNotConnectable(brokenType.getId())) {
+            if (ConnectableRegistry.isNotConnectable(brokenType.getId())) {
                 return;
             }
 
