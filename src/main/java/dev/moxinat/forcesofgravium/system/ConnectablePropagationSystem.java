@@ -1,4 +1,4 @@
-package dev.moxinat.forcesofgravium.event;
+package dev.moxinat.forcesofgravium.system;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;

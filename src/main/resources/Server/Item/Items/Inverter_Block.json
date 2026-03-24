@@ -5,7 +5,7 @@
   },
   "ItemLevel": 10,
   "MaxStack": 100,
-  "Icon": "Icons/ItemsGenerated/Inverter_front_off.png",
+  "Icon": "Icons/ItemsGenerated/Inverter_Front_Off.png",
   "Categories": [
     "Blocks.Rocks"
   ],
@@ -14,10 +14,10 @@
   "BlockType": {
     "Material": "Solid",
     "DrawType": "Model",
-    "CustomModel": "Blocks/Inverter/inverter_prototype.blockymodel",
+    "CustomModel": "Blocks/Inverter/Inverter_Block.blockymodel",
     "CustomModelTexture": [
       {
-        "Texture": "BlockTextures/Inverter_off_off.png",
+        "Texture": "BlockTextures/Inverter_Off_Off.png",
         "Weight": 1
       }
     ],

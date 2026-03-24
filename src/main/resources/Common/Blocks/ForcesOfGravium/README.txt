@@ -6,6 +6,6 @@ Recommended files:
 - Inverter_Block_Idle.blockyanim
 
 Example asset path from JSON:
-- `Blocks/ForcesOfGravium/Inverter_Block.blockymodel`
+- `Blocks/Inverter/Inverter_Block.blockymodel`
 
 Use this folder for non-cube blocks that need a `.blockymodel`.

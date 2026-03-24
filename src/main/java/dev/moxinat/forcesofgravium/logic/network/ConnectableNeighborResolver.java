@@ -11,6 +11,7 @@ import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.PositionDistance;
+import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import java.util.ArrayList;
@@ -142,7 +143,7 @@ public final class ConnectableNeighborResolver {
         }
 
         BlockType blockType = world.getBlockType(x, y, z);
-        if (blockType == null || !ConnectableRegistry.isSource(blockType.getId())) {
+        if (blockType == null || !ConnectableBlockRoles.isSource(blockType.getId())) {
             return;
         }
 

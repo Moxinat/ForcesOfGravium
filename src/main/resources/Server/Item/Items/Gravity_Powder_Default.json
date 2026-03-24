@@ -5,7 +5,7 @@
   },
   "ItemLevel": 10,
   "MaxStack": 100,
-  "Icon": "Icons/ItemsGenerated/grav_powderOff.png",
+  "Icon": "Icons/ItemsGenerated/Gravity_Powder_Off.png",
   "Categories": [
     "Blocks.Rocks"
   ],
@@ -15,10 +15,10 @@
     "Material": "Empty",
     "DrawType": "Model",
     "HitboxType": "Gravity_Powder_Custom",
-    "CustomModel": "Blocks/Gravity_Powder/gravity_powder_default.blockymodel",
+    "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_Default.blockymodel",
     "CustomModelTexture": [
       {
-        "Texture": "BlockTextures/grav_powderOff.png",
+        "Texture": "BlockTextures/Gravity_Powder_Off.png",
         "Weight": 1
       }
     ],
@@ -27,244 +27,244 @@
     "State": {
       "Definitions": {
         "OneConnect": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_oneconnect.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_OneConnect.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderOff.png",
+              "Texture": "BlockTextures/Gravity_Powder_Off.png",
               "Weight": 1
             }
           ]
         },
         "OneConnectPush": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_oneconnect.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_OneConnect.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPush.png",
+              "Texture": "BlockTextures/Gravity_Powder_Push.png",
               "Weight": 1
             }
           ]
         },
         "OneConnectPull": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_oneconnect.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_OneConnect.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPull.png",
+              "Texture": "BlockTextures/Gravity_Powder_Pull.png",
               "Weight": 1
             }
           ]
         },
         "Straight": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_straight.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_Straight.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderOff.png",
+              "Texture": "BlockTextures/Gravity_Powder_Off.png",
               "Weight": 1
             }
           ]
         },
         "StraightPush": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_straight.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_Straight.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPush.png",
+              "Texture": "BlockTextures/Gravity_Powder_Push.png",
               "Weight": 1
             }
           ]
         },
         "StraightPull": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_straight.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_Straight.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPull.png",
+              "Texture": "BlockTextures/Gravity_Powder_Pull.png",
               "Weight": 1
             }
           ]
         },
         "Curve": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_curve.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_Curve.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderOff.png",
+              "Texture": "BlockTextures/Gravity_Powder_Off.png",
               "Weight": 1
             }
           ]
         },
         "CurvePush": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_curve.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_Curve.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPush.png",
+              "Texture": "BlockTextures/Gravity_Powder_Push.png",
               "Weight": 1
             }
           ]
         },
         "CurvePull": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_curve.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_Curve.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPull.png",
+              "Texture": "BlockTextures/Gravity_Powder_Pull.png",
               "Weight": 1
             }
           ]
         },
         "ThreeDCurve": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_3dcurve.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_3DCurve.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderOff.png",
+              "Texture": "BlockTextures/Gravity_Powder_Off.png",
               "Weight": 1
             }
           ]
         },
         "ThreeDCurvePush": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_3dcurve.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_3DCurve.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPush.png",
+              "Texture": "BlockTextures/Gravity_Powder_Push.png",
               "Weight": 1
             }
           ]
         },
         "ThreeDCurvePull": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_3dcurve.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_3DCurve.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPull.png",
+              "Texture": "BlockTextures/Gravity_Powder_Pull.png",
               "Weight": 1
             }
           ]
         },
         "Cross": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_cross.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_Cross.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderOff.png",
+              "Texture": "BlockTextures/Gravity_Powder_Off.png",
               "Weight": 1
             }
           ]
         },
         "CrossPush": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_cross.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_Cross.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPush.png",
+              "Texture": "BlockTextures/Gravity_Powder_Push.png",
               "Weight": 1
             }
           ]
         },
         "CrossPull": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_cross.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_Cross.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPull.png",
+              "Texture": "BlockTextures/Gravity_Powder_Pull.png",
               "Weight": 1
             }
           ]
         },
         "FourCurve": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_fourcurve.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_FourCurve.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderOff.png",
+              "Texture": "BlockTextures/Gravity_Powder_Off.png",
               "Weight": 1
             }
           ]
         },
         "FourCurvePush": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_fourcurve.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_FourCurve.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPush.png",
+              "Texture": "BlockTextures/Gravity_Powder_Push.png",
               "Weight": 1
             }
           ]
         },
         "FourCurvePull": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_fourcurve.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_FourCurve.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPull.png",
+              "Texture": "BlockTextures/Gravity_Powder_Pull.png",
               "Weight": 1
             }
           ]
         },
         "FiveCross": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_fivecross.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_FiveCross.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderOff.png",
+              "Texture": "BlockTextures/Gravity_Powder_Off.png",
               "Weight": 1
             }
           ]
         },
         "FiveCrossPush": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_fivecross.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_FiveCross.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPush.png",
+              "Texture": "BlockTextures/Gravity_Powder_Push.png",
               "Weight": 1
             }
           ]
         },
         "FiveCrossPull": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_fivecross.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_FiveCross.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPull.png",
+              "Texture": "BlockTextures/Gravity_Powder_Pull.png",
               "Weight": 1
             }
           ]
         },
         "AllConnect": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_allconnect.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_AllConnect.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderOff.png",
+              "Texture": "BlockTextures/Gravity_Powder_Off.png",
               "Weight": 1
             }
           ]
         },
         "AllConnectPush": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_allconnect.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_AllConnect.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPush.png",
+              "Texture": "BlockTextures/Gravity_Powder_Push.png",
               "Weight": 1
             }
           ]
         },
         "AllConnectPull": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_allconnect.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_AllConnect.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPull.png",
+              "Texture": "BlockTextures/Gravity_Powder_Pull.png",
               "Weight": 1
             }
           ]
         },
         "TConnect": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_Tconnect.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_TConnect.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderOff.png",
+              "Texture": "BlockTextures/Gravity_Powder_Off.png",
               "Weight": 1
             }
           ]
         },
         "TConnectPush": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_Tconnect.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_TConnect.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPush.png",
+              "Texture": "BlockTextures/Gravity_Powder_Push.png",
               "Weight": 1
             }
           ]
         },
         "TConnectPull": {
-          "CustomModel": "Blocks/Gravity_Powder/gravity_powder_Tconnect.blockymodel",
+          "CustomModel": "Blocks/Gravity_Powder/Gravity_Powder_TConnect.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/grav_powderPull.png",
+              "Texture": "BlockTextures/Gravity_Powder_Pull.png",
               "Weight": 1
             }
           ]
