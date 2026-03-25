@@ -11,6 +11,8 @@ import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.PositionDistance;
+import dev.moxinat.forcesofgravium.data.InverterDataStore;
+import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
@@ -62,6 +64,17 @@ public final class ConnectableNeighborResolver {
         addNeighboringGravityPowderData(world, neighbors, new Vector3i(position.getX(), position.getY(), position.getZ() - 1), treatAsEmpty);
         addNeighboringGravityPowderData(world, neighbors, new Vector3i(position.getX(), position.getY() + 1, position.getZ()), treatAsEmpty);
         addNeighboringGravityPowderData(world, neighbors, new Vector3i(position.getX(), position.getY() - 1, position.getZ()), treatAsEmpty);
+        return List.copyOf(neighbors);
+    }
+
+    public static List<InverterData> neighboringFrontFacingInverterData(World world, Vector3i position, Vector3i treatAsEmpty) {
+        List<InverterData> neighbors = new ArrayList<>();
+        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX() + 1, position.getY(), position.getZ()), treatAsEmpty);
+        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX() - 1, position.getY(), position.getZ()), treatAsEmpty);
+        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX(), position.getY(), position.getZ() + 1), treatAsEmpty);
+        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX(), position.getY(), position.getZ() - 1), treatAsEmpty);
+        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX(), position.getY() + 1, position.getZ()), treatAsEmpty);
+        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX(), position.getY() - 1, position.getZ()), treatAsEmpty);
         return List.copyOf(neighbors);
     }
 
@@ -137,6 +150,27 @@ public final class ConnectableNeighborResolver {
         neighbors.add(data);
     }
 
+    private static void addNeighboringFrontFacingInverterData(World world, List<InverterData> neighbors, Vector3i position, Vector3i neighborPosition, Vector3i treatAsEmpty) {
+        if (isTreatAsEmpty(neighborPosition, treatAsEmpty)) {
+            return;
+        }
+
+        BlockType blockType = world.getBlockType(neighborPosition.getX(), neighborPosition.getY(), neighborPosition.getZ());
+        if (blockType == null || !ConnectableRegistry.isInverterId(blockType.getId())) {
+            return;
+        }
+
+        Vector3i frontPosition = adjacentPositionForLocalSide(world, neighborPosition, ConnectableRegistry.SIDE_FRONT);
+        if (!frontPosition.equals(position)) {
+            return;
+        }
+
+        InverterData data = InverterDataStore.get(world, neighborPosition);
+        if (data != null) {
+            neighbors.add(data);
+        }
+    }
+
     private static void addSourceNeighbor(World world, List<Vector3i> sources, int x, int y, int z, Vector3i treatAsEmpty, WorldSide requiredWorldSide) {
         if (isTreatAsEmpty(new Vector3i(x, y, z), treatAsEmpty)) {
             return;
@@ -173,7 +207,20 @@ public final class ConnectableNeighborResolver {
                 && worldSideForLocalSide(rotation, localSideMask) == requiredWorldSide;
     }
 
-    private static WorldSide worldSideForLocalSide(RotationTuple rotation, int localSideMask) {
+    public static Vector3i adjacentPositionForLocalSide(World world, Vector3i position, int localSideMask) {
+        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, position, RotationTuple.NONE);
+        WorldSide worldSide = worldSideForLocalSide(rotation, localSideMask);
+        return switch (worldSide) {
+            case EAST -> new Vector3i(position.getX() + 1, position.getY(), position.getZ());
+            case WEST -> new Vector3i(position.getX() - 1, position.getY(), position.getZ());
+            case SOUTH -> new Vector3i(position.getX(), position.getY(), position.getZ() + 1);
+            case NORTH -> new Vector3i(position.getX(), position.getY(), position.getZ() - 1);
+            case UP -> new Vector3i(position.getX(), position.getY() + 1, position.getZ());
+            case DOWN -> new Vector3i(position.getX(), position.getY() - 1, position.getZ());
+        };
+    }
+
+    public static WorldSide worldSideForLocalSide(RotationTuple rotation, int localSideMask) {
         Vector3d rotated = rotation.rotate(localNormal(localSideMask));
         int x = (int) Math.round(rotated.getX());
         int y = (int) Math.round(rotated.getY());
@@ -183,10 +230,10 @@ public final class ConnectableNeighborResolver {
 
     private static Vector3d localNormal(int localSideMask) {
         if (localSideMask == ConnectableRegistry.SIDE_FRONT) {
-            return new Vector3d(0, 0, -1);
+            return new Vector3d(0, 0, 1);
         }
         if (localSideMask == ConnectableRegistry.SIDE_BACK) {
-            return new Vector3d(0, 0, 1);
+            return new Vector3d(0, 0, -1);
         }
         if (localSideMask == ConnectableRegistry.SIDE_RIGHT) {
             return new Vector3d(1, 0, 0);

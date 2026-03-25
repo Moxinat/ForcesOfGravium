@@ -69,3 +69,16 @@ Examples:
 
 Use `.\gradlew.bat devServer` on Windows or `./gradlew devServer` on Linux/macOS to start the local
 development server.
+
+## Commands
+
+- `/fog gpdist all`
+  Lists all stored gravity powder entries for the current world.
+- `/fog gpdist here`
+  Shows the stored gravity powder data at the player's current block position.
+- `/fog gpdist <x> <y> <z>`
+  Shows the stored gravity powder data at a specific block position.
+- `/fog saveinfo`
+  Shows the current world save file path used by the mod persistence layer.
+- `/fog saveworld`
+  Triggers an immediate save for the current world's ForcesOfGravium data.

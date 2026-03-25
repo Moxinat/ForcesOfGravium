@@ -5,9 +5,13 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
+import dev.moxinat.forcesofgravium.data.InverterDataStore;
+import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderBlockRefresher;
 import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderStateCalculator;
 import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderStateCalculator.GravityPowderStateUpdate;
+import dev.moxinat.forcesofgravium.logic.inverter.InverterStateCalculator;
+import dev.moxinat.forcesofgravium.logic.inverter.InverterStateCalculator.InverterStateUpdate;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import java.util.HashSet;
@@ -68,17 +72,27 @@ public final class ConnectablePropagationScheduler {
         }
 
         Set<Vector3i> changedPositions = new LinkedHashSet<>();
-        Map<Vector3i, GravityPowderStateUpdate> updates = new ConcurrentHashMap<>();
+        Map<Vector3i, InverterStateUpdate> inverterUpdates = new ConcurrentHashMap<>();
+        for (Vector3i position : positions) {
+            if (!isNotInverter(world.getBlockType(position.getX(), position.getY(), position.getZ()))) {
+                InverterStateUpdate update = InverterStateCalculator.computeStateUpdate(world, position);
+                inverterUpdates.put(update.position(), update);
+            }
+        }
+
+        applyInverterUpdates(world, inverterUpdates, changedPositions);
+
+        Map<Vector3i, GravityPowderStateUpdate> powderUpdates = new ConcurrentHashMap<>();
         for (Vector3i position : positions) {
             if (isNotGravityPowder(world.getBlockType(position.getX(), position.getY(), position.getZ()))) {
                 continue;
             }
 
             GravityPowderStateUpdate update = GravityPowderStateCalculator.computeStateUpdate(world, position);
-            updates.put(update.position(), update);
+            powderUpdates.put(update.position(), update);
         }
 
-        for (GravityPowderStateUpdate update : updates.values()) {
+        for (GravityPowderStateUpdate update : powderUpdates.values()) {
             GravityPowderBlockData existing = GravityPowderBlockDataStore.getOrCreate(world, update.position());
             GravityPowderBlockDataStore.setNextMode(world, update.position(), update.nextMode());
             GravityPowderBlockDataStore.setNextStable(world, update.position(), update.nextStable());
@@ -105,20 +119,53 @@ public final class ConnectablePropagationScheduler {
         if (!changedPositions.isEmpty()) {
             Set<Vector3i> nextQueue = PENDING_NEXT.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet());
             for (Vector3i changedPosition : changedPositions) {
-                GravityPowderBlockData changedData = GravityPowderBlockDataStore.get(world, changedPosition);
-                if (changedData != null && GravityPowderStateCalculator.MODE_OFF.equals(changedData.currentMode())) {
-                    for (Vector3i neighbor : ConnectableNeighborResolver.positionsAround(changedPosition)) {
-                        if (neighbor.equals(changedPosition)) {
-                            continue;
-                        }
-                        if (isNotGravityPowder(world.getBlockType(neighbor.getX(), neighbor.getY(), neighbor.getZ()))) {
-                            continue;
-                        }
-                        GravityPowderBlockDataStore.setStable(world, neighbor, false);
-                    }
-                }
+                markAdjacentPowderUnstableIfSignalTurnedOff(world, changedPosition);
                 nextQueue.addAll(ConnectableNeighborResolver.positionsAround(changedPosition));
             }
+        }
+    }
+
+    private static void applyInverterUpdates(World world, Map<Vector3i, InverterStateUpdate> updates, Set<Vector3i> changedPositions) {
+        for (InverterStateUpdate update : updates.values()) {
+            InverterData existing = InverterDataStore.getOrCreate(world, update.position());
+            InverterDataStore.setNextMode(world, update.position(), update.nextMode());
+            InverterDataStore.setNextStable(world, update.position(), update.nextStable());
+            InverterDataStore.setNextPositionDistances(world, update.position(), update.nextPositionDistances());
+
+            boolean changed = !existing.currentMode().equals(update.nextMode())
+                    || existing.stable() != update.nextStable()
+                    || !existing.positionDistances().equals(update.nextPositionDistances());
+            if (changed) {
+                InverterDataStore.setCurrentMode(world, update.position(), update.nextMode());
+                InverterDataStore.setStable(world, update.position(), update.nextStable());
+                InverterDataStore.setPositionDistances(world, update.position(), update.nextPositionDistances());
+                changedPositions.add(update.position());
+            }
+        }
+    }
+
+    private static void markAdjacentPowderUnstableIfSignalTurnedOff(World world, Vector3i changedPosition) {
+        GravityPowderBlockData powderData = GravityPowderBlockDataStore.get(world, changedPosition);
+        if (powderData != null && GravityPowderStateCalculator.MODE_OFF.equals(powderData.currentMode())) {
+            markAdjacentPowderUnstable(world, changedPosition);
+            return;
+        }
+
+        InverterData inverterData = InverterDataStore.get(world, changedPosition);
+        if (inverterData != null && GravityPowderStateCalculator.MODE_OFF.equals(inverterData.currentMode())) {
+            markAdjacentPowderUnstable(world, changedPosition);
+        }
+    }
+
+    private static void markAdjacentPowderUnstable(World world, Vector3i changedPosition) {
+        for (Vector3i neighbor : ConnectableNeighborResolver.positionsAround(changedPosition)) {
+            if (neighbor.equals(changedPosition)) {
+                continue;
+            }
+            if (isNotGravityPowder(world.getBlockType(neighbor.getX(), neighbor.getY(), neighbor.getZ()))) {
+                continue;
+            }
+            GravityPowderBlockDataStore.setStable(world, neighbor, false);
         }
     }
 

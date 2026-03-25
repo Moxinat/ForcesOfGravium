@@ -1,6 +1,7 @@
 package dev.moxinat.forcesofgravium;
 
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
+import com.hypixel.hytale.server.core.event.events.ShutdownEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import dev.moxinat.forcesofgravium.commands.ForcesOfGraviumCommand;
@@ -23,6 +24,7 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
             new ForcesOfGraviumCommand("fog", "Main command for ForcesOfGravium")
         );
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ForcesOfGraviumEvents::onPlayerReady);
+        this.getEventRegistry().registerGlobal(ShutdownEvent.class, ForcesOfGraviumEvents::onShutdown);
         this.getEntityStoreRegistry().registerSystem(new BlockPlacementRotationSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlaceSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.BreakSystem());

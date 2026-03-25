@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.PositionDistance;
+import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,8 +34,16 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             handleGravityPowderDistances(context, args, startIndex);
             return CompletableFuture.completedFuture(null);
         }
+        if (args.length - startIndex >= 1 && "saveinfo".equalsIgnoreCase(args[startIndex])) {
+            handleSaveInfo(context);
+            return CompletableFuture.completedFuture(null);
+        }
+        if (args.length - startIndex >= 1 && "saveworld".equalsIgnoreCase(args[startIndex])) {
+            handleSaveWorld(context);
+            return CompletableFuture.completedFuture(null);
+        }
 
-        context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z>"));
+        context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z> | /fog saveinfo | /fog saveworld"));
         return CompletableFuture.completedFuture(null);
     }
 
@@ -79,6 +88,44 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             sendSingleGravityPowderDistance(context, world, new Vector3i(x, y, z));
         } catch (NumberFormatException exception) {
             context.sendMessage(Message.raw("Coordinates must be integers."));
+        }
+    }
+
+    private void handleSaveInfo(@Nonnull CommandContext context) {
+        if (!context.isPlayer()) {
+            context.sendMessage(Message.raw("This command currently requires a player sender."));
+            return;
+        }
+
+        Player player = context.senderAs(Player.class);
+        if (player.getWorld() == null) {
+            context.sendMessage(Message.raw("Could not resolve player world."));
+            return;
+        }
+
+        context.sendMessage(Message.raw("World save path: " + WorldSaveFileService.debugSaveFilePath(player.getWorld())));
+    }
+
+    private void handleSaveWorld(@Nonnull CommandContext context) {
+        if (!context.isPlayer()) {
+            context.sendMessage(Message.raw("This command currently requires a player sender."));
+            return;
+        }
+
+        Player player = context.senderAs(Player.class);
+        if (player.getWorld() == null) {
+            context.sendMessage(Message.raw("Could not resolve player world."));
+            return;
+        }
+
+        World world = player.getWorld();
+        WorldSaveFileService.forceSaveWorld(world);
+        context.sendMessage(Message.raw("Triggered forced save for world '" + world.getName() + "'."));
+        context.sendMessage(Message.raw("World save path: " + WorldSaveFileService.debugSaveFilePath(world)));
+        context.sendMessage(Message.raw("Save file exists: " + WorldSaveFileService.debugSaveFileExists(world)));
+        String lastError = WorldSaveFileService.debugLastSaveError(world);
+        if (!lastError.isBlank()) {
+            context.sendMessage(Message.raw("Last save error: " + lastError));
         }
     }
 
