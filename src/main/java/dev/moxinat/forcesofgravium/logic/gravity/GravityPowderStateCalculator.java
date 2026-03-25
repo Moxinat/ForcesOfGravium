@@ -31,9 +31,10 @@ public final class GravityPowderStateCalculator {
         List<NeighborSignal> neighbors = neighboringSignals(world, position);
         List<Vector3i> sourceNeighbors = ConnectableNeighborResolver.sourceNeighbors(world, position, null);
         boolean hasSourceNeighbor = !sourceNeighbors.isEmpty();
+        String currentMode = selfData.currentMode();
         List<PositionDistance> retainedDistances = retainReachableDistances(world, position, selfData.positionDistances(), neighbors, sourceNeighbors);
-        ModeDistances pushCandidate = mergedCandidate(world, selfData.positionDistances(), neighbors, MODE_PUSH);
-        ModeDistances pullCandidate = mergedCandidate(world, selfData.positionDistances(), neighbors, MODE_PULL);
+        ModeDistances pushCandidate = mergedCandidate(world, neighbors, MODE_PUSH);
+        ModeDistances pullCandidate = mergedCandidate(world, neighbors, MODE_PULL);
 
         if (hasSourceNeighbor) {
             List<PositionDistance> nextDistances = mergeDistanceLists(
@@ -44,44 +45,131 @@ public final class GravityPowderStateCalculator {
             return new GravityPowderStateUpdate(position, MODE_PUSH, true, 0, nextDistances);
         }
 
-        String currentMode = selfData.currentMode();
-
         if (MODE_OFF.equals(currentMode)) {
             if (pushCandidate != null) {
-                return new GravityPowderStateUpdate(position, MODE_PUSH, true, 0, pushCandidate.positionDistances());
+                return new GravityPowderStateUpdate(
+                        position,
+                        MODE_PUSH,
+                        true,
+                        0,
+                        mergeDistanceLists(
+                                retainedDistances,
+                                acceptedCandidateDistances(selfData.positionDistances(), pushCandidate.positionDistances())
+                        )
+                );
             }
             if (pullCandidate != null) {
-                return new GravityPowderStateUpdate(position, MODE_PULL, true, 0, pullCandidate.positionDistances());
+                return new GravityPowderStateUpdate(
+                        position,
+                        MODE_PULL,
+                        true,
+                        0,
+                        mergeDistanceLists(
+                                retainedDistances,
+                                acceptedCandidateDistances(selfData.positionDistances(), pullCandidate.positionDistances())
+                        )
+                );
             }
         }
 
         if (MODE_PULL.equals(currentMode) && pushCandidate != null) {
-            return new GravityPowderStateUpdate(position, MODE_PUSH, true, 0, pushCandidate.positionDistances());
+            return new GravityPowderStateUpdate(
+                    position,
+                    MODE_PUSH,
+                    true,
+                    0,
+                    mergeDistanceLists(
+                            retainedDistances,
+                            acceptedCandidateDistances(selfData.positionDistances(), pushCandidate.positionDistances())
+                    )
+            );
         }
 
         if (MODE_PUSH.equals(currentMode)) {
-            List<PositionDistance> nextDistances = mergeDistanceLists(
-                    retainedDistances,
-                    pushCandidate == null ? List.of() : pushCandidate.positionDistances()
-            );
-            if (!nextDistances.isEmpty()) {
-                return new GravityPowderStateUpdate(position, MODE_PUSH, true, 0, nextDistances);
+            if (pushCandidate != null) {
+                return new GravityPowderStateUpdate(
+                        position,
+                        MODE_PUSH,
+                        true,
+                        0,
+                        mergeDistanceLists(
+                                retainedDistances,
+                                acceptedCandidateDistances(selfData.positionDistances(), pushCandidate.positionDistances())
+                        )
+                );
+            }
+            if (pullCandidate != null) {
+                return new GravityPowderStateUpdate(
+                        position,
+                        MODE_PULL,
+                        true,
+                        0,
+                        mergeDistanceLists(
+                                retainedDistances,
+                                acceptedCandidateDistances(selfData.positionDistances(), pullCandidate.positionDistances())
+                        )
+                );
             }
             return new GravityPowderStateUpdate(position, MODE_OFF, false, 0, List.of());
         }
 
         if (MODE_PULL.equals(currentMode) && pullCandidate != null) {
-            return new GravityPowderStateUpdate(position, MODE_PULL, true, 0, pullCandidate.positionDistances());
+            return new GravityPowderStateUpdate(
+                    position,
+                    MODE_PULL,
+                    true,
+                    0,
+                    mergeDistanceLists(
+                            retainedDistances,
+                            acceptedCandidateDistances(selfData.positionDistances(), pullCandidate.positionDistances())
+                    )
+            );
         }
 
         if (!retainedDistances.equals(selfData.positionDistances())) {
             if (retainedDistances.isEmpty()) {
+                if (pushCandidate != null) {
+                    return new GravityPowderStateUpdate(
+                            position,
+                            MODE_PUSH,
+                            true,
+                            0,
+                            acceptedCandidateDistances(selfData.positionDistances(), pushCandidate.positionDistances())
+                    );
+                }
+                if (pullCandidate != null) {
+                    return new GravityPowderStateUpdate(
+                            position,
+                            MODE_PULL,
+                            true,
+                            0,
+                            acceptedCandidateDistances(selfData.positionDistances(), pullCandidate.positionDistances())
+                    );
+                }
                 return new GravityPowderStateUpdate(position, MODE_OFF, false, 0, List.of());
             }
             return new GravityPowderStateUpdate(position, currentMode, true, 0, retainedDistances);
         }
 
         if (retainedDistances.isEmpty()) {
+            if (pushCandidate != null) {
+                return new GravityPowderStateUpdate(
+                        position,
+                        MODE_PUSH,
+                        true,
+                        0,
+                        acceptedCandidateDistances(selfData.positionDistances(), pushCandidate.positionDistances())
+                );
+            }
+            if (pullCandidate != null) {
+                return new GravityPowderStateUpdate(
+                        position,
+                        MODE_PULL,
+                        true,
+                        0,
+                        acceptedCandidateDistances(selfData.positionDistances(), pullCandidate.positionDistances())
+                );
+            }
             return new GravityPowderStateUpdate(position, MODE_OFF, false, 0, List.of());
         }
 
@@ -118,7 +206,7 @@ public final class GravityPowderStateCalculator {
         return false;
     }
 
-    private static ModeDistances mergedCandidate(World world, List<PositionDistance> ownDistances, List<NeighborSignal> neighbors, String mode) {
+    private static ModeDistances mergedCandidate(World world, List<NeighborSignal> neighbors, String mode) {
         List<PositionDistance> merged = new ArrayList<>();
         for (NeighborSignal neighbor : neighbors) {
             if (!neighbor.stable()) {
@@ -138,9 +226,6 @@ public final class GravityPowderStateCalculator {
                         neighborDistance.z(),
                         neighborDistance.distance() + 1
                 );
-                if (!canAcceptCandidateDistance(ownDistances, candidate)) {
-                    continue;
-                }
                 mergeDistance(merged, candidate);
             }
         }
@@ -149,6 +234,16 @@ public final class GravityPowderStateCalculator {
             return null;
         }
         return new ModeDistances(mode, List.copyOf(merged));
+    }
+
+    private static List<PositionDistance> acceptedCandidateDistances(List<PositionDistance> ownDistances, List<PositionDistance> candidateDistances) {
+        List<PositionDistance> accepted = new ArrayList<>();
+        for (PositionDistance candidateDistance : candidateDistances) {
+            if (canAcceptCandidateDistance(ownDistances, candidateDistance)) {
+                mergeDistance(accepted, candidateDistance);
+            }
+        }
+        return List.copyOf(accepted);
     }
 
     private static boolean hasLivePathToSource(World world, Vector3i position, PositionDistance distance, Set<PathNode> visited) {
@@ -161,17 +256,17 @@ public final class GravityPowderStateCalculator {
             return false;
         }
 
-        if (distance.distance() == 1) {
-            return isAdjacent(position, new Vector3i(distance.x(), distance.y(), distance.z()))
-                    && isLiveSourceTarget(world, distance);
-        }
-
         BlockType currentBlockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
         if (currentBlockType != null && ConnectableRegistry.isInverterId(currentBlockType.getId())) {
             PositionDistance backNeighborDistance = matchingBackNeighborDistance(world, position, distance);
             if (backNeighborDistance != null && hasLivePathToSource(world, backNeighborPosition(world, position), backNeighborDistance, visited)) {
                 return true;
             }
+        }
+
+        if (distance.distance() == 1) {
+            return isAdjacent(position, new Vector3i(distance.x(), distance.y(), distance.z()))
+                    && isLiveSourceTarget(world, distance);
         }
 
         for (NeighborSignal neighbor : neighboringSignals(world, position)) {
