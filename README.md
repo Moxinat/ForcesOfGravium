@@ -73,12 +73,20 @@ development server.
 ## Commands
 
 - `/fog gpdist all`
-  Lists all stored gravity powder entries for the current world.
+  Lists all stored gravity powder entries for the current world, including `mode`, `decayMark`, and `decayLockTicks`.
 - `/fog gpdist here`
   Shows the stored gravity powder data at the player's current block position.
 - `/fog gpdist <x> <y> <z>`
   Shows the stored gravity powder data at a specific block position.
+- `/fog invdist all`
+  Lists all stored inverter entries for the current world.
+- `/fog invdist here`
+  Shows the stored inverter data at the block below the player.
+- `/fog invdist <x> <y> <z>`
+  Shows the stored inverter data at a specific block position.
 - `/fog saveinfo`
   Shows the current world save file path used by the mod persistence layer.
 - `/fog saveworld`
   Triggers an immediate save for the current world's ForcesOfGravium data.
+- `/fog reconnectdebug on|off`
+  Toggles in-game chat debug messages for the reconnect wave-clear flow after placing gravity powder.

@@ -60,7 +60,7 @@ public final class ConnectableBlockLifecycleSystem {
                 InverterDataStore.putDefault(world, target);
             }
             ConnectableRotationStore.put(world, target, event.getRotation());
-            ConnectablePropagationScheduler.onConnectablePlaced(world, target);
+            ConnectablePropagationScheduler.onConnectablePlaced(world, target, player);
         }
     }
 

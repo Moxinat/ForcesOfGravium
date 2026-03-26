@@ -7,11 +7,9 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.PositionDistance;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import org.bson.BsonArray;
-import org.bson.BsonBoolean;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
@@ -166,12 +164,8 @@ public final class WorldSaveFileService {
                     entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
                     entry.getString("currentMode", new BsonString("off")).getValue(),
                     entry.getString("nextMode", new BsonString("off")).getValue(),
-                    entry.getBoolean("stable", BsonBoolean.FALSE).getValue(),
-                    entry.getBoolean("nextStable", BsonBoolean.FALSE).getValue(),
-                    entry.getInt32("lossTicks", new BsonInt32(0)).getValue(),
-                    entry.getInt32("nextLossTicks", new BsonInt32(0)).getValue(),
-                    readDistances(entry.getArray("positionDistances", new BsonArray())),
-                    readDistances(entry.getArray("nextPositionDistances", new BsonArray()))
+                    entry.getString("decayMark", new BsonString(GravityPowderBlockDataStore.WAVE_NONE)).getValue(),
+                    entry.getInt32("decayLockTicks", new BsonInt32(0)).getValue()
             );
             GravityPowderBlockDataStore.put(world, position, data);
         }
@@ -186,11 +180,7 @@ public final class WorldSaveFileService {
             Vector3i position = readPosition(entry.getDocument("position"));
             InverterData data = new InverterData(
                     entry.getString("currentMode", new BsonString("off")).getValue(),
-                    entry.getString("nextMode", new BsonString("off")).getValue(),
-                    entry.getBoolean("stable", BsonBoolean.FALSE).getValue(),
-                    entry.getBoolean("nextStable", BsonBoolean.FALSE).getValue(),
-                    readDistances(entry.getArray("positionDistances", new BsonArray())),
-                    readDistances(entry.getArray("nextPositionDistances", new BsonArray()))
+                    entry.getString("nextMode", new BsonString("off")).getValue()
             );
             InverterDataStore.put(world, position, data);
         }
@@ -221,12 +211,8 @@ public final class WorldSaveFileService {
             document.put("connectionsMask", new BsonInt32(data.connectionsMask()));
             document.put("currentMode", new BsonString(data.currentMode()));
             document.put("nextMode", new BsonString(data.nextMode()));
-            document.put("stable", BsonBoolean.valueOf(data.stable()));
-            document.put("nextStable", BsonBoolean.valueOf(data.nextStable()));
-            document.put("lossTicks", new BsonInt32(data.lossTicks()));
-            document.put("nextLossTicks", new BsonInt32(data.nextLossTicks()));
-            document.put("positionDistances", writeDistances(data.positionDistances()));
-            document.put("nextPositionDistances", writeDistances(data.nextPositionDistances()));
+            document.put("decayMark", new BsonString(data.decayMark()));
+            document.put("decayLockTicks", new BsonInt32(data.decayLockTicks()));
             result.add(document);
         }
         return result;
@@ -240,10 +226,6 @@ public final class WorldSaveFileService {
             document.put("position", writePosition(entry.getKey()));
             document.put("currentMode", new BsonString(data.currentMode()));
             document.put("nextMode", new BsonString(data.nextMode()));
-            document.put("stable", BsonBoolean.valueOf(data.stable()));
-            document.put("nextStable", BsonBoolean.valueOf(data.nextStable()));
-            document.put("positionDistances", writeDistances(data.positionDistances()));
-            document.put("nextPositionDistances", writeDistances(data.nextPositionDistances()));
             result.add(document);
         }
         return result;
@@ -277,36 +259,6 @@ public final class WorldSaveFileService {
                 document.getInt32("y").getValue(),
                 document.getInt32("z").getValue()
         );
-    }
-
-    private static BsonArray writeDistances(List<PositionDistance> distances) {
-        BsonArray result = new BsonArray();
-        for (PositionDistance distance : distances) {
-            BsonDocument document = new BsonDocument();
-            document.put("x", new BsonInt32(distance.x()));
-            document.put("y", new BsonInt32(distance.y()));
-            document.put("z", new BsonInt32(distance.z()));
-            document.put("distance", new BsonInt32(distance.distance()));
-            result.add(document);
-        }
-        return result;
-    }
-
-    private static List<PositionDistance> readDistances(BsonArray values) {
-        java.util.ArrayList<PositionDistance> result = new java.util.ArrayList<>();
-        for (BsonValue value : values) {
-            if (!value.isDocument()) {
-                continue;
-            }
-            BsonDocument document = value.asDocument();
-            result.add(new PositionDistance(
-                    document.getInt32("x").getValue(),
-                    document.getInt32("y").getValue(),
-                    document.getInt32("z").getValue(),
-                    document.getInt32("distance").getValue()
-            ));
-        }
-        return List.copyOf(result);
     }
 
     private static Rotation readRotation(BsonDocument document, String key) {

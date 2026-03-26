@@ -10,7 +10,6 @@ import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.PositionDistance;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
@@ -87,14 +86,6 @@ public final class ConnectableNeighborResolver {
         addSourceNeighbor(world, sources, position.getX(), position.getY() + 1, position.getZ(), treatAsEmpty, WorldSide.DOWN);
         addSourceNeighbor(world, sources, position.getX(), position.getY() - 1, position.getZ(), treatAsEmpty, WorldSide.UP);
         return List.copyOf(sources);
-    }
-
-    public static List<PositionDistance> sourceNeighborDistances(List<Vector3i> sourceNeighbors) {
-        List<PositionDistance> distances = new ArrayList<>();
-        for (Vector3i sourceNeighbor : sourceNeighbors) {
-            mergeDistance(distances, PositionDistance.from(sourceNeighbor, 1));
-        }
-        return List.copyOf(distances);
     }
 
     public static List<Vector3i> positionsAround(Vector3i center) {
@@ -255,19 +246,6 @@ public final class ConnectableNeighborResolver {
                 && treatAsEmpty.getX() == position.getX()
                 && treatAsEmpty.getY() == position.getY()
                 && treatAsEmpty.getZ() == position.getZ();
-    }
-
-    private static void mergeDistance(List<PositionDistance> distances, PositionDistance candidate) {
-        for (int i = 0; i < distances.size(); i++) {
-            PositionDistance existing = distances.get(i);
-            if (existing.x() == candidate.x() && existing.y() == candidate.y() && existing.z() == candidate.z()) {
-                if (candidate.distance() < existing.distance()) {
-                    distances.set(i, candidate);
-                }
-                return;
-            }
-        }
-        distances.add(candidate);
     }
 
     public enum WorldSide {

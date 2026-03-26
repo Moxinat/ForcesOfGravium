@@ -8,9 +8,9 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.PositionDistance;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
+import dev.moxinat.forcesofgravium.debug.ReconnectWaveDebug;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
 import javax.annotation.Nonnull;
@@ -48,9 +48,33 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             handleSaveWorld(context);
             return CompletableFuture.completedFuture(null);
         }
+        if (args.length - startIndex >= 1 && "reconnectdebug".equalsIgnoreCase(args[startIndex])) {
+            handleReconnectDebug(context, args, startIndex);
+            return CompletableFuture.completedFuture(null);
+        }
 
-        context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z> | /fog invdist all | /fog invdist here | /fog invdist <x> <y> <z> | /fog saveinfo | /fog saveworld"));
+        context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z> | /fog invdist all | /fog invdist here | /fog invdist <x> <y> <z> | /fog saveinfo | /fog saveworld | /fog reconnectdebug [on|off|status]"));
         return CompletableFuture.completedFuture(null);
+    }
+
+    private void handleReconnectDebug(@Nonnull CommandContext context, String[] args, int startIndex) {
+        if (args.length - startIndex < 2 || "status".equalsIgnoreCase(args[startIndex + 1])) {
+            context.sendMessage(Message.raw("Reconnect debug chat is " + (ReconnectWaveDebug.isEnabled() ? "enabled" : "disabled") + "."));
+            return;
+        }
+
+        String value = args[startIndex + 1];
+        if ("on".equalsIgnoreCase(value)) {
+            ReconnectWaveDebug.setEnabled(true);
+            context.sendMessage(Message.raw("Reconnect debug chat enabled."));
+            return;
+        }
+        if ("off".equalsIgnoreCase(value)) {
+            ReconnectWaveDebug.setEnabled(false);
+            context.sendMessage(Message.raw("Reconnect debug chat disabled."));
+            return;
+        }
+        context.sendMessage(Message.raw("Usage: /fog reconnectdebug [on|off|status]"));
     }
 
     private void handleGravityPowderDistances(@Nonnull CommandContext context, String[] args, int startIndex) {
@@ -242,27 +266,13 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
     private static String formatEntry(Vector3i position, GravityPowderBlockData data) {
         return formatPosition(position)
                 + " mode=" + data.currentMode()
-                + " stable=" + data.stable()
-                + " distances=" + formatDistances(data.positionDistances());
+                + " waveState=" + data.decayMark()
+                + " waveTicks=" + data.decayLockTicks();
     }
 
     private static String formatEntry(Vector3i position, InverterData data) {
         return formatPosition(position)
-                + " mode=" + data.currentMode()
-                + " stable=" + data.stable()
-                + " distances=" + formatDistances(data.positionDistances());
-    }
-
-    private static String formatDistances(List<PositionDistance> distances) {
-        if (distances.isEmpty()) {
-            return "[]";
-        }
-
-        return distances.stream()
-                .map(distance -> "(" + distance.x() + "," + distance.y() + "," + distance.z() + " -> " + distance.distance() + ")")
-                .reduce((left, right) -> left + ", " + right)
-                .map(value -> "[" + value + "]")
-                .orElse("[]");
+                + " mode=" + data.currentMode();
     }
 
     private static String formatPosition(Vector3i position) {

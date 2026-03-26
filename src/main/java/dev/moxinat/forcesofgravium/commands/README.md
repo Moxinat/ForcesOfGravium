@@ -16,23 +16,21 @@ Each entry includes:
 
 - block position
 - current `mode`
-- current `stable` state
-- all stored `distance` entries
+- current `decayMark`
+- current `decayLockTicks`
 
 Example output:
 
 ```text
-(10,64,5) mode=push stable=true distances=[(8,64,5 -> 2), (20,64,5 -> 7)]
+(10,64,5) mode=push decayMark=off_pending decayLockTicks=0
 ```
 
 Meaning:
 
 - The gravity powder block is at `(10,64,5)`.
 - Its current mode is `push`.
-- It is currently marked as `stable`.
-- It knows about two source targets:
-  - source at `(8,64,5)` with distance `2`
-  - source at `(20,64,5)` with distance `7`
+- It is currently marked for the `off` decay cascade.
+- It has no active lock ticks remaining yet.
 
 ## `/fog gpdist here`
 
@@ -53,9 +51,44 @@ Example:
 /fog gpdist 10 64 5
 ```
 
+## `/fog invdist all`
+
+Lists all stored inverter data entries in the current world.
+
+Each entry includes:
+
+- block position
+- current `mode`
+
+Example output:
+
+```text
+(12,64,5) mode=pull
+```
+
+## `/fog invdist here`
+
+Reads the inverter data entry at the block below the player's current position.
+
+## `/fog invdist <x> <y> <z>`
+
+Reads the inverter data entry at an exact coordinate.
+
 ## Notes
 
 - These commands are currently focused on debugging gravity powder logic.
 - `gpdist here` requires a player sender.
-- The data is read from the internal `GravityPowderBlockDataStore`.
+- `invdist here` also requires a player sender.
+- `gpdist` reads from the internal `GravityPowderBlockDataStore`.
+- `invdist` reads from the internal `InverterDataStore`.
 - If a block has no stored gravity powder debug data, the command reports that no entry exists instead of returning a fallback value.
+
+## `/fog reconnectdebug on|off`
+
+Toggles in-game chat debug messages for the reconnect path that runs after placing gravity powder.
+
+When enabled, the placing player receives chat lines for:
+
+- wave detected in the placed cable component
+- source path found from the placed cable
+- wave cleared for the component

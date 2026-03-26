@@ -367,11 +367,21 @@ public final class GravityPowderBlockRefresher {
             return "";
         }
 
-        return switch (data.currentMode()) {
+        return switch (displayMode(data)) {
             case GravityPowderStateCalculator.MODE_PUSH -> "Push";
             case GravityPowderStateCalculator.MODE_PULL -> "Pull";
             default -> "";
         };
+    }
+
+    private static String displayMode(GravityPowderBlockData data) {
+        if (GravityPowderBlockDataStore.WAVE_OFF.equals(data.decayMark())) {
+            return GravityPowderStateCalculator.MODE_OFF;
+        }
+        if (GravityPowderBlockDataStore.WAVE_PULL.equals(data.decayMark())) {
+            return GravityPowderStateCalculator.MODE_PULL;
+        }
+        return data.currentMode();
     }
 
     private static String stateBlockKey(BlockType baseType, String baseState, String modeSuffix) {
