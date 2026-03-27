@@ -8,6 +8,7 @@ import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowde
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderStateCalculator;
+import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
@@ -139,10 +140,10 @@ public final class SignalSourceBfs {
 
         @Override
         public @Nullable Vector3i findAdjacentSource(@Nonnull TraversalNode node) {
-            if (!GravityPowderStateCalculator.MODE_PUSH.equals(node.expectedMode())) {
-                return null;
-            }
             if (isInverterAt(node.position())) {
+                return findSourceDrivingInverter(node);
+            }
+            if (!GravityPowderStateCalculator.MODE_PUSH.equals(node.expectedMode())) {
                 return null;
             }
 
@@ -181,7 +182,7 @@ public final class SignalSourceBfs {
                 }
 
                 GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, neighborPosition);
-                if (data == null || !node.expectedMode().equals(data.currentMode())) {
+                if (data == null || !node.expectedMode().equals(GravityPowderBlockDataStore.effectiveMode(data))) {
                     continue;
                 }
 
@@ -234,9 +235,16 @@ public final class SignalSourceBfs {
                     continue;
                 }
 
+                if (ConnectableBlockRoles.isSource(backType.getId())) {
+                    if (sourceDrivesInverterMode(node.expectedMode())) {
+                        steps.add(new TraversalStep(neighborPosition, node.expectedMode()));
+                    }
+                    continue;
+                }
+
                 if (ConnectableRegistry.isGravityPowderId(backType.getId())) {
                     GravityPowderBlockData backData = GravityPowderBlockDataStore.get(world, backPosition);
-                    if (backData == null || !flippedMode.equals(backData.currentMode())) {
+                    if (backData == null || !flippedMode.equals(GravityPowderBlockDataStore.effectiveMode(backData))) {
                         continue;
                     }
                     steps.add(new TraversalStep(backPosition, flippedMode));
@@ -285,9 +293,13 @@ public final class SignalSourceBfs {
                 return;
             }
 
+            if (ConnectableBlockRoles.isSource(backType.getId())) {
+                return;
+            }
+
             if (ConnectableRegistry.isGravityPowderId(backType.getId())) {
                 GravityPowderBlockData backData = GravityPowderBlockDataStore.get(world, backPosition);
-                if (backData != null && flippedMode.equals(backData.currentMode())) {
+                if (backData != null && flippedMode.equals(GravityPowderBlockDataStore.effectiveMode(backData))) {
                     steps.add(new TraversalStep(backPosition, flippedMode));
                 }
                 return;
@@ -320,6 +332,31 @@ public final class SignalSourceBfs {
                 return GravityPowderStateCalculator.MODE_PUSH;
             }
             return GravityPowderStateCalculator.MODE_OFF;
+        }
+
+        private @Nullable Vector3i findSourceDrivingInverter(TraversalNode node) {
+            if (!sourceDrivesInverterMode(node.expectedMode())) {
+                return null;
+            }
+
+            Vector3i backPosition = ConnectableNeighborResolver.adjacentPositionForLocalSide(
+                    world,
+                    node.position(),
+                    ConnectableRegistry.SIDE_BACK
+            );
+            if (isTreatAsEmpty(backPosition)) {
+                return null;
+            }
+
+            BlockType backType = world.getBlockType(backPosition.getX(), backPosition.getY(), backPosition.getZ());
+            if (backType != null && ConnectableBlockRoles.isSource(backType.getId())) {
+                return backPosition;
+            }
+            return null;
+        }
+
+        private static boolean sourceDrivesInverterMode(String expectedMode) {
+            return GravityPowderStateCalculator.MODE_PULL.equals(expectedMode);
         }
 
         private boolean isTreatAsEmpty(Vector3i position) {

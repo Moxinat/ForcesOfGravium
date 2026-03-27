@@ -160,13 +160,22 @@ public final class WorldSaveFileService {
             }
             BsonDocument entry = value.asDocument();
             Vector3i position = readPosition(entry.getDocument("position"));
-            GravityPowderBlockData data = new GravityPowderBlockData(
-                    entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
-                    entry.getString("currentMode", new BsonString("off")).getValue(),
-                    entry.getString("nextMode", new BsonString("off")).getValue(),
-                    entry.getString("decayMark", new BsonString(GravityPowderBlockDataStore.WAVE_NONE)).getValue(),
-                    entry.getInt32("decayLockTicks", new BsonInt32(0)).getValue()
-            );
+            GravityPowderBlockData data;
+            if (entry.containsKey("state")) {
+                data = new GravityPowderBlockData(
+                        entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
+                        entry.getString("state", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue(),
+                        entry.getInt32("stateTicksRemaining", new BsonInt32(0)).getValue()
+                );
+            } else {
+                data = GravityPowderBlockDataStore.fromLegacyData(
+                        entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
+                        entry.getString("currentMode", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue(),
+                        entry.getString("nextMode", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue(),
+                        entry.getString("decayMark", new BsonString(GravityPowderBlockDataStore.WAVE_NONE)).getValue(),
+                        entry.getInt32("decayLockTicks", new BsonInt32(0)).getValue()
+                );
+            }
             GravityPowderBlockDataStore.put(world, position, data);
         }
     }
@@ -209,10 +218,8 @@ public final class WorldSaveFileService {
             BsonDocument document = new BsonDocument();
             document.put("position", writePosition(entry.getKey()));
             document.put("connectionsMask", new BsonInt32(data.connectionsMask()));
-            document.put("currentMode", new BsonString(data.currentMode()));
-            document.put("nextMode", new BsonString(data.nextMode()));
-            document.put("decayMark", new BsonString(data.decayMark()));
-            document.put("decayLockTicks", new BsonInt32(data.decayLockTicks()));
+            document.put("state", new BsonString(data.state()));
+            document.put("stateTicksRemaining", new BsonInt32(data.stateTicksRemaining()));
             result.add(document);
         }
         return result;

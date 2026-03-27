@@ -27,7 +27,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public final class ConnectablePropagationScheduler {
 
-    private static final int WAVE_TICKS = 2;
     private static final ConcurrentHashMap<World, Set<Vector3i>> PENDING_CURRENT = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<World, Set<Vector3i>> PENDING_NEXT = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<World, Queue<ReconnectPlacementRequest>> PENDING_RECONNECT_CURRENT = new ConcurrentHashMap<>();
@@ -38,12 +37,16 @@ public final class ConnectablePropagationScheduler {
     }
 
     public static void onConnectablePlaced(World world, Vector3i target) {
-        enqueueReconnectPlacement(world, target, null);
+        if (shouldEnqueueReconnectPlacement(world, target)) {
+            enqueueReconnectPlacement(world, target, null);
+        }
         enqueueCurrent(world, ConnectableNeighborResolver.positionsAround(target));
     }
 
     public static void onConnectablePlaced(World world, Vector3i target, Player debugPlayer) {
-        enqueueReconnectPlacement(world, target, debugPlayer);
+        if (shouldEnqueueReconnectPlacement(world, target)) {
+            enqueueReconnectPlacement(world, target, debugPlayer);
+        }
         enqueueCurrent(world, ConnectableNeighborResolver.positionsAround(target));
     }
 
@@ -101,9 +104,9 @@ public final class ConnectablePropagationScheduler {
                     return;
                 }
             }
-            if (!current.isEmpty() || next == null) {
+            if (next != null && !current.isEmpty()) {
                 // no-op
-            } else {
+            } else if (next != null) {
                 current.addAll(next);
             }
         }
@@ -115,14 +118,6 @@ public final class ConnectablePropagationScheduler {
         }
 
         Set<Vector3i> changedPositions = new LinkedHashSet<>();
-        Set<Vector3i> decayProcessedPositions = new LinkedHashSet<>();
-        for (Vector3i position : positions) {
-            if (isNotGravityPowder(world.getBlockType(position.getX(), position.getY(), position.getZ()))) {
-                continue;
-            }
-            applyDecayTick(world, position, changedPositions, decayProcessedPositions);
-        }
-
         for (Vector3i position : positions) {
             if (!isNotInverter(world.getBlockType(position.getX(), position.getY(), position.getZ()))) {
                 applyInverterUpdate(world, InverterStateCalculator.computeStateUpdate(world, position), changedPositions);
@@ -133,10 +128,6 @@ public final class ConnectablePropagationScheduler {
             if (isNotGravityPowder(world.getBlockType(position.getX(), position.getY(), position.getZ()))) {
                 continue;
             }
-            if (decayProcessedPositions.contains(position)) {
-                continue;
-            }
-
             applyPowderUpdate(world, GravityPowderStateCalculator.computeStateUpdate(world, position), changedPositions);
         }
 
@@ -167,9 +158,10 @@ public final class ConnectablePropagationScheduler {
 
     private static void applyPowderUpdate(World world, GravityPowderStateUpdate update, Set<Vector3i> changedPositions) {
         GravityPowderBlockData existing = GravityPowderBlockDataStore.getOrCreate(world, update.position());
-        GravityPowderBlockDataStore.setNextMode(world, update.position(), update.nextMode());
-        if (!existing.currentMode().equals(update.nextMode())) {
-            GravityPowderBlockDataStore.setCurrentMode(world, update.position(), update.nextMode());
+        GravityPowderBlockDataStore.setState(world, update.position(), update.nextState());
+        GravityPowderBlockDataStore.setStateTicksRemaining(world, update.position(), update.nextStateTicksRemaining());
+        if (!existing.state().equals(update.nextState())
+                || existing.stateTicksRemaining() != update.nextStateTicksRemaining()) {
             changedPositions.add(update.position());
         }
     }
@@ -257,92 +249,6 @@ public final class ConnectablePropagationScheduler {
         return null;
     }
 
-    private static void startWave(World world, Vector3i cablePosition, String waveState) {
-        if (isWaveSuppressed(world, cablePosition)) {
-            return;
-        }
-        GravityPowderBlockDataStore.setDecayMark(world, cablePosition, waveState);
-        GravityPowderBlockDataStore.setDecayLockTicks(world, cablePosition, WAVE_TICKS);
-        enqueueCurrent(world, ConnectableNeighborResolver.positionsAround(cablePosition));
-    }
-
-    private static void applyDecayTick(
-            World world,
-            Vector3i position,
-            Set<Vector3i> changedPositions,
-            Set<Vector3i> decayProcessedPositions
-    ) {
-        GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, position);
-        if (data == null) {
-            return;
-        }
-
-        String propagatedWave = propagatedWaveForPosition(world, position, data.currentMode());
-        if (GravityPowderBlockDataStore.WAVE_NONE.equals(data.decayMark())
-                && !GravityPowderBlockDataStore.WAVE_NONE.equals(propagatedWave)) {
-            if (isWaveSuppressed(world, position)) {
-                return;
-            }
-            GravityPowderBlockDataStore.setDecayMark(world, position, propagatedWave);
-            GravityPowderBlockDataStore.setDecayLockTicks(world, position, WAVE_TICKS);
-            changedPositions.add(position);
-            decayProcessedPositions.add(position);
-            return;
-        }
-
-        if (GravityPowderBlockDataStore.WAVE_OFF.equals(data.decayMark())
-                || GravityPowderBlockDataStore.WAVE_PULL.equals(data.decayMark())) {
-            int remainingTicks = Math.max(0, data.decayLockTicks() - 1);
-            GravityPowderBlockDataStore.setDecayLockTicks(world, position, remainingTicks);
-            changedPositions.add(position);
-            decayProcessedPositions.add(position);
-            if (remainingTicks == 0) {
-                GravityPowderBlockDataStore.setCurrentMode(world, position, finalModeForLockedDecay(data.decayMark()));
-                GravityPowderBlockDataStore.setNextMode(world, position, finalModeForLockedDecay(data.decayMark()));
-                GravityPowderBlockDataStore.setDecayMark(world, position, GravityPowderBlockDataStore.WAVE_NONE);
-            }
-        }
-    }
-
-    private static String propagatedWaveForPosition(World world, Vector3i position, String currentMode) {
-        if (!GravityPowderStateCalculator.MODE_OFF.equals(currentMode)
-                && hasNeighborWithDecayMark(world, position, GravityPowderBlockDataStore.WAVE_OFF)) {
-            return GravityPowderBlockDataStore.WAVE_OFF;
-        }
-        if (!GravityPowderStateCalculator.MODE_PULL.equals(currentMode)
-                && hasNeighborWithDecayMark(world, position, GravityPowderBlockDataStore.WAVE_PULL)) {
-            return GravityPowderBlockDataStore.WAVE_PULL;
-        }
-        return GravityPowderBlockDataStore.WAVE_NONE;
-    }
-
-    private static boolean hasNeighborWithDecayMark(World world, Vector3i position, String waveState) {
-        for (Vector3i neighbor : ConnectableNeighborResolver.positionsAround(position)) {
-            if (neighbor.equals(position)) {
-                continue;
-            }
-            BlockType neighborType = world.getBlockType(neighbor.getX(), neighbor.getY(), neighbor.getZ());
-            if (isNotGravityPowder(neighborType)) {
-                continue;
-            }
-            GravityPowderBlockData neighborData = GravityPowderBlockDataStore.get(world, neighbor);
-            if (neighborData != null && waveState.equals(neighborData.decayMark())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static String finalModeForLockedDecay(String lockedDecayMark) {
-        if (GravityPowderBlockDataStore.WAVE_OFF.equals(lockedDecayMark)) {
-            return GravityPowderStateCalculator.MODE_OFF;
-        }
-        if (GravityPowderBlockDataStore.WAVE_PULL.equals(lockedDecayMark)) {
-            return GravityPowderStateCalculator.MODE_PULL;
-        }
-        return GravityPowderStateCalculator.MODE_OFF;
-    }
-
     private static boolean isMarkedCable(World world, Vector3i position) {
         BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
         if (isNotGravityPowder(blockType)) {
@@ -350,7 +256,7 @@ public final class ConnectablePropagationScheduler {
         }
 
         GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, position);
-        return data != null && !GravityPowderBlockDataStore.WAVE_NONE.equals(data.decayMark());
+        return GravityPowderBlockDataStore.hasActiveWave(data);
     }
 
     private static boolean containsWave(World world, Set<Vector3i> component) {
@@ -366,11 +272,11 @@ public final class ConnectablePropagationScheduler {
         Set<Vector3i> suppressed = WAVE_SUPPRESSED.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet());
         for (Vector3i cable : component) {
             GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, cable);
-            if (data == null || GravityPowderBlockDataStore.WAVE_NONE.equals(data.decayMark())) {
+            if (!GravityPowderBlockDataStore.hasActiveWave(data)) {
                 continue;
             }
-            GravityPowderBlockDataStore.setDecayMark(world, cable, GravityPowderBlockDataStore.WAVE_NONE);
-            GravityPowderBlockDataStore.setDecayLockTicks(world, cable, 0);
+            GravityPowderBlockDataStore.setState(world, cable, GravityPowderBlockDataStore.stableStateFor(data.state()));
+            GravityPowderBlockDataStore.setStateTicksRemaining(world, cable, 0);
             suppressed.add(cable);
         }
         enqueueCurrent(world, List.copyOf(component));
@@ -385,6 +291,10 @@ public final class ConnectablePropagationScheduler {
         handleCableLossCheck(world, outputCable, inverterPosition);
     }
 
+    static boolean shouldEnqueueReconnectPlacement(String blockId) {
+        return ConnectableRegistry.isGravityPowderId(blockId);
+    }
+
     private static void handleCableLossCheck(World world, Vector3i cablePosition, Vector3i treatAsEmpty) {
         BlockType cableType = world.getBlockType(cablePosition.getX(), cablePosition.getY(), cablePosition.getZ());
         if (isNotGravityPowder(cableType)) {
@@ -392,22 +302,28 @@ public final class ConnectablePropagationScheduler {
         }
 
         GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, cablePosition);
-        if (data == null || GravityPowderStateCalculator.MODE_OFF.equals(data.currentMode())) {
+        if (data == null || GravityPowderStateCalculator.MODE_OFF.equals(GravityPowderBlockDataStore.effectiveMode(data))) {
             return;
         }
 
-        SignalSourceBfs.SourceSearchResult currentModeResult = SignalSourceBfs.findSource(world, cablePosition, data.currentMode(), treatAsEmpty);
+        String effectiveMode = GravityPowderBlockDataStore.effectiveMode(data);
+        SignalSourceBfs.SourceSearchResult currentModeResult = SignalSourceBfs.findSource(world, cablePosition, effectiveMode, treatAsEmpty);
         if (currentModeResult.foundSource()) {
             return;
         }
 
         SignalSourceBfs.ModeSearchResult replacementMode = SignalSourceBfs.resolveMode(world, cablePosition, treatAsEmpty);
-        String decayMark = decayMarkForBrokenNeighbor(data.currentMode(), currentModeResult, replacementMode);
+        String decayMark = decayMarkForBrokenNeighbor(effectiveMode, currentModeResult, replacementMode);
         if (decayMark == null) {
             return;
         }
 
-        startWave(world, cablePosition, decayMark);
+        if (isWaveSuppressed(world, cablePosition)) {
+            return;
+        }
+        GravityPowderBlockDataStore.setState(world, cablePosition, decayMark);
+        GravityPowderBlockDataStore.setStateTicksRemaining(world, cablePosition, GravityPowderStateCalculator.WAVE_TICKS);
+        enqueueCurrent(world, ConnectableNeighborResolver.positionsAround(cablePosition));
     }
 
     private static boolean isWaveSuppressed(World world, Vector3i position) {
@@ -418,6 +334,11 @@ public final class ConnectablePropagationScheduler {
     private static void enqueueReconnectPlacement(World world, Vector3i target, Player debugPlayer) {
         Queue<ReconnectPlacementRequest> queue = PENDING_RECONNECT_NEXT.computeIfAbsent(world, ignored -> new ConcurrentLinkedQueue<>());
         queue.add(new ReconnectPlacementRequest(target, debugPlayer));
+    }
+
+    private static boolean shouldEnqueueReconnectPlacement(World world, Vector3i target) {
+        BlockType placedType = world.getBlockType(target.getX(), target.getY(), target.getZ());
+        return placedType != null && shouldEnqueueReconnectPlacement(placedType.getId());
     }
 
     private static List<Vector3i> reconnectCandidateCables(World world, Vector3i target) {

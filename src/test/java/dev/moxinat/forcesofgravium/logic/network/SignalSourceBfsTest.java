@@ -97,6 +97,33 @@ class SignalSourceBfsTest {
     }
 
     @Test
+    void findsDirectSourceThroughInverterInput() {
+        Vector3i cable = new Vector3i(0, 0, 0);
+        Vector3i inverter = new Vector3i(-1, 0, 0);
+        Vector3i source = new Vector3i(-2, 0, 0);
+
+        TestAdapter adapter = new TestAdapter(
+                Map.of(
+                        new SignalSourceBfs.TraversalNode(cable, GravityPowderStateCalculator.MODE_PULL),
+                        List.of(new SignalSourceBfs.TraversalStep(inverter, GravityPowderStateCalculator.MODE_PULL))
+                ),
+                Map.of(
+                        new SignalSourceBfs.TraversalNode(inverter, GravityPowderStateCalculator.MODE_PULL), source
+                )
+        );
+
+        SignalSourceBfs.SourceSearchResult result = SignalSourceBfs.findSource(
+                adapter,
+                cable,
+                GravityPowderStateCalculator.MODE_PULL
+        );
+
+        assertTrue(result.foundSource());
+        assertEquals(source, result.sourcePosition());
+        assertTrue(result.visitedNodes().contains(new SignalSourceBfs.TraversalNode(inverter, GravityPowderStateCalculator.MODE_PULL)));
+    }
+
+    @Test
     void returnsOffWhenNoModeCanReachSource() {
         SignalSourceBfs.ModeSearchResult result = SignalSourceBfs.resolveMode(new TestAdapter(Map.of(), Map.of()), new Vector3i(0, 0, 0));
 

@@ -15,22 +15,22 @@ Lists all stored gravity powder data entries in the current world.
 Each entry includes:
 
 - block position
-- current `mode`
-- current `decayMark`
-- current `decayLockTicks`
+- centralized cable `state`
+- effective cable mode derived from that state
+- remaining `stateTicks`
 
 Example output:
 
 ```text
-(10,64,5) mode=push decayMark=off_pending decayLockTicks=0
+(10,64,5) state=push_wave mode=push stateTicks=2
 ```
 
 Meaning:
 
 - The gravity powder block is at `(10,64,5)`.
-- Its current mode is `push`.
-- It is currently marked for the `off` decay cascade.
-- It has no active lock ticks remaining yet.
+- Its centralized current state is `push_wave`.
+- Its current effective behavior and visuals are `push`.
+- It has `2` ticks remaining before that wave settles into normal `push`.
 
 ## `/fog gpdist here`
 
@@ -81,6 +81,7 @@ Reads the inverter data entry at an exact coordinate.
 - `invdist here` also requires a player sender.
 - `gpdist` reads from the internal `GravityPowderBlockDataStore`.
 - `invdist` reads from the internal `InverterDataStore`.
+- `mode` reflects the live cable behavior derived from the centralized `state`.
 - If a block has no stored gravity powder debug data, the command reports that no entry exists instead of returning a fallback value.
 
 ## `/fog reconnectdebug on|off`

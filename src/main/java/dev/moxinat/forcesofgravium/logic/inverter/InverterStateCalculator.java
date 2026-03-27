@@ -9,6 +9,7 @@ import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderStateCalculator;
 import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import java.util.Objects;
@@ -19,9 +20,14 @@ public final class InverterStateCalculator {
     }
 
     public static InverterStateUpdate computeStateUpdate(World world, Vector3i position) {
+        String inputMode = computeInputMode(world, position);
+        return new InverterStateUpdate(position, invertMode(inputMode));
+    }
+
+    public static String computeInputMode(World world, Vector3i position) {
         BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
         if (blockType == null || !ConnectableRegistry.isInverterId(blockType.getId())) {
-            return new InverterStateUpdate(position, GravityPowderStateCalculator.MODE_OFF);
+            return GravityPowderStateCalculator.MODE_OFF;
         }
 
         Vector3i backNeighborPosition = ConnectableNeighborResolver.adjacentPositionForLocalSide(
@@ -35,16 +41,20 @@ public final class InverterStateCalculator {
                 backNeighborPosition.getZ()
         );
         if (backNeighborType == null) {
-            return new InverterStateUpdate(position, GravityPowderStateCalculator.MODE_OFF);
+            return GravityPowderStateCalculator.MODE_OFF;
+        }
+
+        if (ConnectableBlockRoles.isSource(backNeighborType.getId())) {
+            return directSourceInputMode(backNeighborType.getId());
         }
 
         if (ConnectableRegistry.isGravityPowderId(backNeighborType.getId())) {
             GravityPowderBlockData backNeighborData = GravityPowderBlockDataStore.getOrCreate(world, backNeighborPosition);
-            return new InverterStateUpdate(position, invertMode(backNeighborData.currentMode()));
+            return GravityPowderBlockDataStore.effectiveMode(backNeighborData);
         }
 
         if (!ConnectableRegistry.isInverterId(backNeighborType.getId())) {
-            return new InverterStateUpdate(position, GravityPowderStateCalculator.MODE_OFF);
+            return GravityPowderStateCalculator.MODE_OFF;
         }
 
         Vector3i upstreamFrontPosition = ConnectableNeighborResolver.adjacentPositionForLocalSide(
@@ -53,14 +63,21 @@ public final class InverterStateCalculator {
                 ConnectableRegistry.SIDE_FRONT
         );
         if (!upstreamFrontPosition.equals(position)) {
-            return new InverterStateUpdate(position, GravityPowderStateCalculator.MODE_OFF);
+            return GravityPowderStateCalculator.MODE_OFF;
         }
 
         InverterData backNeighborData = InverterDataStore.getOrCreate(world, backNeighborPosition);
-        return new InverterStateUpdate(position, invertMode(backNeighborData.currentMode()));
+        return backNeighborData.currentMode();
     }
 
-    private static String invertMode(String mode) {
+    static String directSourceInputMode(String blockId) {
+        if (ConnectableBlockRoles.isSource(blockId)) {
+            return GravityPowderStateCalculator.MODE_PUSH;
+        }
+        return GravityPowderStateCalculator.MODE_OFF;
+    }
+
+    public static String invertMode(String mode) {
         if (GravityPowderStateCalculator.MODE_PUSH.equals(mode)) {
             return GravityPowderStateCalculator.MODE_PULL;
         }

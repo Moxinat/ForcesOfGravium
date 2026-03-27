@@ -13,9 +13,18 @@ import java.util.stream.Collectors;
 
 public final class GravityPowderBlockDataStore {
 
+    public static final String STATE_OFF = "off";
+    public static final String STATE_PUSH = "push";
+    public static final String STATE_PULL = "pull";
+    public static final String STATE_OFF_WAVE = "off_wave";
+    public static final String STATE_PUSH_WAVE = "push_wave";
+    public static final String STATE_PULL_WAVE = "pull_wave";
+
+    // Compatibility aliases while the rest of the codebase and save migration settle.
     public static final String WAVE_NONE = "none";
-    public static final String WAVE_OFF = "off_wave";
-    public static final String WAVE_PULL = "pull_wave";
+    public static final String WAVE_OFF = STATE_OFF_WAVE;
+    public static final String WAVE_PUSH = STATE_PUSH_WAVE;
+    public static final String WAVE_PULL = STATE_PULL_WAVE;
 
     private static final Map<BlockKey, GravityPowderBlockData> DATA = new ConcurrentHashMap<>();
 
@@ -56,38 +65,20 @@ public final class GravityPowderBlockDataStore {
         WorldSaveFileService.markDirty(world);
     }
 
-    public static void setCurrentMode(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String currentMode) {
+    public static void setState(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String state) {
         WorldSaveFileService.ensureLoaded(world);
         DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
             GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
-            return data.withCurrentMode(currentMode);
+            return data.withState(state);
         });
         WorldSaveFileService.markDirty(world);
     }
 
-    public static void setNextMode(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String nextMode) {
+    public static void setStateTicksRemaining(@Nonnull World world, @Nonnull Vector3i position, int ticks) {
         WorldSaveFileService.ensureLoaded(world);
         DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
             GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
-            return data.withNextMode(nextMode);
-        });
-        WorldSaveFileService.markDirty(world);
-    }
-
-    public static void setDecayMark(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String decayMark) {
-        WorldSaveFileService.ensureLoaded(world);
-        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
-            GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
-            return data.withDecayMark(decayMark);
-        });
-        WorldSaveFileService.markDirty(world);
-    }
-
-    public static void setDecayLockTicks(@Nonnull World world, @Nonnull Vector3i position, int decayLockTicks) {
-        WorldSaveFileService.ensureLoaded(world);
-        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
-            GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
-            return data.withDecayLockTicks(decayLockTicks);
+            return data.withStateTicksRemaining(ticks);
         });
         WorldSaveFileService.markDirty(world);
     }
@@ -96,10 +87,6 @@ public final class GravityPowderBlockDataStore {
         WorldSaveFileService.ensureLoaded(world);
         DATA.remove(BlockKey.from(world, position));
         WorldSaveFileService.markDirty(world);
-    }
-
-    public static int size() {
-        return DATA.size();
     }
 
     public static @Nonnull Map<Vector3i, GravityPowderBlockData> snapshotForWorld(@Nonnull World world) {
@@ -118,46 +105,96 @@ public final class GravityPowderBlockDataStore {
         DATA.keySet().removeIf(key -> key.worldId().equals(worldId));
     }
 
-    public record GravityPowderBlockData(
+    public static boolean isWaveState(@Nullable String state) {
+        return STATE_OFF_WAVE.equals(state) || STATE_PUSH_WAVE.equals(state) || STATE_PULL_WAVE.equals(state);
+    }
+
+    public static boolean hasActiveWave(@Nullable GravityPowderBlockData data) {
+        return data != null && isWaveState(data.state());
+    }
+
+    public static @Nonnull String modeForState(@Nullable String state) {
+        if (STATE_PUSH.equals(state) || STATE_PUSH_WAVE.equals(state)) {
+            return STATE_PUSH;
+        }
+        if (STATE_PULL.equals(state) || STATE_PULL_WAVE.equals(state)) {
+            return STATE_PULL;
+        }
+        return STATE_OFF;
+    }
+
+    public static @Nonnull String stableStateForMode(@Nullable String mode) {
+        if (STATE_PUSH.equals(mode)) {
+            return STATE_PUSH;
+        }
+        if (STATE_PULL.equals(mode)) {
+            return STATE_PULL;
+        }
+        return STATE_OFF;
+    }
+
+    public static @Nullable String waveStateForMode(@Nullable String mode) {
+        if (STATE_PUSH.equals(mode)) {
+            return STATE_PUSH_WAVE;
+        }
+        if (STATE_PULL.equals(mode)) {
+            return STATE_PULL_WAVE;
+        }
+        if (STATE_OFF.equals(mode)) {
+            return STATE_OFF_WAVE;
+        }
+        return null;
+    }
+
+    public static @Nonnull String stableStateFor(@Nullable String state) {
+        return stableStateForMode(modeForState(state));
+    }
+
+    public static @Nonnull String effectiveMode(@Nonnull GravityPowderBlockData data) {
+        return modeForState(data.state());
+    }
+
+    public static @Nonnull GravityPowderBlockData fromLegacyData(
             int connectionsMask,
             @Nonnull String currentMode,
             @Nonnull String nextMode,
             @Nonnull String decayMark,
             int decayLockTicks
     ) {
+        Objects.requireNonNull(currentMode, "currentMode");
+        Objects.requireNonNull(nextMode, "nextMode");
+        Objects.requireNonNull(decayMark, "decayMark");
+
+        if (!WAVE_NONE.equals(decayMark)) {
+            return new GravityPowderBlockData(connectionsMask, decayMark, decayLockTicks);
+        }
+        return new GravityPowderBlockData(connectionsMask, stableStateForMode(currentMode), 0);
+    }
+
+    public record GravityPowderBlockData(
+            int connectionsMask,
+            @Nonnull String state,
+            int stateTicksRemaining
+    ) {
 
         public GravityPowderBlockData {
-            currentMode = Objects.requireNonNull(currentMode, "currentMode");
-            nextMode = Objects.requireNonNull(nextMode, "nextMode");
-            decayMark = Objects.requireNonNull(decayMark, "decayMark");
+            state = Objects.requireNonNull(state, "state");
         }
 
         public static @Nonnull GravityPowderBlockData defaultData() {
-            return new GravityPowderBlockData(0, "off", "off", WAVE_NONE, 0);
+            return new GravityPowderBlockData(0, STATE_OFF, 0);
         }
 
         public @Nonnull GravityPowderBlockData withConnectionsMask(int value) {
-            return new GravityPowderBlockData(value, currentMode, nextMode, decayMark, decayLockTicks);
+            return new GravityPowderBlockData(value, state, stateTicksRemaining);
         }
 
-        public @Nonnull GravityPowderBlockData withCurrentMode(@Nonnull String value) {
-            return new GravityPowderBlockData(connectionsMask, Objects.requireNonNull(value, "currentMode"), nextMode, decayMark, decayLockTicks);
+        public @Nonnull GravityPowderBlockData withState(@Nonnull String value) {
+            return new GravityPowderBlockData(connectionsMask, Objects.requireNonNull(value, "state"), stateTicksRemaining);
         }
 
-        public @Nonnull GravityPowderBlockData withNextMode(@Nonnull String value) {
-            return new GravityPowderBlockData(connectionsMask, currentMode, Objects.requireNonNull(value, "nextMode"), decayMark, decayLockTicks);
-        }
-
-        public @Nonnull GravityPowderBlockData withDecayMark(@Nonnull String value) {
-            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, Objects.requireNonNull(value, "decayMark"), decayLockTicks);
-        }
-
-        public @Nonnull GravityPowderBlockData withDecayLockTicks(int value) {
-            return new GravityPowderBlockData(connectionsMask, currentMode, nextMode, decayMark, value);
-        }
-
-        public boolean hasWave() {
-            return WAVE_OFF.equals(decayMark) || WAVE_PULL.equals(decayMark);
+        public @Nonnull GravityPowderBlockData withStateTicksRemaining(int value) {
+            return new GravityPowderBlockData(connectionsMask, state, value);
         }
     }
 

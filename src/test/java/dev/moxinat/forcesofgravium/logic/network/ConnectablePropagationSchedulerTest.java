@@ -98,4 +98,12 @@ class ConnectablePropagationSchedulerTest {
 
         assertNull(decayMark);
     }
+
+    @Test
+    void onlyCablePlacementsEnqueueReconnectHandling() {
+        assertTrue(ConnectablePropagationScheduler.shouldEnqueueReconnectPlacement("Gravity_Powder_Default"));
+        assertTrue(ConnectablePropagationScheduler.shouldEnqueueReconnectPlacement("*Gravity_Powder_Default_State_Push"));
+        assertTrue(!ConnectablePropagationScheduler.shouldEnqueueReconnectPlacement("Inverter_Block"));
+        assertTrue(!ConnectablePropagationScheduler.shouldEnqueueReconnectPlacement("Rock_Crystal_Blue_Block"));
+    }
 }

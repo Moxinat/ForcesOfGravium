@@ -108,7 +108,7 @@ public final class MarkedCableComponentResolver {
             }
 
             GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, position);
-            return data != null && decayMark.equals(data.decayMark());
+            return data != null && decayMark.equals(data.state());
         }
 
         @Override
@@ -119,7 +119,7 @@ public final class MarkedCableComponentResolver {
             }
 
             GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, position);
-            return data != null && !GravityPowderBlockDataStore.WAVE_NONE.equals(data.decayMark());
+            return GravityPowderBlockDataStore.hasActiveWave(data);
         }
 
         @Override

@@ -375,13 +375,7 @@ public final class GravityPowderBlockRefresher {
     }
 
     private static String displayMode(GravityPowderBlockData data) {
-        if (GravityPowderBlockDataStore.WAVE_OFF.equals(data.decayMark())) {
-            return GravityPowderStateCalculator.MODE_OFF;
-        }
-        if (GravityPowderBlockDataStore.WAVE_PULL.equals(data.decayMark())) {
-            return GravityPowderStateCalculator.MODE_PULL;
-        }
-        return data.currentMode();
+        return GravityPowderBlockDataStore.effectiveMode(data);
     }
 
     private static String stateBlockKey(BlockType baseType, String baseState, String modeSuffix) {
