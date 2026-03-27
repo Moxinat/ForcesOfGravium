@@ -212,7 +212,7 @@ public final class ConnectableNeighborResolver {
     }
 
     public static WorldSide worldSideForLocalSide(RotationTuple rotation, int localSideMask) {
-        Vector3d rotated = rotation.rotate(localNormal(localSideMask));
+        Vector3d rotated = rotation.rotatedVector(localNormal(localSideMask));
         int x = (int) Math.round(rotated.getX());
         int y = (int) Math.round(rotated.getY());
         int z = (int) Math.round(rotated.getZ());
