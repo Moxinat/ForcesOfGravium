@@ -10,6 +10,7 @@ import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowde
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import org.bson.BsonArray;
+import org.bson.BsonBoolean;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
@@ -161,18 +162,23 @@ public final class WorldSaveFileService {
             BsonDocument entry = value.asDocument();
             Vector3i position = readPosition(entry.getDocument("position"));
             GravityPowderBlockData data;
-            if (entry.containsKey("state")) {
+            if (entry.containsKey("push") || entry.containsKey("pull")) {
                 data = new GravityPowderBlockData(
                         entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
-                        entry.getString("state", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue(),
-                        entry.getInt32("stateTicksRemaining", new BsonInt32(0)).getValue()
+                        entry.getBoolean("push", BsonBoolean.FALSE).getValue(),
+                        entry.getBoolean("pull", BsonBoolean.FALSE).getValue()
+                );
+            } else if (entry.containsKey("state")) {
+                data = GravityPowderBlockDataStore.fromState(
+                        entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
+                        entry.getString("state", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue()
                 );
             } else {
                 data = GravityPowderBlockDataStore.fromLegacyData(
                         entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
                         entry.getString("currentMode", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue(),
                         entry.getString("nextMode", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue(),
-                        entry.getString("decayMark", new BsonString(GravityPowderBlockDataStore.WAVE_NONE)).getValue(),
+                        entry.getString("decayMark", new BsonString("none")).getValue(),
                         entry.getInt32("decayLockTicks", new BsonInt32(0)).getValue()
                 );
             }
@@ -189,7 +195,9 @@ public final class WorldSaveFileService {
             Vector3i position = readPosition(entry.getDocument("position"));
             InverterData data = new InverterData(
                     entry.getString("currentMode", new BsonString("off")).getValue(),
-                    entry.getString("nextMode", new BsonString("off")).getValue()
+                    entry.getString("nextMode", new BsonString("off")).getValue(),
+                    entry.getBoolean("invertEnabled", BsonBoolean.TRUE).getValue(),
+                    entry.getBoolean("toggleInputActive", BsonBoolean.FALSE).getValue()
             );
             InverterDataStore.put(world, position, data);
         }
@@ -218,8 +226,8 @@ public final class WorldSaveFileService {
             BsonDocument document = new BsonDocument();
             document.put("position", writePosition(entry.getKey()));
             document.put("connectionsMask", new BsonInt32(data.connectionsMask()));
-            document.put("state", new BsonString(data.state()));
-            document.put("stateTicksRemaining", new BsonInt32(data.stateTicksRemaining()));
+            document.put("push", new BsonBoolean(data.push()));
+            document.put("pull", new BsonBoolean(data.pull()));
             result.add(document);
         }
         return result;
@@ -233,6 +241,8 @@ public final class WorldSaveFileService {
             document.put("position", writePosition(entry.getKey()));
             document.put("currentMode", new BsonString(data.currentMode()));
             document.put("nextMode", new BsonString(data.nextMode()));
+            document.put("invertEnabled", new BsonBoolean(data.invertEnabled()));
+            document.put("toggleInputActive", new BsonBoolean(data.toggleInputActive()));
             result.add(document);
         }
         return result;

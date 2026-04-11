@@ -8,6 +8,7 @@ public final class ConnectableRegistry {
     public static final String GRAVITY_POWDER_BLOCK_ID = "Gravity_Powder_Default";
     public static final String INVERTER_BLOCK_ID = "Inverter_Block";
     public static final String GRAVITY_POWDER_STATE_PREFIX = "*" + GRAVITY_POWDER_BLOCK_ID + "_State_";
+    public static final String INVERTER_STATE_PREFIX = "*" + INVERTER_BLOCK_ID + "_State_";
     public static final int SIDE_FRONT = 1;
     public static final int SIDE_BACK = 1 << 1;
     public static final int SIDE_RIGHT = 1 << 2;
@@ -41,6 +42,9 @@ public final class ConnectableRegistry {
         if (isGravityPowderId(blockId)) {
             return CONNECTABLE_SIDE_MASKS.getOrDefault(GRAVITY_POWDER_BLOCK_ID, 0);
         }
+        if (isInverterId(blockId)) {
+            return CONNECTABLE_SIDE_MASKS.getOrDefault(INVERTER_BLOCK_ID, 0);
+        }
 
         return CONNECTABLE_SIDE_MASKS.getOrDefault(blockId, 0);
     }
@@ -55,6 +59,7 @@ public final class ConnectableRegistry {
     }
 
     public static boolean isInverterId(@Nullable String blockId) {
-        return INVERTER_BLOCK_ID.equals(blockId);
+        return INVERTER_BLOCK_ID.equals(blockId)
+                || (blockId != null && blockId.startsWith(INVERTER_STATE_PREFIX));
     }
 }

@@ -23,6 +23,64 @@
     ],
     "Group": "Stone",
     "Flags": {},
+    "State": {
+      "Definitions": {
+        "OffOn": {
+          "CustomModel": "Blocks/Inverter/Inverter_Block.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Inverter_Off_On.png",
+              "Weight": 1
+            }
+          ]
+        },
+        "OffOff": {
+          "CustomModel": "Blocks/Inverter/Inverter_Block.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Inverter_Off_Off.png",
+              "Weight": 1
+            }
+          ]
+        },
+        "PushOn": {
+          "CustomModel": "Blocks/Inverter/Inverter_Block.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Inverter_Push_On.png",
+              "Weight": 1
+            }
+          ]
+        },
+        "PushOff": {
+          "CustomModel": "Blocks/Inverter/Inverter_Block.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Inverter_Push_Off.png",
+              "Weight": 1
+            }
+          ]
+        },
+        "PullOn": {
+          "CustomModel": "Blocks/Inverter/Inverter_Block.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Inverter_Pull_On.png",
+              "Weight": 1
+            }
+          ]
+        },
+        "PullOff": {
+          "CustomModel": "Blocks/Inverter/Inverter_Block.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Inverter_Pull_Off.png",
+              "Weight": 1
+            }
+          ]
+        }
+      }
+    },
     "ParticleColor": "#737055",
     "VariantRotation": "All",
     "BlockSoundSetId": "Stone",

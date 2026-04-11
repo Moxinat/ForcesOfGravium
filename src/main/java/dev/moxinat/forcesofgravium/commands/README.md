@@ -15,22 +15,23 @@ Lists all stored gravity powder data entries in the current world.
 Each entry includes:
 
 - block position
-- centralized cable `state`
-- effective cable mode derived from that state
-- remaining `stateTicks`
+- stored `push` signal flag
+- stored `pull` signal flag
+- effective cable mode derived from those flags
+- connections mask
 
 Example output:
 
 ```text
-(10,64,5) state=push_wave mode=push stateTicks=2
+(10,64,5) push=true pull=false mode=push connectionsMask=3
 ```
 
 Meaning:
 
 - The gravity powder block is at `(10,64,5)`.
-- Its centralized current state is `push_wave`.
+- It currently receives a push signal and no pull signal.
 - Its current effective behavior and visuals are `push`.
-- It has `2` ticks remaining before that wave settles into normal `push`.
+- Its stored connections mask is `3`.
 
 ## `/fog gpdist here`
 
@@ -59,11 +60,13 @@ Each entry includes:
 
 - block position
 - current `mode`
+- whether inversion is enabled
+- whether the side toggle input is currently held active
 
 Example output:
 
 ```text
-(12,64,5) mode=pull
+(12,64,5) mode=pull invertEnabled=true toggleInputActive=false
 ```
 
 ## `/fog invdist here`
@@ -81,15 +84,5 @@ Reads the inverter data entry at an exact coordinate.
 - `invdist here` also requires a player sender.
 - `gpdist` reads from the internal `GravityPowderBlockDataStore`.
 - `invdist` reads from the internal `InverterDataStore`.
-- `mode` reflects the live cable behavior derived from the centralized `state`.
+- `mode` reflects the live cable behavior derived from the stored `push`/`pull` flags.
 - If a block has no stored gravity powder debug data, the command reports that no entry exists instead of returning a fallback value.
-
-## `/fog reconnectdebug on|off`
-
-Toggles in-game chat debug messages for the reconnect path that runs after placing gravity powder.
-
-When enabled, the placing player receives chat lines for:
-
-- wave detected in the placed cable component
-- source path found from the placed cable
-- wave cleared for the component

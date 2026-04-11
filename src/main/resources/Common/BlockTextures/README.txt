@@ -1,9 +1,9 @@
-Put custom cube block textures here.
+Put custom block textures here.
 
-Example:
-- Inverter_Block.png
-- Inverter_Block_Top.png
-- Inverter_Block_Side.png
-
-The current sample block still uses the vanilla texture `BlockTextures/Rock_Stone.png`.
-When you add your own PNGs, point the block JSON to them from `Server/Item/Items/...`.
+Current inverter state textures:
+- Inverter_Off_On.png
+- Inverter_Off_Off.png
+- Inverter_Push_On.png
+- Inverter_Push_Off.png
+- Inverter_Pull_On.png
+- Inverter_Pull_Off.png

@@ -56,6 +56,22 @@ public final class InverterDataStore {
         WorldSaveFileService.markDirty(world);
     }
 
+    public static void setState(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull String currentMode,
+            @Nonnull String nextMode,
+            boolean invertEnabled,
+            boolean toggleInputActive
+    ) {
+        WorldSaveFileService.ensureLoaded(world);
+        DATA.put(
+                BlockKey.from(world, position),
+                new InverterData(currentMode, nextMode, invertEnabled, toggleInputActive)
+        );
+        WorldSaveFileService.markDirty(world);
+    }
+
     public static void remove(@Nonnull World world, @Nonnull Vector3i position) {
         WorldSaveFileService.ensureLoaded(world);
         DATA.remove(BlockKey.from(world, position));
@@ -80,7 +96,9 @@ public final class InverterDataStore {
 
     public record InverterData(
             @Nonnull String currentMode,
-            @Nonnull String nextMode
+            @Nonnull String nextMode,
+            boolean invertEnabled,
+            boolean toggleInputActive
     ) {
 
         public InverterData {
@@ -89,15 +107,23 @@ public final class InverterDataStore {
         }
 
         public static @Nonnull InverterData defaultData() {
-            return new InverterData("off", "off");
+            return new InverterData("off", "off", true, false);
         }
 
         public @Nonnull InverterData withCurrentMode(@Nonnull String value) {
-            return new InverterData(Objects.requireNonNull(value, "currentMode"), nextMode);
+            return new InverterData(Objects.requireNonNull(value, "currentMode"), nextMode, invertEnabled, toggleInputActive);
         }
 
         public @Nonnull InverterData withNextMode(@Nonnull String value) {
-            return new InverterData(currentMode, Objects.requireNonNull(value, "nextMode"));
+            return new InverterData(currentMode, Objects.requireNonNull(value, "nextMode"), invertEnabled, toggleInputActive);
+        }
+
+        public @Nonnull InverterData withInvertEnabled(boolean value) {
+            return new InverterData(currentMode, nextMode, value, toggleInputActive);
+        }
+
+        public @Nonnull InverterData withToggleInputActive(boolean value) {
+            return new InverterData(currentMode, nextMode, invertEnabled, value);
         }
     }
 
