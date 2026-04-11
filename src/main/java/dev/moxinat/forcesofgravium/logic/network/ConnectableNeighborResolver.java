@@ -88,6 +88,26 @@ public final class ConnectableNeighborResolver {
         return List.copyOf(sources);
     }
 
+    public static boolean isSourceNeighborOf(World world, Vector3i sourcePosition, Vector3i targetPosition) {
+        WorldSide requiredWorldSide = worldSideFromSourceToTarget(sourcePosition, targetPosition);
+        if (requiredWorldSide == null) {
+            return false;
+        }
+
+        BlockType blockType = world.getBlockType(sourcePosition.getX(), sourcePosition.getY(), sourcePosition.getZ());
+        if (blockType == null || !ConnectableBlockRoles.isSource(blockType.getId())) {
+            return false;
+        }
+
+        BlockAccessor chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(sourcePosition.getX(), sourcePosition.getZ()));
+        if (chunk == null) {
+            return false;
+        }
+
+        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, sourcePosition, RotationTuple.NONE);
+        return hasLocalSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide);
+    }
+
     public static List<Vector3i> positionsAround(Vector3i center) {
         LinkedHashSet<Vector3i> positions = new LinkedHashSet<>();
         positions.add(center);
@@ -196,6 +216,16 @@ public final class ConnectableNeighborResolver {
     private static boolean isLocalSideFacingWorldSide(String blockId, RotationTuple rotation, int localSideMask, WorldSide requiredWorldSide) {
         return ConnectableRegistry.isConnectableOnSide(blockId, localSideMask)
                 && worldSideForLocalSide(rotation, localSideMask) == requiredWorldSide;
+    }
+
+    private static WorldSide worldSideFromSourceToTarget(Vector3i sourcePosition, Vector3i targetPosition) {
+        int dx = targetPosition.getX() - sourcePosition.getX();
+        int dy = targetPosition.getY() - sourcePosition.getY();
+        int dz = targetPosition.getZ() - sourcePosition.getZ();
+        if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) != 1) {
+            return null;
+        }
+        return WorldSide.fromVector(dx, dy, dz);
     }
 
     public static Vector3i adjacentPositionForLocalSide(World world, Vector3i position, int localSideMask) {

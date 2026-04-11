@@ -11,7 +11,7 @@ class InverterStateCalculatorTest {
     void treatsDirectSourceInputAsPullOutput() {
         assertEquals(
                 GravityPowderStateCalculator.MODE_PUSH,
-                InverterStateCalculator.directSourceInputMode("Rock_Crystal_Blue_Block")
+                InverterStateCalculator.directSourceInputMode("WindGenerator_Block")
         );
     }
 

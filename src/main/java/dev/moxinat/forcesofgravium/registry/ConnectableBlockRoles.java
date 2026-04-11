@@ -6,7 +6,7 @@ import java.util.Set;
 public final class ConnectableBlockRoles {
 
     private static final Set<String> SOURCE_BLOCK_IDS = Set.of(
-            "Rock_Crystal_Blue_Block"
+            ConnectableRegistry.WIND_GENERATOR_BLOCK_ID
     );
 
     private static final Set<String> MACHINE_BLOCK_IDS = Set.of();

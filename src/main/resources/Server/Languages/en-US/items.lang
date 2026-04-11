@@ -2,3 +2,5 @@ Inverter_Block.name = Inverter
 Inverter_Block.description = Inverts power types
 Gravity_Powder_Default.name = Gravity Powder
 Gravity_Powder_Default.description = A dense powder infused with gravity
+WindGenerator_Block.name = Wind Generator
+WindGenerator_Block.description = Generates force from wind

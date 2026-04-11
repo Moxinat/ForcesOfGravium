@@ -132,7 +132,7 @@ public final class ConnectableSignalRecalculator {
             if (inverterSignal.active() && inverter.equals(adapter.inverterFront(neighbor))) {
                 return true;
             }
-            if (adapter.hasSourceAtPosition(neighbor)) {
+            if (adapter.hasSourceFacingPosition(neighbor, inverter)) {
                 return true;
             }
         }
@@ -232,7 +232,7 @@ public final class ConnectableSignalRecalculator {
 
         boolean hasSourceAtInverterBack(@Nonnull Vector3i inverter);
 
-        boolean hasSourceAtPosition(@Nonnull Vector3i position);
+        boolean hasSourceFacingPosition(@Nonnull Vector3i sourcePosition, @Nonnull Vector3i targetPosition);
 
         boolean isInvertEnabled(@Nonnull Vector3i inverter);
 
@@ -321,13 +321,12 @@ public final class ConnectableSignalRecalculator {
         @Override
         public boolean hasSourceAtInverterBack(@Nonnull Vector3i inverter) {
             Vector3i back = inverterBack(inverter);
-            return hasSourceAtPosition(back);
+            return hasSourceFacingPosition(back, inverter);
         }
 
         @Override
-        public boolean hasSourceAtPosition(@Nonnull Vector3i position) {
-            BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
-            return blockType != null && ConnectableBlockRoles.isSource(blockType.getId());
+        public boolean hasSourceFacingPosition(@Nonnull Vector3i sourcePosition, @Nonnull Vector3i targetPosition) {
+            return ConnectableNeighborResolver.isSourceNeighborOf(world, sourcePosition, targetPosition);
         }
 
         @Override

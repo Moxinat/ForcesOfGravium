@@ -7,6 +7,7 @@ public final class ConnectableRegistry {
 
     public static final String GRAVITY_POWDER_BLOCK_ID = "Gravity_Powder_Default";
     public static final String INVERTER_BLOCK_ID = "Inverter_Block";
+    public static final String WIND_GENERATOR_BLOCK_ID = "WindGenerator_Block";
     public static final String GRAVITY_POWDER_STATE_PREFIX = "*" + GRAVITY_POWDER_BLOCK_ID + "_State_";
     public static final String INVERTER_STATE_PREFIX = "*" + INVERTER_BLOCK_ID + "_State_";
     public static final int SIDE_FRONT = 1;
@@ -20,7 +21,7 @@ public final class ConnectableRegistry {
     private static final Map<String, Integer> CONNECTABLE_SIDE_MASKS = Map.of(
             GRAVITY_POWDER_BLOCK_ID, ALL_SIDES_MASK,
             INVERTER_BLOCK_ID, ALL_SIDES_MASK,
-            "Rock_Crystal_Blue_Block", ALL_SIDES_MASK
+            WIND_GENERATOR_BLOCK_ID, SIDE_BACK
     );
 
     private ConnectableRegistry() {

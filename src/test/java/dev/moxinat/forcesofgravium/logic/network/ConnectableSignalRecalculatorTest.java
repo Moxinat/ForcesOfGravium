@@ -283,7 +283,7 @@ class ConnectableSignalRecalculatorTest {
         }
 
         @Override
-        public boolean hasSourceAtPosition(@Nonnull Vector3i position) {
+        public boolean hasSourceFacingPosition(@Nonnull Vector3i sourcePosition, @Nonnull Vector3i targetPosition) {
             return false;
         }
 

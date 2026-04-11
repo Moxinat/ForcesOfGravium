@@ -9,7 +9,7 @@ class ConnectableBlockRolesTest {
 
     @Test
     void recognizesConfiguredSourceBlocks() {
-        assertTrue(ConnectableBlockRoles.isSource("Rock_Crystal_Blue_Block"));
+        assertTrue(ConnectableBlockRoles.isSource("WindGenerator_Block"));
     }
 
     @Test

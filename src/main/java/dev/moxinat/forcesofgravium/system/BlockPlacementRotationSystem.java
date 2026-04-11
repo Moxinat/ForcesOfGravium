@@ -22,7 +22,8 @@ import java.util.Set;
 public final class BlockPlacementRotationSystem extends EntityEventSystem<EntityStore, PlaceBlockEvent> {
 
     private static final Set<String> ROTATION_CONTROLLED_BLOCKS = Set.of(
-            "Inverter_Block"
+            "Inverter_Block",
+            "WindGenerator_Block"
     );
     private static final double VERTICAL_DIRECTION_THRESHOLD = 0.9D;
 
