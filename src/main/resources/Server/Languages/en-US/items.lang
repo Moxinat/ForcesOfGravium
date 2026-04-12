@@ -4,3 +4,5 @@ Gravity_Powder_Default.name = Gravity Powder
 Gravity_Powder_Default.description = A dense powder infused with gravity
 WindGenerator_Block.name = Wind Generator
 WindGenerator_Block.description = Generates force from wind
+Gravium_Siphon_Block.name = Gravium Siphon
+Gravium_Siphon_Block.description = Draws in unstable gravium force

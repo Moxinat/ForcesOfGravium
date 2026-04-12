@@ -20,6 +20,18 @@ class ConnectableRegistryTest {
     }
 
     @Test
+    void graviumSiphonConnectsOnlyHorizontally() {
+        assertTrue(ConnectableRegistry.isConnectable(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID));
+        assertTrue(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_FRONT));
+        assertTrue(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_BACK));
+        assertTrue(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_RIGHT));
+        assertTrue(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_LEFT));
+        assertFalse(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_TOP));
+        assertFalse(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_BOTTOM));
+        assertEquals(ConnectableRegistry.HORIZONTAL_SIDES_MASK, ConnectableRegistry.getConnectableSidesMask(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID));
+    }
+
+    @Test
     void treatsUnknownBlocksAsNotConnectable() {
         assertFalse(ConnectableRegistry.isConnectable("Unknown_Block"));
         assertEquals(0, ConnectableRegistry.getConnectableSidesMask("Unknown_Block"));

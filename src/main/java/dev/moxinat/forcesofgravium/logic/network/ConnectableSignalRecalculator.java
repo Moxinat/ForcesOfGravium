@@ -28,6 +28,10 @@ public final class ConnectableSignalRecalculator {
         return recompute(new WorldSignalAdapter(world));
     }
 
+    public static @Nonnull RecomputeResult recompute(@Nonnull World world, @Nonnull Set<Vector3i> affectedPositions) {
+        return recompute(new WorldSignalAdapter(world, affectedPositions));
+    }
+
     public static @Nonnull RecomputeResult recompute(@Nonnull SignalAdapter adapter) {
         Objects.requireNonNull(adapter, "adapter");
         Map<Vector3i, Boolean> invertEnabled = new LinkedHashMap<>();
@@ -291,6 +295,13 @@ public final class ConnectableSignalRecalculator {
             this.world = Objects.requireNonNull(world, "world");
             this.cables = new LinkedHashSet<>(GravityPowderBlockDataStore.snapshotForWorld(world).keySet());
             this.inverters = new LinkedHashSet<>(InverterDataStore.snapshotForWorld(world).keySet());
+        }
+
+        private WorldSignalAdapter(World world, Set<Vector3i> affectedPositions) {
+            this(world);
+            Objects.requireNonNull(affectedPositions, "affectedPositions");
+            this.cables.retainAll(affectedPositions);
+            this.inverters.retainAll(affectedPositions);
         }
 
         @Override
