@@ -1,6 +1,7 @@
 package dev.moxinat.forcesofgravium.commands;
 
 import com.hypixel.hytale.math.vector.Vector3i;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -8,9 +9,12 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
+import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
+import dev.moxinat.forcesofgravium.logic.siphon.GraviumSiphonLogic;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -18,6 +22,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 public class ForcesOfGraviumCommand extends AbstractCommand {
 
@@ -47,7 +52,10 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             handleSaveWorld(context);
             return CompletableFuture.completedFuture(null);
         }
-        context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z> | /fog invdist all | /fog invdist here | /fog invdist <x> <y> <z> | /fog saveinfo | /fog saveworld"));
+        if (args.length - startIndex >= 2 && "siphon".equalsIgnoreCase(args[startIndex])) {
+            return handleSiphon(context, args, startIndex);
+        }
+        context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z> | /fog invdist all | /fog invdist here | /fog invdist <x> <y> <z> | /fog siphon here | /fog siphon <x> <y> <z> | /fog saveinfo | /fog saveworld"));
         return CompletableFuture.completedFuture(null);
     }
 
@@ -175,6 +183,63 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         if (!lastError.isBlank()) {
             context.sendMessage(Message.raw("Last save error: " + lastError));
         }
+    }
+
+    private CompletableFuture<Void> handleSiphon(@Nonnull CommandContext context, String[] args, int startIndex) {
+        if (!context.isPlayer()) {
+            context.sendMessage(Message.raw("This command currently requires a player sender."));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        Player player = context.senderAs(Player.class);
+        if (player.getWorld() == null) {
+            context.sendMessage(Message.raw("Could not resolve player world."));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        World world = player.getWorld();
+        if ("here".equalsIgnoreCase(args[startIndex + 1])) {
+            return runOnWorldThread(context, world, () -> getPlayerBlockBelowPosition(player));
+        }
+
+        if (args.length - startIndex < 4) {
+            context.sendMessage(Message.raw("Usage: /fog siphon here | /fog siphon <x> <y> <z>"));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        try {
+            int x = Integer.parseInt(args[startIndex + 1]);
+            int y = Integer.parseInt(args[startIndex + 2]);
+            int z = Integer.parseInt(args[startIndex + 3]);
+            Vector3i position = new Vector3i(x, y, z);
+            return runOnWorldThread(context, world, () -> position);
+        } catch (NumberFormatException exception) {
+            context.sendMessage(Message.raw("Coordinates must be integers."));
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    private CompletableFuture<Void> runOnWorldThread(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Supplier<Vector3i> positionSupplier) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        world.execute(() -> {
+            try {
+                sendSiphonResult(context, world, positionSupplier.get());
+                future.complete(null);
+            } catch (Exception exception) {
+                context.sendMessage(Message.raw("Siphon debug failed: " + exception.getClass().getSimpleName() + ": " + exception.getMessage()));
+                future.complete(null);
+            }
+        });
+        return future;
+    }
+
+    private void sendSiphonResult(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Vector3i position) {
+        BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
+        if (blockType != null && ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID.equals(blockType.getId())) {
+            GraviumSiphonStore.add(world, position);
+        }
+        GraviumSiphonLogic.SiphonMoveResult result = GraviumSiphonLogic.transferOneItem(world, position);
+        context.sendMessage(Message.raw("Siphon at " + formatPosition(position) + ": " + result));
     }
 
     private void sendAllGravityPowderDistances(@Nonnull CommandContext context, @Nonnull World world) {

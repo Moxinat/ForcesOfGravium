@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
+import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import org.bson.BsonArray;
@@ -35,6 +36,7 @@ public final class WorldSaveFileService {
     private static final Map<String, Long> LAST_SAVE_ATTEMPT_MILLIS = new ConcurrentHashMap<>();
     private static final Map<String, String> LAST_SAVE_ERROR = new ConcurrentHashMap<>();
     private static final Set<String> DIRTY_WORLDS = ConcurrentHashMap.newKeySet();
+    private static final Set<String> LOADING_WORLDS = ConcurrentHashMap.newKeySet();
 
     private WorldSaveFileService() {
     }
@@ -51,12 +53,15 @@ public final class WorldSaveFileService {
             }
 
             LOADED_WORLDS.put(key, world);
+            LOADING_WORLDS.add(key);
             GravityPowderBlockDataStore.clearWorld(world);
             InverterDataStore.clearWorld(world);
+            GraviumSiphonStore.clearWorld(world);
             ConnectableRotationStore.clearWorld(world);
 
             Path saveFile = saveFile(world);
             if (!Files.exists(saveFile)) {
+                LOADING_WORLDS.remove(key);
                 return;
             }
 
@@ -69,9 +74,12 @@ public final class WorldSaveFileService {
                 BsonDocument root = BsonDocument.parse(content);
                 loadGravityPowder(world, root.getArray("gravityPowder", new BsonArray()));
                 loadInverters(world, root.getArray("inverters", new BsonArray()));
+                loadGraviumSiphons(world, root.getArray("graviumSiphons", new BsonArray()));
                 loadRotations(world, root.getArray("rotations", new BsonArray()));
             } catch (Exception exception) {
                 System.err.println("[FoG] Failed to load world save for '" + world.getName() + "': " + exception.getMessage());
+            } finally {
+                LOADING_WORLDS.remove(key);
             }
         }
     }
@@ -79,6 +87,10 @@ public final class WorldSaveFileService {
     public static void markDirty(@Nonnull World world) {
         ensureLoaded(world);
         String key = worldKey(world);
+        if (LOADING_WORLDS.contains(key)) {
+            return;
+        }
+
         DIRTY_WORLDS.add(key);
 
         long now = System.currentTimeMillis();
@@ -115,6 +127,7 @@ public final class WorldSaveFileService {
                 BsonDocument root = new BsonDocument();
                 root.put("gravityPowder", serializeGravityPowder(world));
                 root.put("inverters", serializeInverters(world));
+                root.put("graviumSiphons", serializeGraviumSiphons(world));
                 root.put("rotations", serializeRotations(world));
                 Files.writeString(saveFile, root.toJson(), StandardCharsets.UTF_8);
                 DIRTY_WORLDS.remove(key);
@@ -203,6 +216,16 @@ public final class WorldSaveFileService {
         }
     }
 
+    private static void loadGraviumSiphons(World world, BsonArray entries) {
+        for (BsonValue value : entries) {
+            if (!value.isDocument()) {
+                continue;
+            }
+            BsonDocument entry = value.asDocument();
+            GraviumSiphonStore.add(world, readPosition(entry.getDocument("position")));
+        }
+    }
+
     private static void loadRotations(World world, BsonArray entries) {
         for (BsonValue value : entries) {
             if (!value.isDocument()) {
@@ -243,6 +266,16 @@ public final class WorldSaveFileService {
             document.put("nextMode", new BsonString(data.nextMode()));
             document.put("invertEnabled", new BsonBoolean(data.invertEnabled()));
             document.put("toggleInputActive", new BsonBoolean(data.toggleInputActive()));
+            result.add(document);
+        }
+        return result;
+    }
+
+    private static BsonArray serializeGraviumSiphons(World world) {
+        BsonArray result = new BsonArray();
+        for (Vector3i position : GraviumSiphonStore.snapshotForWorld(world)) {
+            BsonDocument document = new BsonDocument();
+            document.put("position", writePosition(position));
             result.add(document);
         }
         return result;

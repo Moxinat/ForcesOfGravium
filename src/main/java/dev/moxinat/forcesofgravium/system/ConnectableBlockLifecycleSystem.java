@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
+import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
@@ -59,6 +60,9 @@ public final class ConnectableBlockLifecycleSystem {
             if (ConnectableRegistry.isInverterId(itemInHand.getItemId())) {
                 InverterDataStore.putDefault(world, target);
             }
+            if (ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID.equals(itemInHand.getItemId())) {
+                GraviumSiphonStore.add(world, target);
+            }
             ConnectableRotationStore.put(world, target, event.getRotation());
             ConnectablePropagationScheduler.onConnectablePlaced(world, target, player);
         }
@@ -96,6 +100,9 @@ public final class ConnectableBlockLifecycleSystem {
             }
             if (ConnectableRegistry.isInverterId(brokenType.getId())) {
                 InverterDataStore.remove(world, target);
+            }
+            if (ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID.equals(brokenType.getId())) {
+                GraviumSiphonStore.remove(world, target);
             }
             ConnectablePropagationScheduler.onConnectableBroken(world, target);
         }

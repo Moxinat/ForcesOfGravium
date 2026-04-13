@@ -19,12 +19,13 @@ public final class ConnectableRegistry {
     public static final int SIDE_BOTTOM = 1 << 5;
     public static final int ALL_SIDES_MASK = SIDE_FRONT | SIDE_BACK | SIDE_RIGHT | SIDE_LEFT | SIDE_TOP | SIDE_BOTTOM;
     public static final int HORIZONTAL_SIDES_MASK = SIDE_FRONT | SIDE_BACK | SIDE_RIGHT | SIDE_LEFT;
+    public static final int SIDES_EXCEPT_FRONT_BACK_MASK = SIDE_RIGHT | SIDE_LEFT | SIDE_TOP | SIDE_BOTTOM;
 
     private static final Map<String, Integer> CONNECTABLE_SIDE_MASKS = Map.of(
             GRAVITY_POWDER_BLOCK_ID, ALL_SIDES_MASK,
             INVERTER_BLOCK_ID, ALL_SIDES_MASK,
             WIND_GENERATOR_BLOCK_ID, SIDE_BACK,
-            GRAVIUM_SIPHON_BLOCK_ID, HORIZONTAL_SIDES_MASK
+            GRAVIUM_SIPHON_BLOCK_ID, SIDES_EXCEPT_FRONT_BACK_MASK
     );
 
     private ConnectableRegistry() {

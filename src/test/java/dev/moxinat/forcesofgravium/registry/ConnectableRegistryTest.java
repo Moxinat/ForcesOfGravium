@@ -20,15 +20,15 @@ class ConnectableRegistryTest {
     }
 
     @Test
-    void graviumSiphonConnectsOnlyHorizontally() {
+    void graviumSiphonConnectsOnEverySideExceptFrontAndBack() {
         assertTrue(ConnectableRegistry.isConnectable(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID));
-        assertTrue(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_FRONT));
-        assertTrue(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_BACK));
+        assertFalse(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_FRONT));
+        assertFalse(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_BACK));
         assertTrue(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_RIGHT));
         assertTrue(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_LEFT));
-        assertFalse(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_TOP));
-        assertFalse(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_BOTTOM));
-        assertEquals(ConnectableRegistry.HORIZONTAL_SIDES_MASK, ConnectableRegistry.getConnectableSidesMask(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID));
+        assertTrue(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_TOP));
+        assertTrue(ConnectableRegistry.isConnectableOnSide(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, ConnectableRegistry.SIDE_BOTTOM));
+        assertEquals(ConnectableRegistry.SIDES_EXCEPT_FRONT_BACK_MASK, ConnectableRegistry.getConnectableSidesMask(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID));
     }
 
     @Test
