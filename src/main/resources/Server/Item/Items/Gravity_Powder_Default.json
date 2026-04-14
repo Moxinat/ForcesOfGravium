@@ -5,7 +5,7 @@
   },
   "ItemLevel": 10,
   "MaxStack": 100,
-  "Icon": "Icons/ItemsGenerated/Gravity_Powder_Off.png",
+  "Icon": "Icons/ItemsGenerated/Gravity_Powder_Default.png",
   "Categories": [
     "Blocks.Rocks"
   ],
@@ -297,5 +297,17 @@
       "Rock"
     ]
   },
-  "ItemSoundSetId": "ISS_Blocks_Stone"
+  "ItemSoundSetId": "ISS_Blocks_Stone",
+  "IconProperties": {
+    "Scale": 1.7,
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ],
+    "Translation": [
+      0,
+      -13.5
+    ]
+  }
 }

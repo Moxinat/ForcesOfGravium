@@ -5,7 +5,7 @@
   },
   "ItemLevel": 10,
   "MaxStack": 100,
-  "Icon": "Icons/ItemsGenerated/Inverter_Front_Off.png",
+  "Icon": "Icons/ItemsGenerated/Inverter_Block.png",
   "Categories": [
     "Blocks.Rocks"
   ],
@@ -98,5 +98,17 @@
       "Rock"
     ]
   },
-  "ItemSoundSetId": "ISS_Blocks_Stone"
+  "ItemSoundSetId": "ISS_Blocks_Stone",
+  "IconProperties": {
+    "Scale": 0.58823,
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ],
+    "Translation": [
+      0,
+      -13.5
+    ]
+  }
 }
