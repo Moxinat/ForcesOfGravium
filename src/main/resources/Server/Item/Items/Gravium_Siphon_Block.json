@@ -23,6 +23,28 @@
     ],
     "Group": "Stone",
     "Flags": {},
+    "State": {
+      "Definitions": {
+        "Locked": {
+          "CustomModel": "Blocks/Gravium_Siphon/Gravium_Siphon_Block.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Gravium_Siphon_locked.png",
+              "Weight": 1
+            }
+          ]
+        },
+        "Powered": {
+          "CustomModel": "Blocks/Gravium_Siphon/Gravium_Siphon_Block.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Gravium_Siphon_powered.png",
+              "Weight": 1
+            }
+          ]
+        }
+      }
+    },
     "ParticleColor": "#737055",
     "VariantRotation": "All",
     "BlockSoundSetId": "Stone",

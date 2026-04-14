@@ -8,6 +8,7 @@ import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
+import dev.moxinat.forcesofgravium.data.GraviumSiphonStore.GraviumSiphonData;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import org.bson.BsonArray;
@@ -222,7 +223,14 @@ public final class WorldSaveFileService {
                 continue;
             }
             BsonDocument entry = value.asDocument();
-            GraviumSiphonStore.add(world, readPosition(entry.getDocument("position")));
+            GraviumSiphonStore.putIfAbsent(
+                    world,
+                    readPosition(entry.getDocument("position")),
+                    new GraviumSiphonData(
+                            entry.getBoolean("powered", BsonBoolean.FALSE).getValue(),
+                            entry.getBoolean("locked", BsonBoolean.FALSE).getValue()
+                    )
+            );
         }
     }
 
@@ -273,9 +281,11 @@ public final class WorldSaveFileService {
 
     private static BsonArray serializeGraviumSiphons(World world) {
         BsonArray result = new BsonArray();
-        for (Vector3i position : GraviumSiphonStore.snapshotForWorld(world)) {
+        for (Map.Entry<Vector3i, GraviumSiphonData> entry : GraviumSiphonStore.snapshotForWorld(world).entrySet()) {
             BsonDocument document = new BsonDocument();
-            document.put("position", writePosition(position));
+            document.put("position", writePosition(entry.getKey()));
+            document.put("powered", new BsonBoolean(entry.getValue().powered()));
+            document.put("locked", new BsonBoolean(entry.getValue().locked()));
             result.add(document);
         }
         return result;

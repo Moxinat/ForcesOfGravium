@@ -7,6 +7,8 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
@@ -51,7 +53,7 @@ public final class ConnectableNeighborResolver {
             return false;
         }
 
-        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, new Vector3i(x, y, z), RotationTuple.NONE);
+        RotationTuple rotation = rotationFor(world, new Vector3i(x, y, z));
         return hasLocalSideFacingWorldSide(id, rotation, requiredWorldSide);
     }
 
@@ -104,7 +106,7 @@ public final class ConnectableNeighborResolver {
             return false;
         }
 
-        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, sourcePosition, RotationTuple.NONE);
+        RotationTuple rotation = rotationFor(world, sourcePosition);
         return hasLocalSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide);
     }
 
@@ -197,7 +199,7 @@ public final class ConnectableNeighborResolver {
             return;
         }
 
-        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, new Vector3i(x, y, z), RotationTuple.NONE);
+        RotationTuple rotation = rotationFor(world, new Vector3i(x, y, z));
         if (hasLocalSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide)) {
             sources.add(new Vector3i(x, y, z));
         }
@@ -229,7 +231,7 @@ public final class ConnectableNeighborResolver {
     }
 
     public static Vector3i adjacentPositionForLocalSide(World world, Vector3i position, int localSideMask) {
-        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, position, RotationTuple.NONE);
+        RotationTuple rotation = rotationFor(world, position);
         WorldSide worldSide = worldSideForLocalSide(rotation, localSideMask);
         return switch (worldSide) {
             case EAST -> new Vector3i(position.getX() + 1, position.getY(), position.getZ());
@@ -239,6 +241,30 @@ public final class ConnectableNeighborResolver {
             case UP -> new Vector3i(position.getX(), position.getY() + 1, position.getZ());
             case DOWN -> new Vector3i(position.getX(), position.getY() - 1, position.getZ());
         };
+    }
+
+    @SuppressWarnings("deprecation")
+    public static RotationTuple rotationFor(World world, Vector3i position) {
+        RotationTuple storedRotation = ConnectableRotationStore.get(world, position);
+        if (storedRotation != null) {
+            return storedRotation;
+        }
+
+        try {
+            if (position.getY() < 0 || position.getY() >= 320) {
+                return RotationTuple.NONE;
+            }
+
+            WorldChunk chunk = world.getNonTickingChunk(ChunkUtil.indexChunkFromBlock(position.getX(), position.getZ()));
+            if (chunk == null) {
+                return RotationTuple.NONE;
+            }
+
+            BlockSection section = chunk.getBlockChunk().getSectionAtIndex(ChunkUtil.indexSection(position.getY()));
+            return RotationTuple.get(section.getRotationIndex(ChunkUtil.indexBlock(position.getX(), position.getY(), position.getZ())));
+        } catch (Exception ignored) {
+            return RotationTuple.NONE;
+        }
     }
 
     public static WorldSide worldSideForLocalSide(RotationTuple rotation, int localSideMask) {

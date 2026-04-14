@@ -10,6 +10,9 @@ public final class ConnectableBlockRoles {
     );
 
     private static final Set<String> MACHINE_BLOCK_IDS = Set.of();
+    private static final Set<String> CONSUMER_BLOCK_IDS = Set.of(
+            ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID
+    );
 
     private ConnectableBlockRoles() {
     }
@@ -20,5 +23,9 @@ public final class ConnectableBlockRoles {
 
     public static boolean isMachine(@Nullable String blockId) {
         return blockId != null && MACHINE_BLOCK_IDS.contains(blockId);
+    }
+
+    public static boolean isConsumer(@Nullable String blockId) {
+        return blockId != null && (CONSUMER_BLOCK_IDS.contains(blockId) || ConnectableRegistry.isGraviumSiphonId(blockId));
     }
 }

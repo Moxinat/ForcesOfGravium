@@ -54,6 +54,7 @@ public final class ConnectablePropagationScheduler {
     private static void tickWorld(World world, Set<Vector3i> dirtyPositions) {
         Set<Vector3i> affectedPositions = affectedConnectablePositions(world, dirtyPositions);
         if (affectedPositions.isEmpty()) {
+            ConnectableNetworkUpdateService.updateSiphonsNear(world, dirtyPositions);
             return;
         }
 
@@ -72,6 +73,14 @@ public final class ConnectablePropagationScheduler {
             }
             InverterBlockRefresher.refreshAt(world, inverter);
         }
+        ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(dirtyPositions, affectedPositions));
+    }
+
+    private static Set<Vector3i> merge(Set<Vector3i> first, Set<Vector3i> second) {
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+        result.addAll(first);
+        result.addAll(second);
+        return Set.copyOf(result);
     }
 
     private static void enqueueRecompute(World world, Vector3i target) {

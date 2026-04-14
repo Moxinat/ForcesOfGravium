@@ -101,7 +101,7 @@ public final class ConnectableBlockLifecycleSystem {
             if (ConnectableRegistry.isInverterId(brokenType.getId())) {
                 InverterDataStore.remove(world, target);
             }
-            if (ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID.equals(brokenType.getId())) {
+            if (ConnectableRegistry.isGraviumSiphonId(brokenType.getId())) {
                 GraviumSiphonStore.remove(world, target);
             }
             ConnectablePropagationScheduler.onConnectableBroken(world, target);

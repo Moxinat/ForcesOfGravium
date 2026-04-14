@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
+import dev.moxinat.forcesofgravium.logic.siphon.GraviumSiphonBlockRefresher;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.logic.siphon.GraviumSiphonLogic;
@@ -55,7 +56,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         if (args.length - startIndex >= 2 && "siphon".equalsIgnoreCase(args[startIndex])) {
             return handleSiphon(context, args, startIndex);
         }
-        context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z> | /fog invdist all | /fog invdist here | /fog invdist <x> <y> <z> | /fog siphon here | /fog siphon <x> <y> <z> | /fog saveinfo | /fog saveworld"));
+        context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z> | /fog invdist all | /fog invdist here | /fog invdist <x> <y> <z> | /fog siphon here | /fog siphon <x> <y> <z> | /fog siphon powered here <true|false> | /fog siphon powered <x> <y> <z> <true|false> | /fog siphon locked here <true|false> | /fog siphon locked <x> <y> <z> <true|false> | /fog saveinfo | /fog saveworld"));
         return CompletableFuture.completedFuture(null);
     }
 
@@ -198,6 +199,13 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         }
 
         World world = player.getWorld();
+        if ("powered".equalsIgnoreCase(args[startIndex + 1])) {
+            return handleSiphonBooleanState(context, world, player, args, startIndex, "powered");
+        }
+        if ("locked".equalsIgnoreCase(args[startIndex + 1])) {
+            return handleSiphonBooleanState(context, world, player, args, startIndex, "locked");
+        }
+
         if ("here".equalsIgnoreCase(args[startIndex + 1])) {
             return runOnWorldThread(context, world, () -> getPlayerBlockBelowPosition(player));
         }
@@ -219,6 +227,73 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         }
     }
 
+    private CompletableFuture<Void> handleSiphonBooleanState(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Player player, String[] args, int startIndex, @Nonnull String stateName) {
+        if (args.length - startIndex < 4) {
+            context.sendMessage(Message.raw("Usage: /fog siphon " + stateName + " here <true|false> | /fog siphon " + stateName + " <x> <y> <z> <true|false>"));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        if ("here".equalsIgnoreCase(args[startIndex + 2])) {
+            Boolean value = parseBoolean(args[startIndex + 3]);
+            if (value == null) {
+                context.sendMessage(Message.raw(stateName + " must be true or false."));
+                return CompletableFuture.completedFuture(null);
+            }
+            return runSiphonBooleanStateOnWorldThread(context, world, () -> getPlayerBlockBelowPosition(player), stateName, value);
+        }
+
+        if (args.length - startIndex < 6) {
+            context.sendMessage(Message.raw("Usage: /fog siphon " + stateName + " here <true|false> | /fog siphon " + stateName + " <x> <y> <z> <true|false>"));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        try {
+            int x = Integer.parseInt(args[startIndex + 2]);
+            int y = Integer.parseInt(args[startIndex + 3]);
+            int z = Integer.parseInt(args[startIndex + 4]);
+            Boolean value = parseBoolean(args[startIndex + 5]);
+            if (value == null) {
+                context.sendMessage(Message.raw(stateName + " must be true or false."));
+                return CompletableFuture.completedFuture(null);
+            }
+            Vector3i position = new Vector3i(x, y, z);
+            return runSiphonBooleanStateOnWorldThread(context, world, () -> position, stateName, value);
+        } catch (NumberFormatException exception) {
+            context.sendMessage(Message.raw("Coordinates must be integers."));
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    private CompletableFuture<Void> runSiphonBooleanStateOnWorldThread(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Supplier<Vector3i> positionSupplier, @Nonnull String stateName, boolean value) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        world.execute(() -> {
+            try {
+                setSiphonBooleanState(context, world, positionSupplier.get(), stateName, value);
+                future.complete(null);
+            } catch (Exception exception) {
+                context.sendMessage(Message.raw("Siphon " + stateName + " update failed: " + exception.getClass().getSimpleName() + ": " + exception.getMessage()));
+                future.complete(null);
+            }
+        });
+        return future;
+    }
+
+    private void setSiphonBooleanState(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Vector3i position, @Nonnull String stateName, boolean value) {
+        BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
+        if (blockType == null || !ConnectableRegistry.isGraviumSiphonId(blockType.getId())) {
+            context.sendMessage(Message.raw("No gravium siphon at " + formatPosition(position) + "."));
+            return;
+        }
+
+        if ("powered".equals(stateName)) {
+            GraviumSiphonStore.setPowered(world, position, value);
+        } else if ("locked".equals(stateName)) {
+            GraviumSiphonStore.setLocked(world, position, value);
+        }
+        GraviumSiphonBlockRefresher.refreshAt(world, position);
+        context.sendMessage(Message.raw("Siphon at " + formatPosition(position) + " " + stateName + "=" + value));
+    }
+
     private CompletableFuture<Void> runOnWorldThread(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Supplier<Vector3i> positionSupplier) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         world.execute(() -> {
@@ -235,7 +310,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
 
     private void sendSiphonResult(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Vector3i position) {
         BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
-        if (blockType != null && ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID.equals(blockType.getId())) {
+        if (blockType != null && ConnectableRegistry.isGraviumSiphonId(blockType.getId())) {
             GraviumSiphonStore.add(world, position);
         }
         GraviumSiphonLogic.SiphonMoveResult result = GraviumSiphonLogic.transferOneItem(world, position);
@@ -319,6 +394,16 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
 
     private static String formatPosition(Vector3i position) {
         return "(" + position.getX() + "," + position.getY() + "," + position.getZ() + ")";
+    }
+
+    private static @Nullable Boolean parseBoolean(String value) {
+        if ("true".equalsIgnoreCase(value)) {
+            return Boolean.TRUE;
+        }
+        if ("false".equalsIgnoreCase(value)) {
+            return Boolean.FALSE;
+        }
+        return null;
     }
 
     @SuppressWarnings("removal")

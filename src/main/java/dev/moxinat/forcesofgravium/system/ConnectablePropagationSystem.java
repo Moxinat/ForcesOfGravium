@@ -4,9 +4,10 @@ import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
-import com.hypixel.hytale.component.system.tick.DelayedEntitySystem;
+import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.moxinat.forcesofgravium.logic.network.ConnectableNetworkUpdateService;
 import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.logic.siphon.GraviumSiphonLogic;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
@@ -15,14 +16,14 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class ConnectablePropagationSystem extends DelayedEntitySystem<EntityStore> {
+public final class ConnectablePropagationSystem extends EntityTickingSystem<EntityStore> {
 
-    private static final float TICK_INTERVAL_SECONDS = 2.0f;
+    private static final int SIPHON_LOGIC_INTERVAL_TICKS = 5;
     private static final int AUTOSAVE_INTERVAL_TICKS = 100;
     private static final Map<String, Long> LAST_PROCESSED_WORLD_TICKS = new ConcurrentHashMap<>();
+    private static final Map<String, Long> LAST_AUTOSAVED_WORLD_TICKS = new ConcurrentHashMap<>();
 
     public ConnectablePropagationSystem() {
-        super(TICK_INTERVAL_SECONDS);
     }
 
     @Override
@@ -37,16 +38,33 @@ public final class ConnectablePropagationSystem extends DelayedEntitySystem<Enti
             return;
         }
 
+        String worldKey = worldKey(store);
+        ConnectableNetworkUpdateService.ensureInitialized(store.getExternalData().getWorld());
         ConnectablePropagationScheduler.tickPropagation();
-        GraviumSiphonLogic.tickWorld(store.getExternalData().getWorld());
-        if (tick % AUTOSAVE_INTERVAL_TICKS == 0) {
+        if (tick % SIPHON_LOGIC_INTERVAL_TICKS == 0) {
+            GraviumSiphonLogic.tickWorld(store.getExternalData().getWorld());
+        }
+        if (shouldAutosave(worldKey, tick)) {
             WorldSaveFileService.saveDirtyWorlds();
         }
     }
 
     private static boolean markWorldTickProcessed(Store<EntityStore> store, long tick) {
-        String worldKey = store.getExternalData().getWorld().getSavePath().toAbsolutePath().normalize().toString();
-        Long previousTick = LAST_PROCESSED_WORLD_TICKS.put(worldKey, tick);
+        Long previousTick = LAST_PROCESSED_WORLD_TICKS.put(worldKey(store), tick);
         return previousTick == null || previousTick.longValue() != tick;
+    }
+
+    private static boolean shouldAutosave(String worldKey, long tick) {
+        Long previousTick = LAST_AUTOSAVED_WORLD_TICKS.get(worldKey);
+        if (previousTick != null && tick - previousTick < AUTOSAVE_INTERVAL_TICKS) {
+            return false;
+        }
+
+        LAST_AUTOSAVED_WORLD_TICKS.put(worldKey, tick);
+        return true;
+    }
+
+    private static String worldKey(Store<EntityStore> store) {
+        return store.getExternalData().getWorld().getSavePath().toAbsolutePath().normalize().toString();
     }
 }

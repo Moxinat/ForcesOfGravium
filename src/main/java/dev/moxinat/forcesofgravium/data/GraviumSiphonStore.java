@@ -5,44 +5,92 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
 import javax.annotation.Nonnull;
-import java.util.Set;
+import javax.annotation.Nullable;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public final class GraviumSiphonStore {
 
-    private static final Set<BlockKey> POSITIONS = ConcurrentHashMap.newKeySet();
+    private static final Map<BlockKey, GraviumSiphonData> DATA = new ConcurrentHashMap<>();
 
     private GraviumSiphonStore() {
     }
 
     public static void add(@Nonnull World world, @Nonnull Vector3i position) {
+        putIfAbsent(world, position, GraviumSiphonData.defaultData());
+    }
+
+    public static void putIfAbsent(@Nonnull World world, @Nonnull Vector3i position, @Nonnull GraviumSiphonData data) {
         WorldSaveFileService.ensureLoaded(world);
-        if (POSITIONS.add(BlockKey.from(world, position))) {
+        GraviumSiphonData previous = DATA.putIfAbsent(BlockKey.from(world, position), data);
+        if (previous == null) {
             WorldSaveFileService.markDirty(world);
         }
     }
 
     public static void remove(@Nonnull World world, @Nonnull Vector3i position) {
         WorldSaveFileService.ensureLoaded(world);
-        if (POSITIONS.remove(BlockKey.from(world, position))) {
+        if (DATA.remove(BlockKey.from(world, position)) != null) {
             WorldSaveFileService.markDirty(world);
         }
     }
 
-    public static @Nonnull Set<Vector3i> snapshotForWorld(@Nonnull World world) {
+    public static @Nullable GraviumSiphonData get(@Nonnull World world, @Nonnull Vector3i position) {
         WorldSaveFileService.ensureLoaded(world);
-        String worldId = world.getName();
-        return POSITIONS.stream()
-                .filter(key -> key.worldId().equals(worldId))
-                .map(key -> new Vector3i(key.x(), key.y(), key.z()))
-                .collect(Collectors.toUnmodifiableSet());
+        return DATA.get(BlockKey.from(world, position));
     }
 
-    public static void retainExisting(@Nonnull World world, @Nonnull Set<Vector3i> positions) {
+    public static @Nonnull GraviumSiphonData getOrCreate(@Nonnull World world, @Nonnull Vector3i position) {
+        WorldSaveFileService.ensureLoaded(world);
+        return DATA.computeIfAbsent(BlockKey.from(world, position), ignored -> GraviumSiphonData.defaultData());
+    }
+
+    public static void setPowered(@Nonnull World world, @Nonnull Vector3i position, boolean powered) {
+        WorldSaveFileService.ensureLoaded(world);
+        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
+            GraviumSiphonData data = existing == null ? GraviumSiphonData.defaultData() : existing;
+            return data.withPowered(powered);
+        });
+        WorldSaveFileService.markDirty(world);
+    }
+
+    public static void setLocked(@Nonnull World world, @Nonnull Vector3i position, boolean locked) {
+        WorldSaveFileService.ensureLoaded(world);
+        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
+            GraviumSiphonData data = existing == null ? GraviumSiphonData.defaultData() : existing;
+            return data.withLocked(locked);
+        });
+        WorldSaveFileService.markDirty(world);
+    }
+
+    public static boolean setState(@Nonnull World world, @Nonnull Vector3i position, boolean powered, boolean locked) {
+        WorldSaveFileService.ensureLoaded(world);
+        BlockKey key = BlockKey.from(world, position);
+        GraviumSiphonData next = new GraviumSiphonData(powered, locked);
+        GraviumSiphonData previous = DATA.put(key, next);
+        if (!next.equals(previous)) {
+            WorldSaveFileService.markDirty(world);
+            return true;
+        }
+        return false;
+    }
+
+    public static @Nonnull Map<Vector3i, GraviumSiphonData> snapshotForWorld(@Nonnull World world) {
         WorldSaveFileService.ensureLoaded(world);
         String worldId = world.getName();
-        boolean removed = POSITIONS.removeIf(key -> key.worldId().equals(worldId)
+        return DATA.entrySet().stream()
+                .filter(entry -> entry.getKey().worldId().equals(worldId))
+                .collect(Collectors.toMap(
+                        entry -> new Vector3i(entry.getKey().x(), entry.getKey().y(), entry.getKey().z()),
+                        Map.Entry::getValue
+                ));
+    }
+
+    public static void retainExisting(@Nonnull World world, @Nonnull java.util.Set<Vector3i> positions) {
+        WorldSaveFileService.ensureLoaded(world);
+        String worldId = world.getName();
+        boolean removed = DATA.keySet().removeIf(key -> key.worldId().equals(worldId)
                 && !positions.contains(new Vector3i(key.x(), key.y(), key.z())));
         if (removed) {
             WorldSaveFileService.markDirty(world);
@@ -51,7 +99,22 @@ public final class GraviumSiphonStore {
 
     public static void clearWorld(@Nonnull World world) {
         String worldId = world.getName();
-        POSITIONS.removeIf(key -> key.worldId().equals(worldId));
+        DATA.keySet().removeIf(key -> key.worldId().equals(worldId));
+    }
+
+    public record GraviumSiphonData(boolean powered, boolean locked) {
+
+        public static @Nonnull GraviumSiphonData defaultData() {
+            return new GraviumSiphonData(false, false);
+        }
+
+        public @Nonnull GraviumSiphonData withPowered(boolean value) {
+            return new GraviumSiphonData(value, locked);
+        }
+
+        public @Nonnull GraviumSiphonData withLocked(boolean value) {
+            return new GraviumSiphonData(powered, value);
+        }
     }
 
     private record BlockKey(@Nonnull String worldId, int x, int y, int z) {

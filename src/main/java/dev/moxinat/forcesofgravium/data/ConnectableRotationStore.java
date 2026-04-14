@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -26,6 +27,11 @@ public final class ConnectableRotationStore {
     public static @Nonnull RotationTuple getOrDefault(@Nonnull World world, @Nonnull Vector3i position, @Nonnull RotationTuple fallback) {
         WorldSaveFileService.ensureLoaded(world);
         return DATA.getOrDefault(BlockKey.from(world, position), fallback);
+    }
+
+    public static @Nullable RotationTuple get(@Nonnull World world, @Nonnull Vector3i position) {
+        WorldSaveFileService.ensureLoaded(world);
+        return DATA.get(BlockKey.from(world, position));
     }
 
     public static void remove(@Nonnull World world, @Nonnull Vector3i position) {
