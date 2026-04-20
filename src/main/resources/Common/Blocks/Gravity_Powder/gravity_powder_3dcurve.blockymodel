@@ -48,7 +48,7 @@
         "unwrapMode": "custom",
         "visible": true,
         "doubleSided": false,
-        "shadingMode": "standard"
+        "shadingMode": "fullbright"
       },
       "children": [
         {
@@ -99,7 +99,7 @@
             "unwrapMode": "custom",
             "visible": true,
             "doubleSided": false,
-            "shadingMode": "standard"
+            "shadingMode": "fullbright"
           }
         },
         {
@@ -150,7 +150,7 @@
             "unwrapMode": "custom",
             "visible": true,
             "doubleSided": false,
-            "shadingMode": "standard"
+            "shadingMode": "fullbright"
           }
         },
         {
@@ -201,7 +201,7 @@
             "unwrapMode": "custom",
             "visible": true,
             "doubleSided": false,
-            "shadingMode": "standard"
+            "shadingMode": "fullbright"
           }
         },
         {
@@ -252,7 +252,7 @@
             "unwrapMode": "custom",
             "visible": true,
             "doubleSided": false,
-            "shadingMode": "standard"
+            "shadingMode": "fullbright"
           }
         },
         {
@@ -303,7 +303,7 @@
             "unwrapMode": "custom",
             "visible": true,
             "doubleSided": false,
-            "shadingMode": "standard"
+            "shadingMode": "fullbright"
           }
         }
       ]
