@@ -42,7 +42,7 @@ public final class ConnectablePropagationSystem extends EntityTickingSystem<Enti
         ConnectableNetworkUpdateService.ensureInitialized(store.getExternalData().getWorld());
         ConnectablePropagationScheduler.tickPropagation();
         if (tick % SIPHON_LOGIC_INTERVAL_TICKS == 0) {
-            GraviumSiphonLogic.tickWorld(store.getExternalData().getWorld());
+            GraviumSiphonLogic.tickWorld(store.getExternalData().getWorld(), commandBuffer);
         }
         if (shouldAutosave(worldKey, tick)) {
             WorldSaveFileService.saveDirtyWorlds();
