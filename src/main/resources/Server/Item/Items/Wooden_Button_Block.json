@@ -47,14 +47,27 @@
     },
     "BlockParticleSetId": "Wood",
     "ParticleColor": "#bba58b",
-    "VariantRotation": "All",
+    "VariantRotation": "DoublePipe",
     "BlockSoundSetId": "Wood",
     "Aliases": [
       "Wooden_Button_Block"
     ],
     "BlockBreakingDecalId": "Breaking_Decals_Wood",
+    "Support": {
+      "Down": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "North": [
+        {
+          "FaceType": "Full"
+        }
+      ]
+    },
     "PlacementSettings": {
-      "RotationMode": "BlockNormal"
+      "RotationMode": "BlockNormal",
+      "PlaceInEmptyBlocks": true
     }
   },
   "Tags": {
@@ -71,8 +84,8 @@
       22.5
     ],
     "Translation": [
-      0,
-      -13.5
+      -8,
+      -6
     ]
   }
 }
