@@ -15,6 +15,7 @@
     "Material": "Solid",
     "DrawType": "Model",
     "Opacity": "Transparent",
+    "HitboxType": "Wooden_Button_Custom",
     "CustomModel": "Blocks/Wooden_Button/Button.blockymodel",
     "CustomModelTexture": [
       {
@@ -29,6 +30,16 @@
     "State": {
       "Definitions": {
         "Pressed": {
+          "CustomModel": "Blocks/Wooden_Button/Button.blockymodel",
+          "CustomModelAnimation": "Blocks/Wooden_Button/button_press.blockyanim",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Wooden_Button.png",
+              "Weight": 1
+            }
+          ]
+        },
+        "PressedAlt": {
           "CustomModel": "Blocks/Wooden_Button/Button.blockymodel",
           "CustomModelAnimation": "Blocks/Wooden_Button/button_press.blockyanim",
           "CustomModelTexture": [
@@ -53,6 +64,20 @@
       "Wooden_Button_Block"
     ],
     "BlockBreakingDecalId": "Breaking_Decals_Wood",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "ChangeState",
+            "Changes": {
+              "default": "Pressed",
+              "Pressed": "PressedAlt",
+              "PressedAlt": "Pressed"
+            }
+          }
+        ]
+      }
+    },
     "Support": {
       "Down": [
         {

@@ -24,7 +24,7 @@ public final class ConnectableNetworkUpdateService {
     public static void ensureInitialized(@Nonnull World world) {
         String worldKey = world.getSavePath().toAbsolutePath().normalize().toString();
         if (INITIALIZED_WORLDS.add(worldKey)) {
-            updateAllSiphons(world);
+            world.execute(() -> updateAllSiphons(world));
         }
     }
 

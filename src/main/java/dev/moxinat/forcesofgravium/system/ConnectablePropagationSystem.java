@@ -7,7 +7,6 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.logic.network.ConnectableNetworkUpdateService;
 import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.logic.siphon.GraviumSiphonLogic;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
@@ -39,7 +38,6 @@ public final class ConnectablePropagationSystem extends EntityTickingSystem<Enti
         }
 
         String worldKey = worldKey(store);
-        ConnectableNetworkUpdateService.ensureInitialized(store.getExternalData().getWorld());
         ConnectablePropagationScheduler.tickPropagation();
         if (tick % SIPHON_LOGIC_INTERVAL_TICKS == 0) {
             GraviumSiphonLogic.tickWorld(store.getExternalData().getWorld(), commandBuffer);

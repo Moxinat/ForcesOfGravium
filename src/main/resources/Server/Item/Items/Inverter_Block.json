@@ -89,6 +89,38 @@
     ],
     "BlockBreakingDecalId": "Breaking_Decals_Rock",
     "RotationYawPlacementOffset": "OneEighty",
+    "Supporting": {
+      "Down": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "Up": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "North": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "South": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "East": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "West": [
+        {
+          "FaceType": "Full"
+        }
+      ]
+    },
     "PlacementSettings": {
       "RotationMode": "BlockNormal"
     }
