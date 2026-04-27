@@ -1,9 +1,6 @@
 package dev.moxinat.forcesofgravium.logic.network;
 
 import com.hypixel.hytale.math.vector.Vector3i;
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
-import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayDeque;
@@ -33,9 +30,6 @@ public final class CableComponentResolver {
         while (!queue.isEmpty()) {
             Vector3i current = queue.removeFirst();
             for (Vector3i neighbor : adapter.directCableNeighbors(current)) {
-                if (!adapter.isCable(neighbor)) {
-                    continue;
-                }
                 if (visited.add(neighbor)) {
                     queue.addLast(neighbor);
                 }
@@ -49,26 +43,5 @@ public final class CableComponentResolver {
         boolean isCable(@Nonnull Vector3i position);
 
         @Nonnull List<Vector3i> directCableNeighbors(@Nonnull Vector3i position);
-    }
-
-    private record WorldCableComponentAdapter(@Nonnull World world) implements CableComponentAdapter {
-
-        private WorldCableComponentAdapter {
-            Objects.requireNonNull(world, "world");
-        }
-
-        @Override
-        public boolean isCable(@Nonnull Vector3i position) {
-            BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
-            return blockType != null && ConnectableRegistry.isGravityPowderId(blockType.getId());
-        }
-
-        @Override
-        public @Nonnull List<Vector3i> directCableNeighbors(@Nonnull Vector3i position) {
-            return ConnectableNeighborResolver.positionsAround(position).stream()
-                    .filter(candidate -> !candidate.equals(position))
-                    .filter(this::isCable)
-                    .toList();
-        }
     }
 }
