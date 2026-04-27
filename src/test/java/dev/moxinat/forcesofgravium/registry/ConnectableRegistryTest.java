@@ -32,6 +32,14 @@ class ConnectableRegistryTest {
     }
 
     @Test
+    void recognizesWoodenButtonStateIdsAsConnectable() {
+        assertTrue(ConnectableRegistry.isWoodenButtonId("*Wooden_Button_Block_State_Pressed"));
+        assertTrue(ConnectableRegistry.isWoodenButtonId("*Wooden_Button_Block_State_PressedAlt"));
+        assertTrue(ConnectableRegistry.isConnectable("*Wooden_Button_Block_State_Pressed"));
+        assertEquals(ConnectableRegistry.ALL_SIDES_MASK, ConnectableRegistry.getConnectableSidesMask(ConnectableRegistry.WOODEN_BUTTON_BLOCK_ID));
+    }
+
+    @Test
     void treatsUnknownBlocksAsNotConnectable() {
         assertFalse(ConnectableRegistry.isConnectable("Unknown_Block"));
         assertEquals(0, ConnectableRegistry.getConnectableSidesMask("Unknown_Block"));

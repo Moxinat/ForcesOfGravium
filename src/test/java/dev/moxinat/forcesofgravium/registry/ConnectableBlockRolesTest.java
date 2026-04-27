@@ -10,6 +10,9 @@ class ConnectableBlockRolesTest {
     @Test
     void recognizesConfiguredSourceBlocks() {
         assertTrue(ConnectableBlockRoles.isSource("WindGenerator_Block"));
+        assertTrue(ConnectableBlockRoles.isSource("Wooden_Button_Block"));
+        assertTrue(ConnectableBlockRoles.isSource("*Wooden_Button_Block_State_Pressed"));
+        assertTrue(ConnectableBlockRoles.isSource("*Wooden_Button_Block_State_PressedAlt"));
     }
 
     @Test

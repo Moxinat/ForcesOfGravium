@@ -8,22 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class InverterStateCalculatorTest {
 
     @Test
-    void treatsDirectSourceInputAsPullOutput() {
-        assertEquals(
-                GravityPowderStateCalculator.MODE_PUSH,
-                InverterStateCalculator.directSourceInputMode("WindGenerator_Block")
-        );
-    }
-
-    @Test
-    void ignoresUnknownDirectInputBlocks() {
-        assertEquals(
-                GravityPowderStateCalculator.MODE_OFF,
-                InverterStateCalculator.directSourceInputMode("Unknown_Block")
-        );
-    }
-
-    @Test
     void invertsPushInputToPullOutput() {
         assertEquals(
                 GravityPowderStateCalculator.MODE_PULL,

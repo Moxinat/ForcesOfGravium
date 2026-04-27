@@ -7,6 +7,7 @@ import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
+import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
 import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderStateCalculator;
 import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
@@ -48,7 +49,7 @@ public final class InverterStateCalculator {
             if (!ConnectableNeighborResolver.isSourceNeighborOf(world, backNeighborPosition, position)) {
                 return GravityPowderStateCalculator.MODE_OFF;
             }
-            return directSourceInputMode(backNeighborType.getId());
+            return directSourceInputMode(world, backNeighborPosition, backNeighborType.getId());
         }
 
         if (ConnectableRegistry.isGravityPowderId(backNeighborType.getId())) {
@@ -73,8 +74,8 @@ public final class InverterStateCalculator {
         return backNeighborData.currentMode();
     }
 
-    static String directSourceInputMode(String blockId) {
-        if (ConnectableBlockRoles.isSource(blockId)) {
+    static String directSourceInputMode(World world, Vector3i position, String blockId) {
+        if (ConnectableBlockRoles.isSource(blockId) && SourceBlockDataStore.isActive(world, position, blockId)) {
             return GravityPowderStateCalculator.MODE_PUSH;
         }
         return GravityPowderStateCalculator.MODE_OFF;

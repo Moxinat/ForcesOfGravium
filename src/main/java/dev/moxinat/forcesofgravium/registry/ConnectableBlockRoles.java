@@ -6,7 +6,8 @@ import java.util.Set;
 public final class ConnectableBlockRoles {
 
     private static final Set<String> SOURCE_BLOCK_IDS = Set.of(
-            ConnectableRegistry.WIND_GENERATOR_BLOCK_ID
+            ConnectableRegistry.WIND_GENERATOR_BLOCK_ID,
+            ConnectableRegistry.WOODEN_BUTTON_BLOCK_ID
     );
 
     private static final Set<String> MACHINE_BLOCK_IDS = Set.of();
@@ -18,7 +19,7 @@ public final class ConnectableBlockRoles {
     }
 
     public static boolean isSource(@Nullable String blockId) {
-        return blockId != null && SOURCE_BLOCK_IDS.contains(blockId);
+        return blockId != null && (SOURCE_BLOCK_IDS.contains(blockId) || ConnectableRegistry.isWoodenButtonId(blockId));
     }
 
     public static boolean isMachine(@Nullable String blockId) {

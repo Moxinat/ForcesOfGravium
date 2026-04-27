@@ -18,7 +18,9 @@ import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
+import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
 import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
+import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
@@ -63,6 +65,9 @@ public final class ConnectableBlockLifecycleSystem {
             if (ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID.equals(itemInHand.getItemId())) {
                 GraviumSiphonStore.add(world, target);
             }
+            if (ConnectableBlockRoles.isSource(itemInHand.getItemId())) {
+                SourceBlockDataStore.putDefault(world, target, itemInHand.getItemId());
+            }
             ConnectableRotationStore.put(world, target, event.getRotation());
             ConnectablePropagationScheduler.onConnectablePlaced(world, target, player);
         }
@@ -103,6 +108,9 @@ public final class ConnectableBlockLifecycleSystem {
             }
             if (ConnectableRegistry.isGraviumSiphonId(brokenType.getId())) {
                 GraviumSiphonStore.remove(world, target);
+            }
+            if (ConnectableBlockRoles.isSource(brokenType.getId())) {
+                SourceBlockDataStore.remove(world, target);
             }
             ConnectablePropagationScheduler.onConnectableBroken(world, target);
         }
