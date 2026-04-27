@@ -45,11 +45,7 @@ public final class ConnectableNetworkScanner {
             Vector3i position = step.position();
             SignalMode signalMode = step.mode();
 
-            if (adapter.isCable(position)) {
-                if (!adapter.cableHasSignal(position, signalMode)) {
-                    continue;
-                }
-
+            if (adapter.isCable(position) && adapter.cableHasSignal(position, signalMode)) {
                 carriers.add(position);
                 sources.addAll(adapter.sourceNeighbors(position));
                 consumers.addAll(adapter.consumerNeighbors(position));
@@ -120,13 +116,11 @@ public final class ConnectableNetworkScanner {
             Vector3i position,
             SignalMode mode
     ) {
-        if (!adapter.isCable(position) || !adapter.cableHasSignal(position, mode)) {
-            return;
-        }
-
-        NetworkStep step = new NetworkStep(position, mode);
-        if (visited.add(step)) {
-            queue.addLast(step);
+        if (adapter.isCable(position) && adapter.cableHasSignal(position, mode)) {
+            NetworkStep step = new NetworkStep(position, mode);
+            if (visited.add(step)) {
+                queue.addLast(step);
+            }
         }
     }
 
@@ -150,11 +144,10 @@ public final class ConnectableNetworkScanner {
         @Nonnull Set<Vector3i> consumerNeighbors(@Nonnull Vector3i position);
     }
 
-    private static final class WorldNetworkScanAdapter implements NetworkScanAdapter {
-        private final World world;
+    private record WorldNetworkScanAdapter(@Nonnull World world) implements NetworkScanAdapter {
 
-        private WorldNetworkScanAdapter(World world) {
-            this.world = Objects.requireNonNull(world, "world");
+        private WorldNetworkScanAdapter {
+            Objects.requireNonNull(world, "world");
         }
 
         @Override

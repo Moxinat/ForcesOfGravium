@@ -51,7 +51,7 @@ public final class ConnectablePropagationSystem extends EntityTickingSystem<Enti
 
     private static boolean markWorldTickProcessed(Store<EntityStore> store, long tick) {
         Long previousTick = LAST_PROCESSED_WORLD_TICKS.put(worldKey(store), tick);
-        return previousTick == null || previousTick.longValue() != tick;
+        return previousTick == null || previousTick != tick;
     }
 
     private static boolean shouldAutosave(String worldKey, long tick) {

@@ -196,9 +196,7 @@ public final class WorldSaveFileService {
                 data = GravityPowderBlockDataStore.fromLegacyData(
                         entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
                         entry.getString("currentMode", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue(),
-                        entry.getString("nextMode", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue(),
-                        entry.getString("decayMark", new BsonString("none")).getValue(),
-                        entry.getInt32("decayLockTicks", new BsonInt32(0)).getValue()
+                        entry.getString("decayMark", new BsonString("none")).getValue()
                 );
             }
             GravityPowderBlockDataStore.put(world, position, data);

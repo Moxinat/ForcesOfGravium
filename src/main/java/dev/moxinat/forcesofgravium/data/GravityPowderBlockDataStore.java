@@ -37,11 +37,6 @@ public final class GravityPowderBlockDataStore {
         return DATA.get(BlockKey.from(world, position));
     }
 
-    public static boolean has(@Nonnull World world, @Nonnull Vector3i position) {
-        WorldSaveFileService.ensureLoaded(world);
-        return DATA.containsKey(BlockKey.from(world, position));
-    }
-
     public static @Nonnull GravityPowderBlockData getOrCreate(@Nonnull World world, @Nonnull Vector3i position) {
         WorldSaveFileService.ensureLoaded(world);
         return DATA.computeIfAbsent(BlockKey.from(world, position), ignored -> GravityPowderBlockData.defaultData());
@@ -97,16 +92,6 @@ public final class GravityPowderBlockDataStore {
         return STATE_OFF;
     }
 
-    public static @Nonnull String stableStateForMode(@Nullable String mode) {
-        if (STATE_PUSH.equals(mode)) {
-            return STATE_PUSH;
-        }
-        if (STATE_PULL.equals(mode)) {
-            return STATE_PULL;
-        }
-        return STATE_OFF;
-    }
-
     public static @Nonnull String effectiveMode(@Nonnull GravityPowderBlockData data) {
         if (data.push()) {
             return STATE_PUSH;
@@ -120,12 +105,9 @@ public final class GravityPowderBlockDataStore {
     public static @Nonnull GravityPowderBlockData fromLegacyData(
             int connectionsMask,
             @Nonnull String currentMode,
-            @Nonnull String nextMode,
-            @Nonnull String decayMark,
-            int decayLockTicks
+            @Nonnull String decayMark
     ) {
         Objects.requireNonNull(currentMode, "currentMode");
-        Objects.requireNonNull(nextMode, "nextMode");
         Objects.requireNonNull(decayMark, "decayMark");
 
         if (!"none".equals(decayMark)) {
@@ -148,10 +130,6 @@ public final class GravityPowderBlockDataStore {
             boolean push,
             boolean pull
     ) {
-
-        public GravityPowderBlockData {
-        }
-
         public static @Nonnull GravityPowderBlockData defaultData() {
             return new GravityPowderBlockData(0, false, false);
         }

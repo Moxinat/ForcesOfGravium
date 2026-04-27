@@ -7,18 +7,14 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
-import dev.moxinat.forcesofgravium.data.InverterDataStore;
-import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 
@@ -58,30 +54,8 @@ public final class ConnectableNeighborResolver {
         return hasLocalSideFacingWorldSide(id, rotation, requiredWorldSide);
     }
 
-    public static List<GravityPowderBlockData> neighboringGravityPowderData(World world, Vector3i position, Vector3i treatAsEmpty) {
-        List<GravityPowderBlockData> neighbors = new ArrayList<>();
-        addNeighboringGravityPowderData(world, neighbors, new Vector3i(position.getX() + 1, position.getY(), position.getZ()), treatAsEmpty);
-        addNeighboringGravityPowderData(world, neighbors, new Vector3i(position.getX() - 1, position.getY(), position.getZ()), treatAsEmpty);
-        addNeighboringGravityPowderData(world, neighbors, new Vector3i(position.getX(), position.getY(), position.getZ() + 1), treatAsEmpty);
-        addNeighboringGravityPowderData(world, neighbors, new Vector3i(position.getX(), position.getY(), position.getZ() - 1), treatAsEmpty);
-        addNeighboringGravityPowderData(world, neighbors, new Vector3i(position.getX(), position.getY() + 1, position.getZ()), treatAsEmpty);
-        addNeighboringGravityPowderData(world, neighbors, new Vector3i(position.getX(), position.getY() - 1, position.getZ()), treatAsEmpty);
-        return List.copyOf(neighbors);
-    }
-
-    public static List<InverterData> neighboringFrontFacingInverterData(World world, Vector3i position, Vector3i treatAsEmpty) {
-        List<InverterData> neighbors = new ArrayList<>();
-        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX() + 1, position.getY(), position.getZ()), treatAsEmpty);
-        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX() - 1, position.getY(), position.getZ()), treatAsEmpty);
-        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX(), position.getY(), position.getZ() + 1), treatAsEmpty);
-        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX(), position.getY(), position.getZ() - 1), treatAsEmpty);
-        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX(), position.getY() + 1, position.getZ()), treatAsEmpty);
-        addNeighboringFrontFacingInverterData(world, neighbors, position, new Vector3i(position.getX(), position.getY() - 1, position.getZ()), treatAsEmpty);
-        return List.copyOf(neighbors);
-    }
-
     public static List<Vector3i> sourceNeighbors(World world, Vector3i position, Vector3i treatAsEmpty) {
-        List<Vector3i> sources = new ArrayList<>();
+        java.util.ArrayList<Vector3i> sources = new java.util.ArrayList<>();
         addSourceNeighbor(world, sources, position.getX() + 1, position.getY(), position.getZ(), treatAsEmpty, WorldSide.WEST);
         addSourceNeighbor(world, sources, position.getX() - 1, position.getY(), position.getZ(), treatAsEmpty, WorldSide.EAST);
         addSourceNeighbor(world, sources, position.getX(), position.getY(), position.getZ() + 1, treatAsEmpty, WorldSide.NORTH);
@@ -147,45 +121,6 @@ public final class ConnectableNeighborResolver {
             mask |= CONNECTION_DOWN;
         }
         return mask;
-    }
-
-    private static void addNeighboringGravityPowderData(World world, List<GravityPowderBlockData> neighbors, Vector3i neighborPosition, Vector3i treatAsEmpty) {
-        if (isTreatAsEmpty(neighborPosition, treatAsEmpty)) {
-            return;
-        }
-
-        GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, neighborPosition);
-        if (data == null) {
-            return;
-        }
-
-        BlockType blockType = world.getBlockType(neighborPosition.getX(), neighborPosition.getY(), neighborPosition.getZ());
-        if (blockType == null || !ConnectableRegistry.isGravityPowderId(blockType.getId())) {
-            return;
-        }
-
-        neighbors.add(data);
-    }
-
-    private static void addNeighboringFrontFacingInverterData(World world, List<InverterData> neighbors, Vector3i position, Vector3i neighborPosition, Vector3i treatAsEmpty) {
-        if (isTreatAsEmpty(neighborPosition, treatAsEmpty)) {
-            return;
-        }
-
-        BlockType blockType = world.getBlockType(neighborPosition.getX(), neighborPosition.getY(), neighborPosition.getZ());
-        if (blockType == null || !ConnectableRegistry.isInverterId(blockType.getId())) {
-            return;
-        }
-
-        Vector3i frontPosition = adjacentPositionForLocalSide(world, neighborPosition, ConnectableRegistry.SIDE_FRONT);
-        if (!frontPosition.equals(position)) {
-            return;
-        }
-
-        InverterData data = InverterDataStore.get(world, neighborPosition);
-        if (data != null) {
-            neighbors.add(data);
-        }
     }
 
     private static void addSourceNeighbor(World world, List<Vector3i> sources, int x, int y, int z, Vector3i treatAsEmpty, WorldSide requiredWorldSide) {
@@ -267,7 +202,15 @@ public final class ConnectableNeighborResolver {
                 return RotationTuple.NONE;
             }
 
-            BlockSection section = chunk.getBlockChunk().getSectionAtIndex(ChunkUtil.indexSection(position.getY()));
+            BlockChunk blockChunk = chunk.getBlockChunk();
+            if (blockChunk == null) {
+                return RotationTuple.NONE;
+            }
+
+            BlockSection section = blockChunk.getSectionAtIndex(ChunkUtil.indexSection(position.getY()));
+            if (section == null) {
+                return RotationTuple.NONE;
+            }
             return RotationTuple.get(section.getRotationIndex(ChunkUtil.indexBlock(position.getX(), position.getY(), position.getZ())));
         } catch (Exception ignored) {
             return RotationTuple.NONE;

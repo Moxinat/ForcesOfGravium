@@ -41,11 +41,6 @@ public final class GraviumSiphonStore {
         return DATA.get(BlockKey.from(world, position));
     }
 
-    public static @Nonnull GraviumSiphonData getOrCreate(@Nonnull World world, @Nonnull Vector3i position) {
-        WorldSaveFileService.ensureLoaded(world);
-        return DATA.computeIfAbsent(BlockKey.from(world, position), ignored -> GraviumSiphonData.defaultData());
-    }
-
     public static void setPowered(@Nonnull World world, @Nonnull Vector3i position, boolean powered) {
         WorldSaveFileService.ensureLoaded(world);
         DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
@@ -85,16 +80,6 @@ public final class GraviumSiphonStore {
                         entry -> new Vector3i(entry.getKey().x(), entry.getKey().y(), entry.getKey().z()),
                         Map.Entry::getValue
                 ));
-    }
-
-    public static void retainExisting(@Nonnull World world, @Nonnull java.util.Set<Vector3i> positions) {
-        WorldSaveFileService.ensureLoaded(world);
-        String worldId = world.getName();
-        boolean removed = DATA.keySet().removeIf(key -> key.worldId().equals(worldId)
-                && !positions.contains(new Vector3i(key.x(), key.y(), key.z())));
-        if (removed) {
-            WorldSaveFileService.markDirty(world);
-        }
     }
 
     public static void clearWorld(@Nonnull World world) {

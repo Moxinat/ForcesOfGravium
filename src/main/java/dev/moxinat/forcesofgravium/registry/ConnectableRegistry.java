@@ -21,7 +21,6 @@ public final class ConnectableRegistry {
     public static final int SIDE_TOP = 1 << 4;
     public static final int SIDE_BOTTOM = 1 << 5;
     public static final int ALL_SIDES_MASK = SIDE_FRONT | SIDE_BACK | SIDE_RIGHT | SIDE_LEFT | SIDE_TOP | SIDE_BOTTOM;
-    public static final int HORIZONTAL_SIDES_MASK = SIDE_FRONT | SIDE_BACK | SIDE_RIGHT | SIDE_LEFT;
     public static final int SIDES_EXCEPT_FRONT_BACK_MASK = SIDE_RIGHT | SIDE_LEFT | SIDE_TOP | SIDE_BOTTOM;
 
     private static final Map<String, Integer> CONNECTABLE_SIDE_MASKS = Map.of(

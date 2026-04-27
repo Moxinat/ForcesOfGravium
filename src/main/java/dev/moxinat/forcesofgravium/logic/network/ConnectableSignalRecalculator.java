@@ -1,13 +1,11 @@
 package dev.moxinat.forcesofgravium.logic.network;
 
 import com.hypixel.hytale.math.vector.Vector3i;
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderStateCalculator;
-import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
@@ -24,15 +22,11 @@ public final class ConnectableSignalRecalculator {
     private ConnectableSignalRecalculator() {
     }
 
-    public static @Nonnull RecomputeResult recompute(@Nonnull World world) {
-        return recompute(new WorldSignalAdapter(world));
+    public static void recompute(@Nonnull World world, @Nonnull Set<Vector3i> affectedPositions) {
+        recompute(new WorldSignalAdapter(world, affectedPositions));
     }
 
-    public static @Nonnull RecomputeResult recompute(@Nonnull World world, @Nonnull Set<Vector3i> affectedPositions) {
-        return recompute(new WorldSignalAdapter(world, affectedPositions));
-    }
-
-    public static @Nonnull RecomputeResult recompute(@Nonnull SignalAdapter adapter) {
+    public static void recompute(@Nonnull SignalAdapter adapter) {
         Objects.requireNonNull(adapter, "adapter");
         Map<Vector3i, Boolean> invertEnabled = new LinkedHashMap<>();
         Map<Vector3i, Boolean> toggleInputActive = new LinkedHashMap<>();
@@ -72,7 +66,6 @@ public final class ConnectableSignalRecalculator {
                     toggleInputActive.getOrDefault(entry.getKey(), false)
             );
         }
-        return new RecomputeResult(propagation.cableSignals(), propagation.inverterOutputs());
     }
 
     private static @Nonnull PropagationResult propagate(@Nonnull SignalAdapter adapter, @Nonnull Map<Vector3i, Boolean> invertEnabled) {
@@ -92,7 +85,8 @@ public final class ConnectableSignalRecalculator {
         while (!queue.isEmpty()) {
             SignalStep step = queue.removeFirst();
             if (adapter.isCable(step.position())) {
-                if (!setSignal(cableSignals, step.position(), step.mode())) {
+                boolean changed = setSignal(cableSignals, step.position(), step.mode());
+                if (!changed) {
                     continue;
                 }
                 addCableOutputs(adapter, step, queue, visited);
@@ -107,10 +101,11 @@ public final class ConnectableSignalRecalculator {
             if (GravityPowderStateCalculator.MODE_OFF.equals(outputMode)) {
                 continue;
             }
-            if (!setSignal(inverterOutputs, step.position(), outputMode)) {
+            boolean changed = setSignal(inverterOutputs, step.position(), outputMode);
+            if (!changed) {
                 continue;
             }
-                addInverterOutput(adapter, step.position(), outputMode, queue, visited);
+            addInverterOutput(adapter, step.position(), outputMode, queue, visited);
         }
 
         return new PropagationResult(cableSignals, inverterOutputs);
@@ -256,16 +251,6 @@ public final class ConnectableSignalRecalculator {
     public record SignalFlags(boolean push, boolean pull) {
         public boolean active() {
             return push || pull;
-        }
-    }
-
-    public record RecomputeResult(
-            @Nonnull Map<Vector3i, SignalFlags> cableSignals,
-            @Nonnull Map<Vector3i, SignalFlags> inverterOutputs
-    ) {
-        public RecomputeResult {
-            cableSignals = Map.copyOf(Objects.requireNonNull(cableSignals, "cableSignals"));
-            inverterOutputs = Map.copyOf(Objects.requireNonNull(inverterOutputs, "inverterOutputs"));
         }
     }
 

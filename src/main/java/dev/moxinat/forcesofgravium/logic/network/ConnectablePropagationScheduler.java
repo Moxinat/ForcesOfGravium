@@ -2,7 +2,6 @@ package dev.moxinat.forcesofgravium.logic.network;
 
 import com.hypixel.hytale.math.vector.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
@@ -25,10 +24,6 @@ public final class ConnectablePropagationScheduler {
     }
 
     public static void onConnectablePlaced(World world, Vector3i target) {
-        enqueueRecompute(world, target);
-    }
-
-    public static void onConnectablePlaced(World world, Vector3i target, Player debugPlayer) {
         enqueueRecompute(world, target);
     }
 

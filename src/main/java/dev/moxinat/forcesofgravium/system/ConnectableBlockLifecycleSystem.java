@@ -69,7 +69,7 @@ public final class ConnectableBlockLifecycleSystem {
                 SourceBlockDataStore.putDefault(world, target, itemInHand.getItemId());
             }
             ConnectableRotationStore.put(world, target, event.getRotation());
-            ConnectablePropagationScheduler.onConnectablePlaced(world, target, player);
+            ConnectablePropagationScheduler.onConnectablePlaced(world, target);
         }
     }
 

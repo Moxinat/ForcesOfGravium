@@ -39,7 +39,7 @@ public final class ButtonInteractionSystem extends EntityEventSystem<EntityStore
             @Nonnull UseBlockEvent.Post event
     ) {
         BlockType blockType = event.getBlockType();
-        if (blockType == null || !ConnectableRegistry.isWoodenButtonId(blockType.getId())) {
+        if (!ConnectableRegistry.isWoodenButtonId(blockType.getId())) {
             return;
         }
 

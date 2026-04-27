@@ -12,24 +12,10 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class ConnectableNetworkUpdateService {
 
-    private static final Set<String> INITIALIZED_WORLDS = ConcurrentHashMap.newKeySet();
-
     private ConnectableNetworkUpdateService() {
-    }
-
-    public static void ensureInitialized(@Nonnull World world) {
-        String worldKey = world.getSavePath().toAbsolutePath().normalize().toString();
-        if (INITIALIZED_WORLDS.add(worldKey)) {
-            world.execute(() -> updateAllSiphons(world));
-        }
-    }
-
-    public static void updateAllSiphons(@Nonnull World world) {
-        updateSiphons(world, GraviumSiphonStore.snapshotForWorld(world).keySet(), true);
     }
 
     public static void updateSiphonsNear(@Nonnull World world, @Nonnull Set<Vector3i> affectedPositions) {
@@ -41,10 +27,10 @@ public final class ConnectableNetworkUpdateService {
                 }
             }
         }
-        updateSiphons(world, siphons, false);
+        updateSiphons(world, siphons);
     }
 
-    private static void updateSiphons(@Nonnull World world, @Nonnull Set<Vector3i> siphons, boolean refreshUnchanged) {
+    private static void updateSiphons(@Nonnull World world, @Nonnull Set<Vector3i> siphons) {
         if (siphons.isEmpty()) {
             return;
         }
@@ -58,7 +44,7 @@ public final class ConnectableNetworkUpdateService {
 
             SiphonNetworkState state = resolveSiphonState(world, siphon, scanCache);
             boolean changed = GraviumSiphonStore.setState(world, siphon, state.powered(), state.locked());
-            if (changed || refreshUnchanged) {
+            if (changed) {
                 GraviumSiphonBlockRefresher.refreshAt(world, siphon);
             }
         }

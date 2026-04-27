@@ -17,10 +17,6 @@ public final class CableComponentResolver {
     private CableComponentResolver() {
     }
 
-    public static @Nonnull Set<Vector3i> findComponent(@Nonnull World world, @Nonnull Vector3i start) {
-        return findComponent(new WorldCableComponentAdapter(world), start);
-    }
-
     public static @Nonnull Set<Vector3i> findComponent(@Nonnull CableComponentAdapter adapter, @Nonnull Vector3i start) {
         Objects.requireNonNull(adapter, "adapter");
         Objects.requireNonNull(start, "start");
@@ -55,11 +51,10 @@ public final class CableComponentResolver {
         @Nonnull List<Vector3i> directCableNeighbors(@Nonnull Vector3i position);
     }
 
-    private static final class WorldCableComponentAdapter implements CableComponentAdapter {
-        private final World world;
+    private record WorldCableComponentAdapter(@Nonnull World world) implements CableComponentAdapter {
 
-        private WorldCableComponentAdapter(World world) {
-            this.world = Objects.requireNonNull(world, "world");
+        private WorldCableComponentAdapter {
+            Objects.requireNonNull(world, "world");
         }
 
         @Override

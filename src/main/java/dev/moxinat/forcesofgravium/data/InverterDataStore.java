@@ -38,24 +38,6 @@ public final class InverterDataStore {
         return DATA.computeIfAbsent(BlockKey.from(world, position), ignored -> InverterData.defaultData());
     }
 
-    public static void setCurrentMode(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String currentMode) {
-        WorldSaveFileService.ensureLoaded(world);
-        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
-            InverterData data = existing == null ? InverterData.defaultData() : existing;
-            return data.withCurrentMode(currentMode);
-        });
-        WorldSaveFileService.markDirty(world);
-    }
-
-    public static void setNextMode(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String nextMode) {
-        WorldSaveFileService.ensureLoaded(world);
-        DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
-            InverterData data = existing == null ? InverterData.defaultData() : existing;
-            return data.withNextMode(nextMode);
-        });
-        WorldSaveFileService.markDirty(world);
-    }
-
     public static void setState(
             @Nonnull World world,
             @Nonnull Vector3i position,
@@ -108,22 +90,6 @@ public final class InverterDataStore {
 
         public static @Nonnull InverterData defaultData() {
             return new InverterData("off", "off", true, false);
-        }
-
-        public @Nonnull InverterData withCurrentMode(@Nonnull String value) {
-            return new InverterData(Objects.requireNonNull(value, "currentMode"), nextMode, invertEnabled, toggleInputActive);
-        }
-
-        public @Nonnull InverterData withNextMode(@Nonnull String value) {
-            return new InverterData(currentMode, Objects.requireNonNull(value, "nextMode"), invertEnabled, toggleInputActive);
-        }
-
-        public @Nonnull InverterData withInvertEnabled(boolean value) {
-            return new InverterData(currentMode, nextMode, value, toggleInputActive);
-        }
-
-        public @Nonnull InverterData withToggleInputActive(boolean value) {
-            return new InverterData(currentMode, nextMode, invertEnabled, value);
         }
     }
 

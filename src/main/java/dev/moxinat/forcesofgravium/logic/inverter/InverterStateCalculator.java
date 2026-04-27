@@ -13,16 +13,9 @@ import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
-import java.util.Objects;
-
 public final class InverterStateCalculator {
 
     private InverterStateCalculator() {
-    }
-
-    public static InverterStateUpdate computeStateUpdate(World world, Vector3i position) {
-        String inputMode = computeInputMode(world, position);
-        return new InverterStateUpdate(position, invertMode(inputMode));
     }
 
     public static String computeInputMode(World world, Vector3i position) {
@@ -89,12 +82,5 @@ public final class InverterStateCalculator {
             return GravityPowderStateCalculator.MODE_PUSH;
         }
         return GravityPowderStateCalculator.MODE_OFF;
-    }
-
-    public record InverterStateUpdate(Vector3i position, String nextMode) {
-        public InverterStateUpdate {
-            Objects.requireNonNull(position, "position");
-            Objects.requireNonNull(nextMode, "nextMode");
-        }
     }
 }
