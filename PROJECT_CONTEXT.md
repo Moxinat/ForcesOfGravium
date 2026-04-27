@@ -1,131 +1,185 @@
 # ForcesOfGravium Project Context
 
-Du arbeitest in meinem Projekt `ForcesOfGravium`, einem Hytale-Mod-Projekt.
+Du arbeitest im Hytale-Mod-Projekt `ForcesOfGravium`.
 
-Wenn es eine `AGENTS.md`, Projektzusammenfassung oder andere lokale Hinweise gibt, lies sie zuerst. Nutze sie als Ausgangspunkt, aber pruefe relevante Details im Code, in der lokalen Hytale-API und in `Assets.zip` nach, bevor du darauf basierend Aenderungen machst.
+Vor Aenderungen zuerst Kontext sammeln, nichts aendern. Nicht raten: Projektcode, lokale Hytale-JARs und lokale `Assets.zip` pruefen.
 
-Bevor du irgendetwas aenderst, verschaffe dir gruendlich Kontext ueber das Projekt und die lokale Hytale-API. Veraendere dabei keine Dateien. Es geht erstmal nur darum, das Projekt, die Architektur und die vorhandenen Systeme zu verstehen.
+## Session-Ziel
 
-Wichtig: Auch wenn du aehnliche Hytale- oder Minecraft-Konzepte kennst, rate keine API- oder JSON-Strukturen. Dieses Projekt muss gegen lokale Hytale-JARs, vorhandene Mod-Dateien und `Assets.zip` geprueft werden.
+Verstehe zuerst:
 
-## Aktueller Arbeitsstand
+- Projektstruktur und wichtigste Systeme
+- Connectable-Netz
+- Gravium Siphon
+- Rotation / Inverter / Wooden Button
+- Persistenz in `worldsave.json`
+
+Danach eine kurze Zusammenfassung geben. Erst spaeter aendern, wenn explizit angefordert.
+
+## Erst lesen
+
+- `README.md`
+- `src/main/java`
+- `src/main/resources`
+- `src/test/java`
+
+Falls vorhanden auch `AGENTS.md` oder weitere lokale Hinweise lesen.
+
+## Wichtigste Projektbereiche
+
+- `system`
+  ECS-Systeme und Event-Systeme
+- `logic/network`
+  Connectable-Propagation, Recompute, Netz-Scan, Neighbor-Resolver, Siphon-Netzstatus
+- `logic/siphon`
+  Transferlogik, Container, Bench, World-Item-Handling, State-Refresh
+- `logic/source`
+  Temporare Aktivierung von Quellen wie Button
+- `data`
+  Runtime-Stores fuer Kabel, Inverter, Siphon, Rotation, Sources
+- `registry`
+  IDs, Rollen, Connectable-Sides, State-ID-Erkennung
+- `persistence`
+  `WorldSaveFileService`, `worldsave.json`
+
+## Besonders wichtige Dateien
+
+- `ForcesOfGraviumPlugin`
+- `ConnectablePropagationSystem`
+- `ConnectableBlockLifecycleSystem`
+- `BlockPlacementRotationSystem`
+- `ButtonInteractionSystem`
+- `ConnectablePropagationScheduler`
+- `ConnectableSignalRecalculator`
+- `ConnectableNetworkScanner`
+- `ConnectableNeighborResolver`
+- `ConnectableNetworkUpdateService`
+- `GraviumSiphonLogic`
+- `GraviumSiphonBlockRefresher`
+- `ConnectableRegistry`
+- `ConnectableBlockRoles`
+- `WorldSaveFileService`
+
+## Hytale-API: Pflichtpruefungen
+
+Nutze lokale Hytale-JARs aus dem Gradle-Cache und pruefe relevante Klassen mit `javap`.
+
+Wichtig:
+
+- `EntityTickingSystem`
+- `DelayedEntitySystem`
+- `EntityEventSystem`
+- `CommandBuffer`
+- `PlaceBlockEvent`, `BreakBlockEvent`
+- `World`, World-/Chunk-Zugriffe
+- `Rotation`, `RotationTuple`
+- `BlockComponentChunk`
+- `ItemContainer`
+- `ItemContainerBlock`
+- `ProcessingBenchBlock`
+- `MoveTransaction`, `ItemStackTransaction`, `ListTransaction`
+- `FillerBlockUtil`
+- `BlockAccessor.placeBlock(...)`
+
+## Assets.zip: Pflichtpruefungen
+
+Nutze die lokale `Assets.zip`, um JSON-Strukturen gegen Vanilla zu bestaetigen.
+
+Suche Beispiele fuer:
+
+- normale und grosse Kisten / Connected Container
+- Furnace / Processing Bench
+- `Support` / `Supporting`
+- `PlacementSettings`
+- `State.Definitions`
+- `BlockEntity.Components`
+- `Interactions.Use`
+- `ChangeState`
+- Animation-States
+
+JSON-Properties nie frei herleiten, immer bestaetigen.
+
+## Aktueller Mod-Stand
 
 - Siphon-Drop zu Empty-Output existiert.
 - Siphon kann Item-Entities von Empty-Input aufnehmen.
-- Siphon-Drops werden ueber `ItemComponent.generateItemDrop(...)` und `CommandBuffer.addEntity(...)` erzeugt.
-- Item-Entity-Entfernung laeuft ueber `CommandBuffer.removeEntity(...)`, nicht ueber direkte Store-Writes.
+- Siphon-Drops laufen ueber `ItemComponent.generateItemDrop(...)` + `CommandBuffer.addEntity(...)`.
+- Item-Entity-Entfernung laeuft ueber `CommandBuffer.removeEntity(...)`.
 - Inverter gibt Support wie Siphon.
-- Wooden Button hat Custom-Hitbox, Press/PressedAlt-State-Animation und steht wieder auf `BlockNormal`.
-- Der initiale `ConnectableNetworkUpdateService.ensureInitialized(...)`-Scan im Tick-System ist deaktiviert, weil er World-Crashes ausgeloest hat.
+- Wooden Button hat Custom-Hitbox, `Pressed`/`PressedAlt` und wieder `BlockNormal`.
+- Der alte Initial-Scan `ConnectableNetworkUpdateService.ensureInitialized(...)` ist im Tick-Pfad deaktiviert, weil er World-Crashes verursacht hat.
 
-## 1. Projektstruktur
+## Kritische Projektregeln
 
-Bitte pruefe insbesondere:
+- Nicht auf bekannte Minecraft-/Hytale-Muster vertrauen, sondern lokal pruefen.
+- State-IDs beachten: oft `*_State_*`, nicht nur Base-IDs.
+- Fuer Siphon-Erkennung `ConnectableRegistry.isGraviumSiphonId(...)` nutzen.
+- In ECS-Systemen keine direkten Store-Writes wie `Store.addEntity(...)` oder `Store.removeEntity(...)`.
+- Fuer Entity-Aenderungen im Tick-System `CommandBuffer` benutzen.
+- Aenderungen klein und gezielt halten. Keine unrelated Refactors.
 
-- Welche Java-Packages gibt es?
-- Welche Ressourcen/JSONs gibt es unter `src/main/resources`?
-- Welche Bloecke, Items, Texturen, Models und Icons sind im Mod definiert?
-- Welche Commands, Events, Systems, Stores, Persistence-Logik und Registries existieren?
-- Pruefe auch Tests unter `src/test/java`, weil dort wichtige Logik-Annahmen abgesichert sind.
+## Bekannte Stolperfallen
 
-## 2. Hytale-API-Kontext
+- `DelayedEntitySystem` fuehrt zu sichtbarem Delay; schnelle Propagation laeuft aktuell ueber `EntityTickingSystem`.
+- Ein Tick-System darf trotz Player-Query pro World/Tick effektiv nur einmal arbeiten.
+- Siphon-Transfer und Kabel-Propagation sind zeitlich getrennt.
+- `GraviumSiphonBlockRefresher.refreshAt(...)` nicht dauerhaft pro Tick auf jeden Siphon anwenden.
+- Inverter-Scans muessen bidirektional funktionieren:
+  - Push-Seite -> Pull-Seite
+  - Pull-Seite -> Push-Seite
+- Fuer `locked` startet der Scan oft auf der Pull-Seite und muss trotzdem die Source auf der Push-Seite finden.
+- Doppel-Kisten / Multiblocks brauchen Base-/Filler-Aufloesung, sonst wird die falsche BlockEntity verwendet.
+- Bei Processing Benches Input/Fuel/Output respektieren.
+- Bei Inventory-Transfers `succeeded()` und Remainder pruefen.
+- Beim Item-Entity-Verbrauch keine Duplikation durch falsche Stack-Reduktion oder falsches Remove.
+- `World.execute(...)` ist nicht automatisch sicher fuer Scans.
+- Full-World- oder Initial-Scans koennen ueber `world.getBlockType(...)` Chunks starten/laden und in `Store is currently processing` laufen.
+- Wenn ein Initial-Sync spaeter wiederkommt, dann nur mit chunk- und store-sicherem Ansatz.
+- Button-States nutzen `default`, `Pressed`, `PressedAlt`, damit die Press-Animation erneut triggerbar bleibt.
+- Button-Rotation bleibt aktuell `BlockNormal`.
 
-- Nutze die lokal installierten Hytale Server-JARs aus dem Gradle-Cache.
-- Pruefe relevante Klassen mit `javap`, statt zu raten.
-- Achte besonders auf:
-  - ECS Systems: `EntityTickingSystem`, `DelayedEntitySystem`, `EntityEventSystem`
-  - `CommandBuffer`
-  - Entity-Spawning und Entity-Removing
-  - Block Events: `PlaceBlockEvent`, `BreakBlockEvent`
-  - World/Chunk APIs
-  - Methoden, die Chunks laden, starten oder Store-Aenderungen ausloesen koennen
-  - Block rotations: `Rotation`, `RotationTuple`
-  - Block components / `BlockComponentChunk`
-  - Containers: `ItemContainer`, `ItemContainerBlock`, `ProcessingBenchBlock`, `BenchBlock`
-  - Inventory transactions: `MoveTransaction`, `ItemStackTransaction`, `ListTransaction`
-  - Multiblock/Filler APIs: `FillerBlockUtil`, `BlockSection`, Base/Filler block handling
-  - Block placement via `BlockAccessor.placeBlock(...)`
+## Ressourcen-Check
 
-## 3. Assets.zip
+Pruefe unter `src/main/resources` besonders:
 
-- Nutze die lokale `Assets.zip`, um Vanilla-JSONs zu pruefen.
-- Suche Beispiele fuer:
-  - normale Container/Kisten
-  - grosse Kisten / Multiblock-Strukturen
-  - Furnace / Processing Bench
-  - Support / Supporting
-  - Block rotation / placement settings
-  - Block states / State.Definitions
-  - BlockEntity Components
-  - Interactions / Use / ChangeState
-  - Animation-States
-- Leite keine JSON-Properties frei her, sondern bestaetige sie an vorhandenen Assets.
-
-## 4. Aktueller Mod-Kontext
-
-Bitte verstehe besonders diese vorhandenen Konzepte:
-
-- Connectable-System
-- Gravity Powder
+- Block-/Item-JSONs
+- State-Definitionen
+- Texturen / Icons / Models
+- Icons in `Common/Icons/ItemsGenerated`
+- Icons in `Common/Icons/ItemCategories`
 - Wooden Button
 - Inverter
+- Gravity Powder
 - Gravium Siphon
-- Rotation-System
-- Propagation-System
-- Network-Scanner / Power-Scanner
-- WorldSaveFileService / `worldsave.json`
-- Siphon-Transferlogik fuer Container, Doppel-Kisten und Processing Benches
-- Siphon-Transferlogik fuer Empty-Input und Empty-Output
-- `powered`- und `locked`-Status beim Siphon
-- Siphon-State-Texturen und JSON-States
-- Block-State-IDs wie `*_State_*`, nicht nur Base-Block-IDs
 
-## 5. Bekannte wichtige Stolperfallen
+## Tests
 
-- `DelayedEntitySystem` erzeugt sichtbaren Delay. Fuer schnelle Kabel-Propagation wird aktuell `EntityTickingSystem` genutzt.
-- Pro World darf ein Tick-System trotz Player-Query nur einmal pro World/Tick arbeiten.
-- Siphon-Transfer ist zeitlich separat von Kabel-Propagation. Nicht alles kuenstlich auf denselben Delay legen.
-- `GraviumSiphonBlockRefresher.refreshAt(...)` darf nicht dauerhaft pro Tick fuer jeden Siphon laufen, sondern nur bei echtem State-Wechsel oder Initial-Sync.
-- Siphon-State-Erkennung muss `ConnectableRegistry.isGraviumSiphonId(...)` nutzen, weil JSON-States eigene Block-IDs erzeugen koennen.
-- Inverter-Scans muessen bidirektional funktionieren:
-  - Push-Seite zu Pull-Seite
-  - Pull-Seite zurueck zur Push-Seite
-- Fuer `locked` startet der Scan oft auf der Pull-Seite eines Inverters und muss trotzdem die Source auf der Push-Seite finden.
-- Multiblock-Container wie Doppel-Kisten brauchen Base/Filler-Block-Aufloesung, sonst landet man auf dem falschen BlockEntity-Ref.
-- Bei Processing Benches/Furnaces muessen Input/Fuel/Output-Slots respektiert werden. Nicht einfach irgendeinen Container nehmen.
-- Bei Inventory-Transfers muss geprueft werden, ob die Transaction wirklich erfolgreich war und kein Remainder uebrig bleibt.
-- Bei Item-Entity-Verbrauch muss Stack-Reduktion oder Entity-Entfernung sauber passieren und darf keine Items duplizieren.
-- In ECS-Systemen niemals direkt `Store.addEntity(...)`, `Store.removeEntity(...)` oder aehnliche direkte Store-Writes benutzen.
-- Fuer Entity-Aenderungen im Tick-System `CommandBuffer` verwenden.
-- `World.execute(...)` ist nicht automatisch sicher fuer Block-/Chunk-Scans. Tasks koennen immer noch in einem Zeitpunkt laufen, in dem Stores verarbeitet werden.
-- Full-World- oder Initial-Scans beim Join sind gefaehrlich, wenn sie `world.getBlockType(...)` aufrufen und dadurch Chunks starten/laden koennen.
-- Der alte `ConnectableNetworkUpdateService.ensureInitialized(...)`-Initialscan wurde aus dem Tick-System entfernt, weil er World-Crashes durch `Store is currently processing` ausgeloest hat.
-- Wenn ein Initial-Sync wieder eingefuehrt wird, muss er mit einer API gebaut werden, die keine Chunks startet und keine Store-Writes waehrend Store-Processing ausloest.
-- Button-States nutzen aktuell `default`, `Pressed` und `PressedAlt`, damit die Press-Animation durch State-Wechsel mehrfach triggerbar ist.
-- Button-Rotation steht aktuell wieder auf `BlockNormal`, weil `FacingPlayer`/State-Rotation vorher problematisch war.
-- JSON-Properties fuer Blocks/Items/States/Supporting/Placement/Interactions nicht raten, sondern aus `Assets.zip` oder vorhandenen Mod-Dateien bestaetigen.
-- Aenderungen klein und gezielt machen. Keine unrelated Refactors.
+Tests unter `src/test/java` lesen. Sie sichern wichtige Annahmen fuer:
 
-## 6. Vorgehensweise
+- `ConnectableRegistry`
+- Rollen von Connectables
+- Network Scanner
+- Signal Recalculator
+- Propagation Scheduler
+- Inverter-State
+- Stores
 
-- Verwende bevorzugt `rg` zum Suchen.
-- Verwende `javap` fuer API-Klassen.
-- Verwende `tar -xOf`, `tar -tf` oder passende Zip-Reads fuer `Assets.zip`.
-- Aendere keine Dateien, bis ich explizit sage, dass du etwas umsetzen sollst.
-- Wenn du eine Vermutung hast, kennzeichne sie klar als Vermutung.
-- Wenn API/Assets etwas bestaetigen, sag genau welche Klasse oder Datei das bestaetigt.
-- Wenn du spaeter Code aenderst, arbeite klein und gezielt, passend zu vorhandenen Patterns.
-- Nach Aenderungen immer `.\gradlew.bat test --console=plain` laufen lassen, falls die Aenderung Java betrifft.
-- Wenn nur Ressourcen/JSONs geaendert wurden, fuehre mindestens `.\gradlew.bat processResources --console=plain` aus.
+## Arbeitsweise
 
-## Erwartete Zusammenfassung nach Kontextpruefung
+- Zum Suchen bevorzugt `rg`
+- Fuer API `javap`
+- Fuer `Assets.zip` `tar -tf` / `tar -xOf`
+- Vermutungen klar als Vermutung markieren
+- Bei bestaetigten Aussagen genau Klasse oder Datei nennen
+- Nach Java-Aenderungen `.\gradlew.bat test --console=plain`
+- Nach reinen Ressourcen-Aenderungen mindestens `.\gradlew.bat processResources --console=plain`
 
-Am Ende gib bitte eine kompakte Uebersicht:
+## Erwartete Kurz-Zusammenfassung
 
-- Was sind die wichtigsten Systeme im Projekt?
-- Welche Hytale-API-Stellen sind fuer dieses Projekt besonders wichtig?
-- Welche Projekt-Konventionen sollte Codex beachten?
-- Welche bekannten Stolperfallen gibt es?
-- Welche offenen Fragen oder Risiken sollten wir im Kopf behalten?
+Am Ende kurz beantworten:
 
-Wichtig: Noch nichts aendern. Erst lesen, pruefen, verstehen und zusammenfassen.
+- Wichtigste Systeme?
+- Wichtigste Hytale-API-Stellen?
+- Projekt-Konventionen?
+- Bekannte Stolperfallen?
+- Offene Risiken?

@@ -19,7 +19,7 @@ import javax.annotation.Nonnull;
 
 public final class ButtonInteractionSystem extends EntityEventSystem<EntityStore, UseBlockEvent.Post> {
 
-    private static final long BUTTON_ACTIVE_TICKS = 60L;
+    private static final long BUTTON_ACTIVE_TICKS = 30L;
 
     public ButtonInteractionSystem() {
         super(UseBlockEvent.Post.class);

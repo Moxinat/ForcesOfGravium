@@ -1,0 +1,24 @@
+{
+  "Input": [
+    {
+      "ItemId": "Ingredient_Crystal_Blue",
+      "Quantity": 1
+    }
+  ],
+  "Output": [
+    {
+      "ItemId": "Gravity_Powder_Default",
+      "Quantity": 1
+    }
+  ],
+  "BenchRequirement": [
+    {
+      "Type": "Processing",
+      "Id": "Salvagebench"
+    }
+  ],
+  "TimeSeconds": 2,
+  "PrimaryOutput": {
+    "ItemId": "Gravity_Powder_Default"
+  }
+}

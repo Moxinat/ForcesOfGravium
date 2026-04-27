@@ -1,0 +1,13 @@
+{
+  "Icon": "Icons/ItemCategories/FoGCategory.png",
+  "Order": 2,
+  "Children": [
+    {
+      "Id": "items",
+      "Name": "server.ui.ForcesOfGraviumCategory.items",
+      "Icon": "Icons/ItemCategories/FoGCategory.png"
+    }
+  ],
+  "Id": "ForcesOfGraviumCategory",
+  "Name": "ForcesOfGraviumCategory"
+}
