@@ -23,6 +23,11 @@
     ],
     "Group": "Stone",
     "Flags": {},
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks"
+      }
+    },
     "State": {
       "Definitions": {
         "Locked": {

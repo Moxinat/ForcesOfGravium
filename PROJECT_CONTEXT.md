@@ -152,6 +152,12 @@ Pruefe unter `src/main/resources` besonders:
 - Gravity Powder
 - Gravium Siphon
 
+## Block-JSON Stolperfalle
+
+- Platzierbare Mod-Bloecke brauchen fuer normales Abbauen in der Regel eine explizite `BlockType.Gathering.Breaking`-Definition.
+- Den `GatherType` nicht raten, sondern in der lokalen `Assets.zip` an Vanilla-Beispielen bestaetigen.
+- `GatherType` muss zum Block passen, z. B. `Woods` fuer Holz und `Rocks` fuer Stein-/Rock-Bloecke.
+
 ## Tests
 
 Tests unter `src/test/java` lesen. Sie sichern wichtige Annahmen fuer:
