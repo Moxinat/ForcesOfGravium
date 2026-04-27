@@ -456,6 +456,18 @@ public final class GraviumSiphonLogic {
                 return false;
             }
 
+            for (short slot = 0; slot < target.getCapacity(); slot++) {
+                ItemStack existing = target.getItemStack(slot);
+                if (ItemStack.isEmpty(existing) || !existing.isStackableWith(itemStack)) {
+                    continue;
+                }
+
+                ItemStackSlotTransaction slotTransaction = target.addItemStackToSlot(slot, itemStack, true, true);
+                if (slotTransaction.succeeded() && ItemStack.isEmpty(slotTransaction.getRemainder())) {
+                    return true;
+                }
+            }
+
             ItemStackTransaction transaction = target.addItemStack(itemStack, true, true, true);
             return transaction.succeeded() && ItemStack.isEmpty(transaction.getRemainder());
         }
