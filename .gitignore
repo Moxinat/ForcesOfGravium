@@ -33,3 +33,4 @@ Thumbs.db
 *.jar
 Assets.zip
 /.tmp_jar_scan/
+/.tmp.drivedownload/
