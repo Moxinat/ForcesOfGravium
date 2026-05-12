@@ -1,7 +1,7 @@
 package dev.moxinat.forcesofgravium.logic.network;
 
 import com.hypixel.hytale.math.vector.Vector3i;
-import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderStateCalculator;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
@@ -26,10 +26,8 @@ class ConnectableSignalRecalculatorTest {
 
         ConnectableSignalRecalculator.recompute(adapter);
 
-        assertTrue(adapter.cableSignal(first).push());
-        assertFalse(adapter.cableSignal(first).pull());
-        assertTrue(adapter.cableSignal(second).push());
-        assertFalse(adapter.cableSignal(second).pull());
+        assertEquals(SignalState.PUSH, adapter.cableSignal(first));
+        assertEquals(SignalState.PUSH, adapter.cableSignal(second));
     }
 
     @Test
@@ -42,9 +40,8 @@ class ConnectableSignalRecalculatorTest {
 
         ConnectableSignalRecalculator.recompute(adapter);
 
-        assertEquals(GravityPowderStateCalculator.MODE_PULL, adapter.inverterMode(inverter));
-        assertFalse(adapter.cableSignal(outputCable).push());
-        assertTrue(adapter.cableSignal(outputCable).pull());
+        assertEquals(GravityPowderBlockDataStore.STATE_PULL, adapter.inverterMode(inverter));
+        assertEquals(SignalState.PULL, adapter.cableSignal(outputCable));
     }
 
     @Test
@@ -58,9 +55,8 @@ class ConnectableSignalRecalculatorTest {
 
         ConnectableSignalRecalculator.recompute(adapter);
 
-        assertEquals(GravityPowderStateCalculator.MODE_PUSH, adapter.inverterMode(inverter));
-        assertTrue(adapter.cableSignal(outputCable).push());
-        assertFalse(adapter.cableSignal(outputCable).pull());
+        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adapter.inverterMode(inverter));
+        assertEquals(SignalState.PUSH, adapter.cableSignal(outputCable));
     }
 
     @Test
@@ -78,33 +74,33 @@ class ConnectableSignalRecalculatorTest {
 
         assertFalse(adapter.invertEnabled(inverter));
         assertTrue(adapter.toggleInputActive(inverter));
-        assertEquals(GravityPowderStateCalculator.MODE_PUSH, adapter.inverterMode(inverter));
-        assertTrue(adapter.cableSignal(outputCable).push());
+        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adapter.inverterMode(inverter));
+        assertEquals(SignalState.PUSH, adapter.cableSignal(outputCable));
 
         ConnectableSignalRecalculator.recompute(adapter);
 
         assertFalse(adapter.invertEnabled(inverter));
         assertTrue(adapter.toggleInputActive(inverter));
-        assertEquals(GravityPowderStateCalculator.MODE_PUSH, adapter.inverterMode(inverter));
+        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adapter.inverterMode(inverter));
 
         adapter.withoutCableSource(sideCable);
         ConnectableSignalRecalculator.recompute(adapter);
 
         assertFalse(adapter.invertEnabled(inverter));
         assertFalse(adapter.toggleInputActive(inverter));
-        assertEquals(GravityPowderStateCalculator.MODE_PUSH, adapter.inverterMode(inverter));
+        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adapter.inverterMode(inverter));
 
         adapter.withCableSource(sideCable);
         ConnectableSignalRecalculator.recompute(adapter);
 
         assertTrue(adapter.invertEnabled(inverter));
         assertTrue(adapter.toggleInputActive(inverter));
-        assertEquals(GravityPowderStateCalculator.MODE_PULL, adapter.inverterMode(inverter));
-        assertTrue(adapter.cableSignal(outputCable).pull());
+        assertEquals(GravityPowderBlockDataStore.STATE_PULL, adapter.inverterMode(inverter));
+        assertEquals(SignalState.PULL, adapter.cableSignal(outputCable));
     }
 
     @Test
-    void cableStoresPushAndPullAndEffectiveModePrefersPush() {
+    void cableStoresPushWhenPushAndPullConflict() {
         Vector3i pushCable = new Vector3i(0, 0, 0);
         Vector3i shared = new Vector3i(1, 0, 0);
         Vector3i inverter = new Vector3i(2, 0, 0);
@@ -115,22 +111,20 @@ class ConnectableSignalRecalculatorTest {
 
         ConnectableSignalRecalculator.recompute(adapter);
 
-        assertTrue(adapter.cableSignal(shared).push());
-        assertTrue(adapter.cableSignal(shared).pull());
-        assertEquals(GravityPowderStateCalculator.MODE_PUSH, adapter.cableMode(shared));
+        assertEquals(SignalState.PUSH, adapter.cableSignal(shared));
+        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adapter.cableMode(shared));
     }
 
     @Test
     void recomputeWithoutSourcesResetsStoredSignals() {
         Vector3i cable = new Vector3i(0, 0, 0);
         TestAdapter adapter = new TestAdapter(Set.of(cable), Set.of());
-        adapter.setCableSignals(cable, true, true);
+        adapter.setCableSignal(cable, SignalState.PUSH);
 
         ConnectableSignalRecalculator.recompute(adapter);
 
-        assertFalse(adapter.cableSignal(cable).push());
-        assertFalse(adapter.cableSignal(cable).pull());
-        assertEquals(GravityPowderStateCalculator.MODE_OFF, adapter.cableMode(cable));
+        assertEquals(SignalState.OFF, adapter.cableSignal(cable));
+        assertEquals(GravityPowderBlockDataStore.STATE_OFF, adapter.cableMode(cable));
     }
 
     @Test
@@ -143,14 +137,14 @@ class ConnectableSignalRecalculatorTest {
 
         ConnectableSignalRecalculator.recompute(adapter);
 
-        assertFalse(adapter.cableSignal(networkCable).push());
+        assertEquals(SignalState.OFF, adapter.cableSignal(networkCable));
 
         adapter.addCable(bridgeCable);
         ConnectableSignalRecalculator.recompute(adapter);
 
-        assertTrue(adapter.cableSignal(sourceCable).push());
-        assertTrue(adapter.cableSignal(bridgeCable).push());
-        assertTrue(adapter.cableSignal(networkCable).push());
+        assertEquals(SignalState.PUSH, adapter.cableSignal(sourceCable));
+        assertEquals(SignalState.PUSH, adapter.cableSignal(bridgeCable));
+        assertEquals(SignalState.PUSH, adapter.cableSignal(networkCable));
     }
 
     @Test
@@ -164,17 +158,16 @@ class ConnectableSignalRecalculatorTest {
 
         ConnectableSignalRecalculator.recompute(adapter);
 
-        assertTrue(adapter.cableSignal(inputCable).push());
-        assertEquals(GravityPowderStateCalculator.MODE_PULL, adapter.inverterMode(inverter));
-        assertTrue(adapter.cableSignal(outputCable).pull());
+        assertEquals(SignalState.PUSH, adapter.cableSignal(inputCable));
+        assertEquals(GravityPowderBlockDataStore.STATE_PULL, adapter.inverterMode(inverter));
+        assertEquals(SignalState.PULL, adapter.cableSignal(outputCable));
 
         adapter.withInverterSides(inverter, outputCable, inputCable);
         ConnectableSignalRecalculator.recompute(adapter);
 
-        assertTrue(adapter.cableSignal(inputCable).push());
-        assertEquals(GravityPowderStateCalculator.MODE_OFF, adapter.inverterMode(inverter));
-        assertFalse(adapter.cableSignal(outputCable).push());
-        assertFalse(adapter.cableSignal(outputCable).pull());
+        assertEquals(SignalState.PUSH, adapter.cableSignal(inputCable));
+        assertEquals(GravityPowderBlockDataStore.STATE_OFF, adapter.inverterMode(inverter));
+        assertEquals(SignalState.OFF, adapter.cableSignal(outputCable));
     }
 
     private static final class TestAdapter implements ConnectableSignalRecalculator.SignalAdapter {
@@ -184,7 +177,7 @@ class ConnectableSignalRecalculatorTest {
         private final Set<Vector3i> inverterBackSources = new LinkedHashSet<>();
         private final Map<Vector3i, Vector3i> inverterBacks = new LinkedHashMap<>();
         private final Map<Vector3i, Vector3i> inverterFronts = new LinkedHashMap<>();
-        private final Map<Vector3i, ConnectableSignalRecalculator.SignalFlags> cableSignals = new LinkedHashMap<>();
+        private final Map<Vector3i, SignalState> cableSignals = new LinkedHashMap<>();
         private final Map<Vector3i, String> inverterModes = new LinkedHashMap<>();
         private final Map<Vector3i, Boolean> invertEnabled = new LinkedHashMap<>();
         private final Map<Vector3i, Boolean> toggleInputActive = new LinkedHashMap<>();
@@ -225,23 +218,20 @@ class ConnectableSignalRecalculatorTest {
             return this;
         }
 
-        private ConnectableSignalRecalculator.SignalFlags cableSignal(Vector3i cable) {
-            return cableSignals.getOrDefault(cable, new ConnectableSignalRecalculator.SignalFlags(false, false));
+        private SignalState cableSignal(Vector3i cable) {
+            return cableSignals.getOrDefault(cable, SignalState.OFF);
         }
 
         private String cableMode(Vector3i cable) {
-            ConnectableSignalRecalculator.SignalFlags signal = cableSignal(cable);
-            if (signal.push()) {
-                return GravityPowderStateCalculator.MODE_PUSH;
-            }
-            if (signal.pull()) {
-                return GravityPowderStateCalculator.MODE_PULL;
-            }
-            return GravityPowderStateCalculator.MODE_OFF;
+            return switch (cableSignal(cable)) {
+                case PUSH -> GravityPowderBlockDataStore.STATE_PUSH;
+                case PULL -> GravityPowderBlockDataStore.STATE_PULL;
+                case OFF -> GravityPowderBlockDataStore.STATE_OFF;
+            };
         }
 
         private String inverterMode(Vector3i inverter) {
-            return inverterModes.getOrDefault(inverter, GravityPowderStateCalculator.MODE_OFF);
+            return inverterModes.getOrDefault(inverter, GravityPowderBlockDataStore.STATE_OFF);
         }
 
         private boolean invertEnabled(Vector3i inverter) {
@@ -313,8 +303,8 @@ class ConnectableSignalRecalculatorTest {
         }
 
         @Override
-        public void setCableSignals(@Nonnull Vector3i position, boolean push, boolean pull) {
-            cableSignals.put(position, new ConnectableSignalRecalculator.SignalFlags(push, pull));
+        public void setCableSignal(@Nonnull Vector3i position, @Nonnull SignalState mode) {
+            cableSignals.put(position, mode);
         }
 
         @Override

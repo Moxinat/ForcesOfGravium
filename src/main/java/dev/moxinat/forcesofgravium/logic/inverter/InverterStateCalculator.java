@@ -8,7 +8,6 @@ import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowde
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
-import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderStateCalculator;
 import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -21,7 +20,7 @@ public final class InverterStateCalculator {
     public static String computeInputMode(World world, Vector3i position) {
         BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
         if (blockType == null || !ConnectableRegistry.isInverterId(blockType.getId())) {
-            return GravityPowderStateCalculator.MODE_OFF;
+            return GravityPowderBlockDataStore.STATE_OFF;
         }
 
         Vector3i backNeighborPosition = ConnectableNeighborResolver.adjacentPositionForLocalSide(
@@ -35,23 +34,23 @@ public final class InverterStateCalculator {
                 backNeighborPosition.getZ()
         );
         if (backNeighborType == null) {
-            return GravityPowderStateCalculator.MODE_OFF;
+            return GravityPowderBlockDataStore.STATE_OFF;
         }
 
         if (ConnectableBlockRoles.isSource(backNeighborType.getId())) {
             if (!ConnectableNeighborResolver.isSourceNeighborOf(world, backNeighborPosition, position)) {
-                return GravityPowderStateCalculator.MODE_OFF;
+                return GravityPowderBlockDataStore.STATE_OFF;
             }
             return directSourceInputMode(world, backNeighborPosition, backNeighborType.getId());
         }
 
         if (ConnectableRegistry.isGravityPowderId(backNeighborType.getId())) {
             GravityPowderBlockData backNeighborData = GravityPowderBlockDataStore.getOrCreate(world, backNeighborPosition);
-            return GravityPowderBlockDataStore.effectiveMode(backNeighborData);
+            return backNeighborData.effectiveState();
         }
 
         if (!ConnectableRegistry.isInverterId(backNeighborType.getId())) {
-            return GravityPowderStateCalculator.MODE_OFF;
+            return GravityPowderBlockDataStore.STATE_OFF;
         }
 
         Vector3i upstreamFrontPosition = ConnectableNeighborResolver.adjacentPositionForLocalSide(
@@ -60,7 +59,7 @@ public final class InverterStateCalculator {
                 ConnectableRegistry.SIDE_FRONT
         );
         if (!upstreamFrontPosition.equals(position)) {
-            return GravityPowderStateCalculator.MODE_OFF;
+            return GravityPowderBlockDataStore.STATE_OFF;
         }
 
         InverterData backNeighborData = InverterDataStore.getOrCreate(world, backNeighborPosition);
@@ -69,18 +68,18 @@ public final class InverterStateCalculator {
 
     static String directSourceInputMode(World world, Vector3i position, String blockId) {
         if (ConnectableBlockRoles.isSource(blockId) && SourceBlockDataStore.isActive(world, position, blockId)) {
-            return GravityPowderStateCalculator.MODE_PUSH;
+            return GravityPowderBlockDataStore.STATE_PUSH;
         }
-        return GravityPowderStateCalculator.MODE_OFF;
+        return GravityPowderBlockDataStore.STATE_OFF;
     }
 
     public static String invertMode(String mode) {
-        if (GravityPowderStateCalculator.MODE_PUSH.equals(mode)) {
-            return GravityPowderStateCalculator.MODE_PULL;
+        if (GravityPowderBlockDataStore.STATE_PUSH.equals(mode)) {
+            return GravityPowderBlockDataStore.STATE_PULL;
         }
-        if (GravityPowderStateCalculator.MODE_PULL.equals(mode)) {
-            return GravityPowderStateCalculator.MODE_PUSH;
+        if (GravityPowderBlockDataStore.STATE_PULL.equals(mode)) {
+            return GravityPowderBlockDataStore.STATE_PUSH;
         }
-        return GravityPowderStateCalculator.MODE_OFF;
+        return GravityPowderBlockDataStore.STATE_OFF;
     }
 }

@@ -6,7 +6,7 @@ import javax.annotation.Nonnull;
 import java.util.Set;
 
 public record NetworkScanResult(
-        @Nonnull SignalMode requestedMode,
+        @Nonnull SignalState requestedState,
         @Nonnull Set<Vector3i> carriers,
         @Nonnull Set<Vector3i> inverters,
         @Nonnull Set<Vector3i> sources,

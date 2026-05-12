@@ -22,11 +22,11 @@ public final class ConnectableNetworkScanner {
     private ConnectableNetworkScanner() {
     }
 
-    public static @Nonnull NetworkScanResult scanFrom(@Nonnull World world, @Nonnull Vector3i start, @Nonnull SignalMode mode) {
+    public static @Nonnull NetworkScanResult scanFrom(@Nonnull World world, @Nonnull Vector3i start, @Nonnull SignalState mode) {
         return scanFrom(new WorldNetworkScanAdapter(world), start, mode);
     }
 
-    public static @Nonnull NetworkScanResult scanFrom(@Nonnull NetworkScanAdapter adapter, @Nonnull Vector3i start, @Nonnull SignalMode mode) {
+    public static @Nonnull NetworkScanResult scanFrom(@Nonnull NetworkScanAdapter adapter, @Nonnull Vector3i start, @Nonnull SignalState mode) {
         Objects.requireNonNull(adapter, "adapter");
         Objects.requireNonNull(start, "start");
         Objects.requireNonNull(mode, "mode");
@@ -43,14 +43,14 @@ public final class ConnectableNetworkScanner {
         while (!queue.isEmpty()) {
             NetworkStep step = queue.removeFirst();
             Vector3i position = step.position();
-            SignalMode signalMode = step.mode();
+            SignalState signalState = step.signalState();
 
-            if (adapter.isCable(position) && adapter.cableHasSignal(position, signalMode)) {
+            if (adapter.isCable(position) && adapter.cableHasSignal(position, signalState)) {
                 carriers.add(position);
                 sources.addAll(adapter.sourceNeighbors(position));
                 consumers.addAll(adapter.consumerNeighbors(position));
-                addCableNeighbors(adapter, queue, visited, position, signalMode);
-                addInverterConnections(adapter, queue, visited, position, signalMode, inverters, sources, consumers);
+                addCableNeighbors(adapter, queue, visited, position, signalState);
+                addInverterConnections(adapter, queue, visited, position, signalState, inverters, sources, consumers);
             }
         }
 
@@ -68,7 +68,7 @@ public final class ConnectableNetworkScanner {
             ArrayDeque<NetworkStep> queue,
             Set<NetworkStep> visited,
             Vector3i position,
-            SignalMode mode
+            SignalState mode
     ) {
         for (Vector3i neighbor : adapter.positionsAround(position)) {
             if (neighbor.equals(position) || !adapter.isCable(neighbor)) {
@@ -83,7 +83,7 @@ public final class ConnectableNetworkScanner {
             ArrayDeque<NetworkStep> queue,
             Set<NetworkStep> visited,
             Vector3i cable,
-            SignalMode mode,
+            SignalState mode,
             Set<Vector3i> inverters,
             Set<Vector3i> sources,
             Set<Vector3i> consumers
@@ -103,7 +103,7 @@ public final class ConnectableNetworkScanner {
             sources.addAll(adapter.sourceNeighbors(neighbor));
             consumers.addAll(adapter.consumerNeighbors(neighbor));
 
-            SignalMode otherSideMode = adapter.isInvertEnabled(neighbor) ? mode.inverted() : mode;
+            SignalState otherSideMode = adapter.isInvertEnabled(neighbor) ? mode.inverted() : mode;
             Vector3i otherSide = cable.equals(back) ? front : back;
             enqueueIfCarrier(adapter, queue, visited, otherSide, otherSideMode);
         }
@@ -114,7 +114,7 @@ public final class ConnectableNetworkScanner {
             ArrayDeque<NetworkStep> queue,
             Set<NetworkStep> visited,
             Vector3i position,
-            SignalMode mode
+            SignalState mode
     ) {
         if (adapter.isCable(position) && adapter.cableHasSignal(position, mode)) {
             NetworkStep step = new NetworkStep(position, mode);
@@ -127,7 +127,7 @@ public final class ConnectableNetworkScanner {
     public interface NetworkScanAdapter {
         boolean isCable(@Nonnull Vector3i position);
 
-        boolean cableHasSignal(@Nonnull Vector3i position, @Nonnull SignalMode mode);
+        boolean cableHasSignal(@Nonnull Vector3i position, @Nonnull SignalState mode);
 
         boolean isInverter(@Nonnull Vector3i position);
 
@@ -157,12 +157,16 @@ public final class ConnectableNetworkScanner {
         }
 
         @Override
-        public boolean cableHasSignal(@Nonnull Vector3i position, @Nonnull SignalMode mode) {
+        public boolean cableHasSignal(@Nonnull Vector3i position, @Nonnull SignalState mode) {
             GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, position);
             if (data == null) {
                 return false;
             }
-            return mode == SignalMode.PUSH ? data.push() : data.pull();
+            return switch (mode) {
+                case PUSH -> GravityPowderBlockDataStore.STATE_PUSH.equals(data.effectiveState());
+                case PULL -> GravityPowderBlockDataStore.STATE_PULL.equals(data.effectiveState());
+                case OFF -> false;
+            };
         }
 
         @Override

@@ -5,7 +5,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
-import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderStateCalculator;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
@@ -55,13 +54,13 @@ public final class ConnectableSignalRecalculator {
             propagation = propagate(adapter, invertEnabled);
         }
 
-        for (Map.Entry<Vector3i, SignalFlags> entry : propagation.cableSignals().entrySet()) {
-            adapter.setCableSignals(entry.getKey(), entry.getValue().push(), entry.getValue().pull());
+        for (Map.Entry<Vector3i, SignalState> entry : propagation.cableSignals().entrySet()) {
+            adapter.setCableSignal(entry.getKey(), entry.getValue());
         }
-        for (Map.Entry<Vector3i, SignalFlags> entry : propagation.inverterOutputs().entrySet()) {
+        for (Map.Entry<Vector3i, SignalState> entry : propagation.inverterOutputs().entrySet()) {
             adapter.setInverterState(
                     entry.getKey(),
-                    effectiveMode(entry.getValue()),
+                    stateForSignal(entry.getValue()),
                     invertEnabled.getOrDefault(entry.getKey(), true),
                     toggleInputActive.getOrDefault(entry.getKey(), false)
             );
@@ -69,13 +68,13 @@ public final class ConnectableSignalRecalculator {
     }
 
     private static @Nonnull PropagationResult propagate(@Nonnull SignalAdapter adapter, @Nonnull Map<Vector3i, Boolean> invertEnabled) {
-        Map<Vector3i, SignalFlags> cableSignals = new LinkedHashMap<>();
-        Map<Vector3i, SignalFlags> inverterOutputs = new LinkedHashMap<>();
+        Map<Vector3i, SignalState> cableSignals = new LinkedHashMap<>();
+        Map<Vector3i, SignalState> inverterOutputs = new LinkedHashMap<>();
         for (Vector3i cable : adapter.cablePositions()) {
-            cableSignals.put(cable, new SignalFlags(false, false));
+            cableSignals.put(cable, SignalState.OFF);
         }
         for (Vector3i inverter : adapter.inverterPositions()) {
-            inverterOutputs.put(inverter, new SignalFlags(false, false));
+            inverterOutputs.put(inverter, SignalState.OFF);
         }
 
         ArrayDeque<SignalStep> queue = new ArrayDeque<>();
@@ -85,7 +84,7 @@ public final class ConnectableSignalRecalculator {
         while (!queue.isEmpty()) {
             SignalStep step = queue.removeFirst();
             if (adapter.isCable(step.position())) {
-                boolean changed = setSignal(cableSignals, step.position(), step.mode());
+                boolean changed = setSignal(cableSignals, step.position(), step.signalState());
                 if (!changed) {
                     continue;
                 }
@@ -97,15 +96,15 @@ public final class ConnectableSignalRecalculator {
                 continue;
             }
 
-            String outputMode = outputMode(step.mode(), invertEnabled.getOrDefault(step.position(), true));
-            if (GravityPowderStateCalculator.MODE_OFF.equals(outputMode)) {
+            SignalState outputState = outputSignalState(step.signalState(), invertEnabled.getOrDefault(step.position(), true));
+            if (outputState == SignalState.OFF) {
                 continue;
             }
-            boolean changed = setSignal(inverterOutputs, step.position(), outputMode);
+            boolean changed = setSignal(inverterOutputs, step.position(), outputState);
             if (!changed) {
                 continue;
             }
-            addInverterOutput(adapter, step.position(), outputMode, queue, visited);
+            addInverterOutput(adapter, step.position(), outputState, queue, visited);
         }
 
         return new PropagationResult(cableSignals, inverterOutputs);
@@ -114,8 +113,8 @@ public final class ConnectableSignalRecalculator {
     private static boolean hasSideInput(
             SignalAdapter adapter,
             Vector3i inverter,
-            Map<Vector3i, SignalFlags> cableSignals,
-            Map<Vector3i, SignalFlags> inverterOutputs
+            Map<Vector3i, SignalState> cableSignals,
+            Map<Vector3i, SignalState> inverterOutputs
     ) {
         Vector3i back = adapter.inverterBack(inverter);
         Vector3i front = adapter.inverterFront(inverter);
@@ -123,12 +122,12 @@ public final class ConnectableSignalRecalculator {
             if (neighbor.equals(inverter) || neighbor.equals(back) || neighbor.equals(front)) {
                 continue;
             }
-            SignalFlags cableSignal = cableSignals.getOrDefault(neighbor, new SignalFlags(false, false));
-            if (cableSignal.active()) {
+            SignalState cableSignal = cableSignals.getOrDefault(neighbor, SignalState.OFF);
+            if (isActive(cableSignal)) {
                 return true;
             }
-            SignalFlags inverterSignal = inverterOutputs.getOrDefault(neighbor, new SignalFlags(false, false));
-            if (inverterSignal.active() && inverter.equals(adapter.inverterFront(neighbor))) {
+            SignalState inverterSignal = inverterOutputs.getOrDefault(neighbor, SignalState.OFF);
+            if (isActive(inverterSignal) && inverter.equals(adapter.inverterFront(neighbor))) {
                 return true;
             }
             if (adapter.hasSourceFacingPosition(neighbor, inverter)) {
@@ -141,12 +140,12 @@ public final class ConnectableSignalRecalculator {
     private static void seedSources(SignalAdapter adapter, ArrayDeque<SignalStep> queue, Set<SignalStep> visited) {
         for (Vector3i cable : adapter.cablePositions()) {
             if (adapter.hasAdjacentSourceForCable(cable)) {
-                enqueue(queue, visited, cable, GravityPowderStateCalculator.MODE_PUSH);
+                enqueue(queue, visited, cable, SignalState.PUSH);
             }
         }
         for (Vector3i inverter : adapter.inverterPositions()) {
             if (adapter.hasSourceAtInverterBack(inverter)) {
-                enqueue(queue, visited, inverter, GravityPowderStateCalculator.MODE_PUSH);
+                enqueue(queue, visited, inverter, SignalState.PUSH);
             }
         }
     }
@@ -157,16 +156,16 @@ public final class ConnectableSignalRecalculator {
                 continue;
             }
             if (adapter.isCable(neighbor)) {
-                enqueue(queue, visited, neighbor, step.mode());
+                enqueue(queue, visited, neighbor, step.signalState());
                 continue;
             }
             if (adapter.isInverter(neighbor) && step.position().equals(adapter.inverterBack(neighbor))) {
-                enqueue(queue, visited, neighbor, step.mode());
+                enqueue(queue, visited, neighbor, step.signalState());
             }
         }
     }
 
-    private static void addInverterOutput(SignalAdapter adapter, Vector3i inverter, String mode, ArrayDeque<SignalStep> queue, Set<SignalStep> visited) {
+    private static void addInverterOutput(SignalAdapter adapter, Vector3i inverter, SignalState mode, ArrayDeque<SignalStep> queue, Set<SignalStep> visited) {
         Vector3i front = adapter.inverterFront(inverter);
         if (adapter.isCable(front)) {
             enqueue(queue, visited, front, mode);
@@ -177,45 +176,44 @@ public final class ConnectableSignalRecalculator {
         }
     }
 
-    private static void enqueue(ArrayDeque<SignalStep> queue, Set<SignalStep> visited, Vector3i position, String mode) {
+    private static void enqueue(ArrayDeque<SignalStep> queue, Set<SignalStep> visited, Vector3i position, SignalState mode) {
         SignalStep step = new SignalStep(position, mode);
         if (visited.add(step)) {
             queue.addLast(step);
         }
     }
 
-    private static boolean setSignal(Map<Vector3i, SignalFlags> signals, Vector3i position, String mode) {
-        SignalFlags current = signals.getOrDefault(position, new SignalFlags(false, false));
-        SignalFlags next = switch (mode) {
-            case GravityPowderStateCalculator.MODE_PUSH -> new SignalFlags(true, current.pull());
-            case GravityPowderStateCalculator.MODE_PULL -> new SignalFlags(current.push(), true);
-            default -> current;
-        };
+    private static boolean setSignal(Map<Vector3i, SignalState> signals, Vector3i position, SignalState mode) {
+        SignalState current = signals.getOrDefault(position, SignalState.OFF);
+        SignalState next = merge(current, mode);
         signals.put(position, next);
         return !next.equals(current);
     }
 
-    private static String outputMode(String mode, boolean invertEnabled) {
-        if (!invertEnabled) {
-            return mode;
+    private static @Nonnull SignalState merge(@Nonnull SignalState current, @Nonnull SignalState incoming) {
+        if (current == SignalState.PUSH || incoming == SignalState.PUSH) {
+            return SignalState.PUSH;
         }
-        if (GravityPowderStateCalculator.MODE_PUSH.equals(mode)) {
-            return GravityPowderStateCalculator.MODE_PULL;
+        if (current == SignalState.PULL || incoming == SignalState.PULL) {
+            return SignalState.PULL;
         }
-        if (GravityPowderStateCalculator.MODE_PULL.equals(mode)) {
-            return GravityPowderStateCalculator.MODE_PUSH;
-        }
-        return GravityPowderStateCalculator.MODE_OFF;
+        return SignalState.OFF;
     }
 
-    private static String effectiveMode(SignalFlags signals) {
-        if (signals.push()) {
-            return GravityPowderStateCalculator.MODE_PUSH;
-        }
-        if (signals.pull()) {
-            return GravityPowderStateCalculator.MODE_PULL;
-        }
-        return GravityPowderStateCalculator.MODE_OFF;
+    private static @Nonnull SignalState outputSignalState(@Nonnull SignalState signalState, boolean invertEnabled) {
+        return invertEnabled ? signalState.inverted() : signalState;
+    }
+
+    private static boolean isActive(@Nonnull SignalState mode) {
+        return mode != SignalState.OFF;
+    }
+
+    private static @Nonnull String stateForSignal(@Nonnull SignalState mode) {
+        return switch (mode) {
+            case PUSH -> GravityPowderBlockDataStore.STATE_PUSH;
+            case PULL -> GravityPowderBlockDataStore.STATE_PULL;
+            case OFF -> GravityPowderBlockDataStore.STATE_OFF;
+        };
     }
 
     public interface SignalAdapter {
@@ -243,27 +241,21 @@ public final class ConnectableSignalRecalculator {
 
         @Nonnull List<Vector3i> positionsAround(@Nonnull Vector3i position);
 
-        void setCableSignals(@Nonnull Vector3i position, boolean push, boolean pull);
+        void setCableSignal(@Nonnull Vector3i position, @Nonnull SignalState mode);
 
         void setInverterState(@Nonnull Vector3i position, @Nonnull String mode, boolean invertEnabled, boolean toggleInputActive);
     }
 
-    public record SignalFlags(boolean push, boolean pull) {
-        public boolean active() {
-            return push || pull;
-        }
-    }
-
-    private record SignalStep(@Nonnull Vector3i position, @Nonnull String mode) {
+    private record SignalStep(@Nonnull Vector3i position, @Nonnull SignalState signalState) {
         private SignalStep {
             Objects.requireNonNull(position, "position");
-            Objects.requireNonNull(mode, "mode");
+            Objects.requireNonNull(signalState, "signalState");
         }
     }
 
     private record PropagationResult(
-            @Nonnull Map<Vector3i, SignalFlags> cableSignals,
-            @Nonnull Map<Vector3i, SignalFlags> inverterOutputs
+            @Nonnull Map<Vector3i, SignalState> cableSignals,
+            @Nonnull Map<Vector3i, SignalState> inverterOutputs
     ) {
         private PropagationResult {
             cableSignals = Map.copyOf(Objects.requireNonNull(cableSignals, "cableSignals"));
@@ -353,8 +345,14 @@ public final class ConnectableSignalRecalculator {
         }
 
         @Override
-        public void setCableSignals(@Nonnull Vector3i position, boolean push, boolean pull) {
-            GravityPowderBlockDataStore.setSignals(world, position, push, pull);
+        public void setCableSignal(@Nonnull Vector3i position, @Nonnull SignalState mode) {
+            GravityPowderBlockDataStore.GravityPowderBlockData previous = GravityPowderBlockDataStore.get(world, position);
+            GravityPowderBlockDataStore.setInstantState(world, position, stateForSignal(mode));
+            GravityPowderBlockDataStore.GravityPowderBlockData updated = GravityPowderBlockDataStore.get(world, position);
+            String previousInstantState = previous == null ? GravityPowderBlockDataStore.STATE_OFF : previous.instantState();
+            if (updated != null && !updated.instantState().equals(previousInstantState)) {
+                ConnectablePropagationScheduler.onCableInstantStateChanged(world, position);
+            }
         }
 
         @Override

@@ -7,9 +7,6 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
-import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
-import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
@@ -185,36 +182,9 @@ public final class ConnectableNeighborResolver {
         };
     }
 
-    @SuppressWarnings("deprecation")
     public static RotationTuple rotationFor(World world, Vector3i position) {
         RotationTuple storedRotation = ConnectableRotationStore.get(world, position);
-        if (storedRotation != null) {
-            return storedRotation;
-        }
-
-        try {
-            if (position.getY() < 0 || position.getY() >= 320) {
-                return RotationTuple.NONE;
-            }
-
-            WorldChunk chunk = world.getNonTickingChunk(ChunkUtil.indexChunkFromBlock(position.getX(), position.getZ()));
-            if (chunk == null) {
-                return RotationTuple.NONE;
-            }
-
-            BlockChunk blockChunk = chunk.getBlockChunk();
-            if (blockChunk == null) {
-                return RotationTuple.NONE;
-            }
-
-            BlockSection section = blockChunk.getSectionAtIndex(ChunkUtil.indexSection(position.getY()));
-            if (section == null) {
-                return RotationTuple.NONE;
-            }
-            return RotationTuple.get(section.getRotationIndex(ChunkUtil.indexBlock(position.getX(), position.getY(), position.getZ())));
-        } catch (Exception ignored) {
-            return RotationTuple.NONE;
-        }
+        return storedRotation != null ? storedRotation : RotationTuple.NONE;
     }
 
     public static WorldSide worldSideForLocalSide(RotationTuple rotation, int localSideMask) {

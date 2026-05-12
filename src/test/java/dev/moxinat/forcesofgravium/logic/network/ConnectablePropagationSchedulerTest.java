@@ -1,8 +1,12 @@
 package dev.moxinat.forcesofgravium.logic.network;
 
 import com.hypixel.hytale.math.vector.Vector3i;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
+import dev.moxinat.forcesofgravium.data.StateTimeline;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -51,5 +55,42 @@ class ConnectablePropagationSchedulerTest {
         );
 
         assertEquals(Set.of(left, right), affected);
+    }
+
+    @Test
+    void mismatchedCableNeighborsIncludeOnlyNeighborsWithInstantWaveDiscrepancy() {
+        Vector3i cable = new Vector3i(0, 0, 0);
+        Vector3i mismatched = new Vector3i(1, 0, 0);
+        Vector3i confirmed = new Vector3i(-1, 0, 0);
+        Vector3i empty = new Vector3i(0, 1, 0);
+
+        Map<Vector3i, GravityPowderBlockData> data = Map.of(
+                mismatched,
+                new GravityPowderBlockData(
+                        0,
+                        new StateTimeline(
+                                GravityPowderBlockDataStore.STATE_PUSH,
+                                GravityPowderBlockDataStore.STATE_OFF,
+                                GravityPowderBlockDataStore.STATE_OFF
+                        )
+                ),
+                confirmed,
+                new GravityPowderBlockData(
+                        0,
+                        new StateTimeline(
+                                GravityPowderBlockDataStore.STATE_PUSH,
+                                GravityPowderBlockDataStore.STATE_PUSH,
+                                GravityPowderBlockDataStore.STATE_PUSH
+                        )
+                )
+        );
+
+        Set<Vector3i> pending = ConnectablePropagationScheduler.mismatchedCableNeighbors(
+                cable,
+                Set.of(cable, mismatched, confirmed, empty),
+                data::get
+        );
+
+        assertEquals(Set.of(mismatched), pending);
     }
 }

@@ -51,12 +51,18 @@ public final class GravityPowderBlockDataStore {
         WorldSaveFileService.markDirty(world);
     }
 
-    public static void setSignals(@Nonnull World world, @Nonnull Vector3i position, boolean push, boolean pull) {
+    public static void setInstantState(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String state) {
         WorldSaveFileService.ensureLoaded(world);
         DATA.compute(BlockKey.from(world, position), (ignored, existing) -> {
             GravityPowderBlockData data = existing == null ? GravityPowderBlockData.defaultData() : existing;
-            return data.withSignals(push, pull);
+            return data.withInstantState(state);
         });
+        WorldSaveFileService.markDirty(world);
+    }
+
+    public static void adoptInstantState(@Nonnull World world, @Nonnull Vector3i position) {
+        WorldSaveFileService.ensureLoaded(world);
+        DATA.computeIfPresent(BlockKey.from(world, position), (ignored, existing) -> existing.withWaveStateFromInstantState());
         WorldSaveFileService.markDirty(world);
     }
 
@@ -82,21 +88,11 @@ public final class GravityPowderBlockDataStore {
         DATA.keySet().removeIf(key -> key.worldId().equals(worldId));
     }
 
-    public static @Nonnull String modeForState(@Nullable String state) {
+    public static @Nonnull String normalizeState(@Nullable String state) {
         if (STATE_PUSH.equals(state) || "push_wave".equals(state)) {
             return STATE_PUSH;
         }
         if (STATE_PULL.equals(state) || "pull_wave".equals(state)) {
-            return STATE_PULL;
-        }
-        return STATE_OFF;
-    }
-
-    public static @Nonnull String effectiveMode(@Nonnull GravityPowderBlockData data) {
-        if (data.push()) {
-            return STATE_PUSH;
-        }
-        if (data.pull()) {
             return STATE_PULL;
         }
         return STATE_OFF;
@@ -117,29 +113,72 @@ public final class GravityPowderBlockDataStore {
     }
 
     public static @Nonnull GravityPowderBlockData fromState(int connectionsMask, @Nullable String state) {
-        String mode = modeForState(state);
-        return new GravityPowderBlockData(
-                connectionsMask,
-                STATE_PUSH.equals(mode),
-                STATE_PULL.equals(mode)
-        );
+        return GravityPowderBlockData.initialize(connectionsMask, normalizeState(state));
     }
 
     public record GravityPowderBlockData(
             int connectionsMask,
-            boolean push,
-            boolean pull
+            @Nonnull StateTimeline stateTimeline
     ) {
+        public GravityPowderBlockData {
+            stateTimeline = Objects.requireNonNull(stateTimeline, "stateTimeline");
+            stateTimeline = new StateTimeline(
+                    normalizeState(stateTimeline.instantState()),
+                    normalizeState(stateTimeline.waveState()),
+                    normalizeState(stateTimeline.previousState())
+            );
+        }
+
         public static @Nonnull GravityPowderBlockData defaultData() {
-            return new GravityPowderBlockData(0, false, false);
+            return initialize(0, STATE_OFF);
+        }
+
+        public static @Nonnull GravityPowderBlockData initialize(
+                int connectionsMask,
+                @Nonnull String state
+        ) {
+            return new GravityPowderBlockData(
+                    connectionsMask,
+                    StateTimeline.initialized(normalizeState(state))
+            );
         }
 
         public @Nonnull GravityPowderBlockData withConnectionsMask(int value) {
-            return new GravityPowderBlockData(value, push, pull);
+            return new GravityPowderBlockData(value, stateTimeline);
         }
 
-        public @Nonnull GravityPowderBlockData withSignals(boolean nextPush, boolean nextPull) {
-            return new GravityPowderBlockData(connectionsMask, nextPush, nextPull);
+        public @Nonnull GravityPowderBlockData withInstantState(@Nonnull String nextInstantState) {
+            return new GravityPowderBlockData(
+                    connectionsMask,
+                    stateTimeline.withInstantState(normalizeState(nextInstantState))
+            );
+        }
+
+        public boolean hasWaveMismatch() {
+            return stateTimeline.hasWaveMismatch();
+        }
+
+        public @Nonnull GravityPowderBlockData withWaveStateFromInstantState() {
+            return new GravityPowderBlockData(
+                    connectionsMask,
+                    stateTimeline.withWaveStateFromInstantState()
+            );
+        }
+
+        public @Nonnull String instantState() {
+            return stateTimeline.instantState();
+        }
+
+        public @Nonnull String waveState() {
+            return stateTimeline.waveState();
+        }
+
+        public @Nonnull String effectiveState() {
+            return stateTimeline.effectiveState();
+        }
+
+        public @Nonnull String previousState() {
+            return stateTimeline.previousState();
         }
     }
 

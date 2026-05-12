@@ -379,9 +379,9 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
 
     private static String formatEntry(Vector3i position, GravityPowderBlockData data) {
         return formatPosition(position)
-                + " push=" + data.push()
-                + " pull=" + data.pull()
-                + " mode=" + GravityPowderBlockDataStore.effectiveMode(data)
+                + " instantState=" + data.instantState()
+                + " waveState=" + data.waveState()
+                + " effectiveState=" + data.effectiveState()
                 + " connectionsMask=" + data.connectionsMask();
     }
 

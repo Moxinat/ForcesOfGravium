@@ -23,13 +23,13 @@ class ConnectableNetworkScannerTest {
         Vector3i firstSource = new Vector3i(0, 1, 0);
         Vector3i secondSource = new Vector3i(2, 1, 0);
         TestAdapter adapter = new TestAdapter()
-                .withCable(first, SignalMode.PUSH)
-                .withCable(second, SignalMode.PUSH)
-                .withCable(third, SignalMode.PUSH)
+                .withCable(first, SignalState.PUSH)
+                .withCable(second, SignalState.PUSH)
+                .withCable(third, SignalState.PUSH)
                 .withSourceNeighbor(first, firstSource)
                 .withSourceNeighbor(third, secondSource);
 
-        NetworkScanResult result = ConnectableNetworkScanner.scanFrom(adapter, first, SignalMode.PUSH);
+        NetworkScanResult result = ConnectableNetworkScanner.scanFrom(adapter, first, SignalState.PUSH);
 
         assertEquals(Set.of(first, second, third), result.carriers());
         assertEquals(Set.of(firstSource, secondSource), result.sources());
@@ -43,12 +43,12 @@ class ConnectableNetworkScannerTest {
         Vector3i output = new Vector3i(2, 0, 0);
         Vector3i source = new Vector3i(-1, 0, 0);
         TestAdapter adapter = new TestAdapter()
-                .withCable(input, SignalMode.PUSH)
-                .withCable(output, SignalMode.PULL)
+                .withCable(input, SignalState.PUSH)
+                .withCable(output, SignalState.PULL)
                 .withInverter(inverter, input, output, true)
                 .withSourceNeighbor(input, source);
 
-        NetworkScanResult result = ConnectableNetworkScanner.scanFrom(adapter, input, SignalMode.PUSH);
+        NetworkScanResult result = ConnectableNetworkScanner.scanFrom(adapter, input, SignalState.PUSH);
 
         assertEquals(Set.of(input, output), result.carriers());
         assertEquals(Set.of(inverter), result.inverters());
@@ -62,12 +62,12 @@ class ConnectableNetworkScannerTest {
         Vector3i output = new Vector3i(2, 0, 0);
         Vector3i source = new Vector3i(-1, 0, 0);
         TestAdapter adapter = new TestAdapter()
-                .withCable(input, SignalMode.PUSH)
-                .withCable(output, SignalMode.PULL)
+                .withCable(input, SignalState.PUSH)
+                .withCable(output, SignalState.PULL)
                 .withInverter(inverter, input, output, true)
                 .withSourceNeighbor(input, source);
 
-        NetworkScanResult result = ConnectableNetworkScanner.scanFrom(adapter, output, SignalMode.PULL);
+        NetworkScanResult result = ConnectableNetworkScanner.scanFrom(adapter, output, SignalState.PULL);
 
         assertEquals(Set.of(input, output), result.carriers());
         assertEquals(Set.of(inverter), result.inverters());
@@ -79,16 +79,30 @@ class ConnectableNetworkScannerTest {
         Vector3i cable = new Vector3i(0, 0, 0);
         Vector3i consumer = new Vector3i(0, 1, 0);
         TestAdapter adapter = new TestAdapter()
-                .withCable(cable, SignalMode.PULL)
+                .withCable(cable, SignalState.PULL)
                 .withConsumerNeighbor(cable, consumer);
 
-        NetworkScanResult result = ConnectableNetworkScanner.scanFrom(adapter, cable, SignalMode.PULL);
+        NetworkScanResult result = ConnectableNetworkScanner.scanFrom(adapter, cable, SignalState.PULL);
 
         assertEquals(Set.of(consumer), result.consumers());
     }
 
+    @Test
+    void scanOnlyTraversesCableWhenRequestedModeIsEffective() {
+        Vector3i cable = new Vector3i(0, 0, 0);
+        Vector3i source = new Vector3i(0, 1, 0);
+        TestAdapter adapter = new TestAdapter()
+                .withCable(cable, SignalState.PUSH)
+                .withSourceNeighbor(cable, source);
+
+        NetworkScanResult result = ConnectableNetworkScanner.scanFrom(adapter, cable, SignalState.PULL);
+
+        assertEquals(Set.of(), result.carriers());
+        assertEquals(Set.of(), result.sources());
+    }
+
     private static final class TestAdapter implements ConnectableNetworkScanner.NetworkScanAdapter {
-        private final Map<Vector3i, Set<SignalMode>> cableSignals = new LinkedHashMap<>();
+        private final Map<Vector3i, Set<SignalState>> cableSignals = new LinkedHashMap<>();
         private final Set<Vector3i> inverters = new LinkedHashSet<>();
         private final Map<Vector3i, Boolean> invertEnabled = new LinkedHashMap<>();
         private final Map<Vector3i, Vector3i> inverterBacks = new LinkedHashMap<>();
@@ -96,7 +110,7 @@ class ConnectableNetworkScannerTest {
         private final Map<Vector3i, Set<Vector3i>> sourceNeighbors = new LinkedHashMap<>();
         private final Map<Vector3i, Set<Vector3i>> consumerNeighbors = new LinkedHashMap<>();
 
-        private TestAdapter withCable(Vector3i cable, SignalMode mode) {
+        private TestAdapter withCable(Vector3i cable, SignalState mode) {
             cableSignals.computeIfAbsent(cable, ignored -> new LinkedHashSet<>()).add(mode);
             return this;
         }
@@ -125,7 +139,7 @@ class ConnectableNetworkScannerTest {
         }
 
         @Override
-        public boolean cableHasSignal(@Nonnull Vector3i position, @Nonnull SignalMode mode) {
+        public boolean cableHasSignal(@Nonnull Vector3i position, @Nonnull SignalState mode) {
             return cableSignals.getOrDefault(position, Set.of()).contains(mode);
         }
 

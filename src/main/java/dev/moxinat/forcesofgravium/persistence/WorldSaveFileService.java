@@ -13,6 +13,7 @@ import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
 import dev.moxinat.forcesofgravium.data.SourceBlockDataStore.SourceBlockData;
+import dev.moxinat.forcesofgravium.data.StateTimeline;
 import org.bson.BsonArray;
 import org.bson.BsonBoolean;
 import org.bson.BsonDocument;
@@ -181,11 +182,20 @@ public final class WorldSaveFileService {
             BsonDocument entry = value.asDocument();
             Vector3i position = readPosition(entry.getDocument("position"));
             GravityPowderBlockData data;
-            if (entry.containsKey("push") || entry.containsKey("pull")) {
+            if (entry.containsKey("instantState") || entry.containsKey("push") || entry.containsKey("pull")) {
+                boolean push = entry.getBoolean("push", BsonBoolean.FALSE).getValue();
+                boolean pull = entry.getBoolean("pull", BsonBoolean.FALSE).getValue();
+                String instantState = entry.getString(
+                        "instantState",
+                        new BsonString(push ? GravityPowderBlockDataStore.STATE_PUSH : pull ? GravityPowderBlockDataStore.STATE_PULL : GravityPowderBlockDataStore.STATE_OFF)
+                ).getValue();
                 data = new GravityPowderBlockData(
                         entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
-                        entry.getBoolean("push", BsonBoolean.FALSE).getValue(),
-                        entry.getBoolean("pull", BsonBoolean.FALSE).getValue()
+                        new StateTimeline(
+                                instantState,
+                                entry.getString("waveState", new BsonString(instantState)).getValue(),
+                                entry.getString("previousState", new BsonString(instantState)).getValue()
+                        )
                 );
             } else if (entry.containsKey("state")) {
                 data = GravityPowderBlockDataStore.fromState(
@@ -210,11 +220,17 @@ public final class WorldSaveFileService {
             }
             BsonDocument entry = value.asDocument();
             Vector3i position = readPosition(entry.getDocument("position"));
+            String currentMode = entry.getString("currentMode", new BsonString("off")).getValue();
             InverterData data = new InverterData(
-                    entry.getString("currentMode", new BsonString("off")).getValue(),
+                    currentMode,
                     entry.getString("nextMode", new BsonString("off")).getValue(),
                     entry.getBoolean("invertEnabled", BsonBoolean.TRUE).getValue(),
-                    entry.getBoolean("toggleInputActive", BsonBoolean.FALSE).getValue()
+                    entry.getBoolean("toggleInputActive", BsonBoolean.FALSE).getValue(),
+                    new StateTimeline(
+                            currentMode,
+                            entry.getString("waveState", new BsonString(currentMode)).getValue(),
+                            entry.getString("previousState", new BsonString(currentMode)).getValue()
+                    )
             );
             InverterDataStore.put(world, position, data);
         }
@@ -274,8 +290,10 @@ public final class WorldSaveFileService {
             BsonDocument document = new BsonDocument();
             document.put("position", writePosition(entry.getKey()));
             document.put("connectionsMask", new BsonInt32(data.connectionsMask()));
-            document.put("push", new BsonBoolean(data.push()));
-            document.put("pull", new BsonBoolean(data.pull()));
+            document.put("instantState", new BsonString(data.instantState()));
+            document.put("waveState", new BsonString(data.waveState()));
+            document.put("effectiveState", new BsonString(data.effectiveState()));
+            document.put("previousState", new BsonString(data.previousState()));
             result.add(document);
         }
         return result;
@@ -291,6 +309,9 @@ public final class WorldSaveFileService {
             document.put("nextMode", new BsonString(data.nextMode()));
             document.put("invertEnabled", new BsonBoolean(data.invertEnabled()));
             document.put("toggleInputActive", new BsonBoolean(data.toggleInputActive()));
+            document.put("waveState", new BsonString(data.waveState()));
+            document.put("effectiveState", new BsonString(data.effectiveState()));
+            document.put("previousState", new BsonString(data.previousState()));
             result.add(document);
         }
         return result;

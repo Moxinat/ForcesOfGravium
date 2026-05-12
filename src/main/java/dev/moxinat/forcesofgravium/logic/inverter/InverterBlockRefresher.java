@@ -7,9 +7,9 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
+import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
-import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderStateCalculator;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 public final class InverterBlockRefresher {
@@ -56,8 +56,8 @@ public final class InverterBlockRefresher {
 
     private static String modeStatePrefix(String mode) {
         return switch (mode) {
-            case GravityPowderStateCalculator.MODE_PUSH -> "Push";
-            case GravityPowderStateCalculator.MODE_PULL -> "Pull";
+            case GravityPowderBlockDataStore.STATE_PUSH -> "Push";
+            case GravityPowderBlockDataStore.STATE_PULL -> "Pull";
             default -> "Off";
         };
     }

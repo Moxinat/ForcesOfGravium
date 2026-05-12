@@ -368,14 +368,14 @@ public final class GravityPowderBlockRefresher {
         }
 
         return switch (displayMode(data)) {
-            case GravityPowderStateCalculator.MODE_PUSH -> "Push";
-            case GravityPowderStateCalculator.MODE_PULL -> "Pull";
+            case GravityPowderBlockDataStore.STATE_PUSH -> "Push";
+            case GravityPowderBlockDataStore.STATE_PULL -> "Pull";
             default -> "";
         };
     }
 
     private static String displayMode(GravityPowderBlockData data) {
-        return GravityPowderBlockDataStore.effectiveMode(data);
+        return data.effectiveState();
     }
 
     private static String stateBlockKey(BlockType baseType, String baseState, String modeSuffix) {

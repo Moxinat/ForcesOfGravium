@@ -55,12 +55,12 @@ public final class ConnectableNetworkUpdateService {
         boolean locked = false;
 
         for (Vector3i neighbor : controlNeighbors(world, siphon)) {
-            NetworkScanResult pushResult = scanCache.scan(world, neighbor, SignalMode.PUSH);
+            NetworkScanResult pushResult = scanCache.scan(world, neighbor, SignalState.PUSH);
             if (pushResult.hasAnySource()) {
                 powered = true;
             }
 
-            NetworkScanResult pullResult = scanCache.scan(world, neighbor, SignalMode.PULL);
+            NetworkScanResult pullResult = scanCache.scan(world, neighbor, SignalState.PULL);
             if (pullResult.hasAnySource()) {
                 locked = true;
             }
@@ -97,7 +97,7 @@ public final class ConnectableNetworkUpdateService {
     private static final class ScanCache {
         private final Map<NetworkStep, NetworkScanResult> resultsByCarrierStep = new LinkedHashMap<>();
 
-        private @Nonnull NetworkScanResult scan(@Nonnull World world, @Nonnull Vector3i start, @Nonnull SignalMode mode) {
+        private @Nonnull NetworkScanResult scan(@Nonnull World world, @Nonnull Vector3i start, @Nonnull SignalState mode) {
             NetworkStep key = new NetworkStep(start, mode);
             NetworkScanResult cached = resultsByCarrierStep.get(key);
             if (cached != null) {
