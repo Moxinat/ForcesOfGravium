@@ -24,6 +24,7 @@ PROJECT_CONTEXT.md
 # Temp files
 .tmp_*/
 .tmp.driveupload/
+.tmp_recipe_scan/
 
 # OS
 .DS_Store
