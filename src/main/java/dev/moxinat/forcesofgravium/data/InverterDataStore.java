@@ -66,6 +66,20 @@ public final class InverterDataStore {
         WorldSaveFileService.markDirty(world);
     }
 
+    public static void markWaveDirty(@Nonnull World world, @Nonnull Vector3i position) {
+        WorldSaveFileService.ensureLoaded(world);
+        DATA.computeIfPresent(BlockKey.from(world, position),
+                (ignored, existing) -> existing.withDirty(true));
+        WorldSaveFileService.markDirty(world);
+    }
+
+    public static void clearWaveDirty(@Nonnull World world, @Nonnull Vector3i position) {
+        WorldSaveFileService.ensureLoaded(world);
+        DATA.computeIfPresent(BlockKey.from(world, position),
+                (ignored, existing) -> existing.withDirty(false));
+        WorldSaveFileService.markDirty(world);
+    }
+
     public static void remove(@Nonnull World world, @Nonnull Vector3i position) {
         WorldSaveFileService.ensureLoaded(world);
         DATA.remove(BlockKey.from(world, position));
@@ -93,8 +107,18 @@ public final class InverterDataStore {
             @Nonnull String nextMode,
             boolean invertEnabled,
             boolean toggleInputActive,
-            @Nonnull StateTimeline stateTimeline
+            @Nonnull StateTimeline stateTimeline,
+            boolean dirty
     ) {
+        public InverterData(
+                @Nonnull String currentMode,
+                @Nonnull String nextMode,
+                boolean invertEnabled,
+                boolean toggleInputActive,
+                @Nonnull StateTimeline stateTimeline
+        ) {
+            this(currentMode, nextMode, invertEnabled, toggleInputActive, stateTimeline, false);
+        }
 
         public InverterData {
             currentMode = Objects.requireNonNull(currentMode, "currentMode");
@@ -118,7 +142,8 @@ public final class InverterDataStore {
                     nextMode,
                     invertEnabled,
                     toggleInputActive,
-                    StateTimeline.initialized(currentMode)
+                    StateTimeline.initialized(currentMode),
+                    false
             );
         }
 
@@ -137,7 +162,8 @@ public final class InverterDataStore {
                     nextMode,
                     invertEnabled,
                     toggleInputActive,
-                    new StateTimeline(currentMode, currentMode, previousState)
+                    new StateTimeline(currentMode, currentMode, previousState),
+                    existing != null && existing.dirty
             );
         }
 
@@ -147,8 +173,13 @@ public final class InverterDataStore {
                     nextMode,
                     invertEnabled,
                     toggleInputActive,
-                    StateTimeline.initialized(currentMode)
+                    StateTimeline.initialized(currentMode),
+                    false
             );
+        }
+
+        public @Nonnull InverterData withDirty(boolean value) {
+            return new InverterData(currentMode, nextMode, invertEnabled, toggleInputActive, stateTimeline, value);
         }
 
         public @Nonnull String waveState() {

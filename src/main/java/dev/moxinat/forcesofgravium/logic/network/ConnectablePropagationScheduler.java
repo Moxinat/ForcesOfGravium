@@ -5,8 +5,11 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
+import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderBlockRefresher;
 import dev.moxinat.forcesofgravium.logic.inverter.InverterBlockRefresher;
+import dev.moxinat.forcesofgravium.logic.inverter.InverterStateCalculator;
+import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import java.util.HashMap;
@@ -34,9 +37,6 @@ public final class ConnectablePropagationScheduler {
     public static void onConnectableBroken(World world, Vector3i target) {
         PENDING_BROKEN.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet()).add(target);
         enqueueRecompute(world, target);
-    }
-
-    public static void onCableInstantStateChanged(World world, Vector3i cable) {
     }
 
     public static void tickPropagation() {
@@ -78,13 +78,22 @@ public final class ConnectablePropagationScheduler {
             for (Vector3i cable : visibleChangedCables) {
                 GravityPowderBlockRefresher.refreshAt(world, cable);
             }
+            visibleChangedCables.addAll(updateInvertersWithBackIn(world, visibleChangedCables));
+            visibleChangedCables.addAll(syncDirtyInverterFronts(world, InverterDataStore.snapshotForWorld(world).keySet()));
             ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(dirtyPositions, visibleChangedCables));
             return;
         }
 
+        Map<Vector3i, String> previousInstantStates = snapshotInstantStates(world, retainKnownCables(world, affectedPositions));
+
         ConnectableSignalRecalculator.recompute(world, affectedPositions);
+        Set<Vector3i> changedInstantCables = changedInstantStateCables(world, previousInstantStates);
+        clearPendingWaveAdoptions(world, changedInstantCables);
+        waveAdoptionTargets = without(waveAdoptionTargets, changedInstantCables);
         Set<Vector3i> cables = GravityPowderBlockDataStore.snapshotForWorld(world).keySet();
         Set<Vector3i> inverters = InverterDataStore.snapshotForWorld(world).keySet();
+        visibleChangedCables.addAll(syncSourceTargets(world, placedTargets, cables));
+        visibleChangedCables.addAll(syncSourceTargets(world, brokenTargets, cables));
         visibleChangedCables.addAll(syncPlacedTargets(world, placedTargets, cables, inverters));
         visibleChangedCables.addAll(syncNeighborsOfBrokenTargets(world, brokenTargets, cables, inverters));
         visibleChangedCables.addAll(processWaveAdoptions(world, waveAdoptionTargets));
@@ -102,7 +111,59 @@ public final class ConnectablePropagationScheduler {
             }
             InverterBlockRefresher.refreshAt(world, inverter);
         }
+        visibleChangedCables.addAll(syncDirtyInverterFronts(world, inverters));
+        visibleChangedCables.addAll(updateInvertersWithBackIn(world, visibleChangedCables));
+        visibleChangedCables.addAll(syncDirtyInverterFronts(world, inverters));
         ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(merge(dirtyPositions, affectedPositions), visibleChangedCables));
+    }
+
+    private static Set<Vector3i> updateInvertersWithBackIn(World world, Set<Vector3i> cablePositions) {
+        LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
+        Set<Vector3i> inverters = InverterDataStore.snapshotForWorld(world).keySet();
+        for (Vector3i inverter : inverters) {
+            Vector3i back = ConnectableNeighborResolver.adjacentPositionForLocalSide(world, inverter, ConnectableRegistry.SIDE_BACK);
+            if (!cablePositions.contains(back)) {
+                continue;
+            }
+
+            InverterData previous = InverterDataStore.get(world, inverter);
+            boolean invertEnabled = previous == null || previous.invertEnabled();
+            boolean toggleInputActive = previous != null && previous.toggleInputActive();
+            String inputMode = InverterStateCalculator.computeInputMode(world, inverter);
+            String outputMode = invertEnabled ? InverterStateCalculator.invertMode(inputMode) : inputMode;
+            String previousMode = previous == null ? GravityPowderBlockDataStore.STATE_OFF : previous.currentMode();
+
+            InverterDataStore.setState(world, inverter, outputMode, outputMode, invertEnabled, toggleInputActive);
+            InverterBlockRefresher.refreshAt(world, inverter);
+            if (outputMode.equals(previousMode)) {
+                continue;
+            }
+
+            InverterDataStore.markWaveDirty(world, inverter);
+        }
+        return Set.copyOf(visibleChangedCables);
+    }
+
+    private static Set<Vector3i> syncDirtyInverterFronts(World world, Set<Vector3i> inverters) {
+        LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
+        for (Vector3i inverter : inverters) {
+            InverterData data = InverterDataStore.get(world, inverter);
+            if (data == null || !data.dirty()) {
+                continue;
+            }
+
+            Vector3i front = ConnectableNeighborResolver.adjacentPositionForLocalSide(world, inverter, ConnectableRegistry.SIDE_FRONT);
+            Set<Vector3i> affectedPositions = affectedConnectablePositions(world, Set.of(inverter));
+            Map<Vector3i, String> previousInstantStates = snapshotInstantStates(world, retainKnownCables(world, affectedPositions));
+            ConnectableSignalRecalculator.recompute(world, affectedPositions);
+            clearPendingWaveAdoptions(world, changedInstantStateCables(world, previousInstantStates));
+            if (adoptInstantStateAndScheduleNeighbors(world, front)) {
+                GravityPowderBlockRefresher.refreshAt(world, front);
+                visibleChangedCables.add(front);
+            }
+            InverterDataStore.clearWaveDirty(world, inverter);
+        }
+        return Set.copyOf(visibleChangedCables);
     }
 
     private static Set<Vector3i> merge(Set<Vector3i> first, Set<Vector3i> second) {
@@ -119,6 +180,55 @@ public final class ConnectablePropagationScheduler {
 
     private static void enqueueWaveAdoption(World world, Vector3i target) {
         PENDING_WAVE_ADOPTION.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet()).add(target);
+    }
+
+    private static void clearPendingWaveAdoptions(World world, Set<Vector3i> targets) {
+        Set<Vector3i> pending = PENDING_WAVE_ADOPTION.get(world);
+        if (pending == null || pending.isEmpty() || targets.isEmpty()) {
+            return;
+        }
+        pending.removeAll(targets);
+        if (pending.isEmpty()) {
+            PENDING_WAVE_ADOPTION.remove(world, pending);
+        }
+    }
+
+    private static Set<Vector3i> without(Set<Vector3i> source, Set<Vector3i> excluded) {
+        if (source.isEmpty() || excluded.isEmpty()) {
+            return source;
+        }
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>(source);
+        result.removeAll(excluded);
+        return Set.copyOf(result);
+    }
+
+    private static Set<Vector3i> retainKnownCables(World world, Set<Vector3i> positions) {
+        Set<Vector3i> cables = GravityPowderBlockDataStore.snapshotForWorld(world).keySet();
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>(positions);
+        result.retainAll(cables);
+        return Set.copyOf(result);
+    }
+
+    private static Map<Vector3i, String> snapshotInstantStates(World world, Set<Vector3i> cables) {
+        Map<Vector3i, String> result = new HashMap<>();
+        for (Vector3i cable : cables) {
+            GravityPowderBlockDataStore.GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, cable);
+            if (data != null) {
+                result.put(cable, data.instantState());
+            }
+        }
+        return Map.copyOf(result);
+    }
+
+    private static Set<Vector3i> changedInstantStateCables(World world, Map<Vector3i, String> previousInstantStates) {
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+        for (Map.Entry<Vector3i, String> entry : previousInstantStates.entrySet()) {
+            GravityPowderBlockDataStore.GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, entry.getKey());
+            if (data != null && !data.instantState().equals(entry.getValue())) {
+                result.add(entry.getKey());
+            }
+        }
+        return Set.copyOf(result);
     }
 
     private static Map<World, Set<Vector3i>> drainPendingRecomputes() {
@@ -220,6 +330,26 @@ public final class ConnectablePropagationScheduler {
         return Set.copyOf(mismatched);
     }
 
+    private static Set<Vector3i> syncSourceTargets(World world, Set<Vector3i> sourceTargets, Set<Vector3i> cables) {
+        LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
+        for (Vector3i sourceTarget : sourceTargets) {
+            BlockType blockType = world.getBlockType(sourceTarget.getX(), sourceTarget.getY(), sourceTarget.getZ());
+            if (blockType == null || !ConnectableBlockRoles.isSource(blockType.getId())) {
+                continue;
+            }
+            for (Vector3i neighbor : ConnectableNeighborResolver.positionsAround(sourceTarget)) {
+                if (!cables.contains(neighbor)) {
+                    continue;
+                }
+                GravityPowderBlockDataStore.GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, neighbor);
+                if (data != null && data.dirty() && adoptInstantStateAndScheduleNeighbors(world, neighbor)) {
+                    visibleChangedCables.add(neighbor);
+                }
+            }
+        }
+        return Set.copyOf(visibleChangedCables);
+    }
+
     private static Set<Vector3i> syncPlacedTargets(World world, Set<Vector3i> placedTargets, Set<Vector3i> cables, Set<Vector3i> inverters) {
         LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
         for (Vector3i target : placedTargets) {
@@ -267,7 +397,7 @@ public final class ConnectablePropagationScheduler {
 
     private static boolean adoptInstantStateAndScheduleNeighbors(World world, Vector3i target) {
         GravityPowderBlockDataStore.GravityPowderBlockData previous = GravityPowderBlockDataStore.get(world, target);
-        if (previous == null || !previous.hasWaveMismatch()) {
+        if (previous == null || !previous.dirty()) {
             return false;
         }
 
@@ -278,12 +408,15 @@ public final class ConnectablePropagationScheduler {
             return false;
         }
 
-        for (Vector3i neighbor : mismatchedCableNeighbors(
-                target,
-                ConnectableNeighborResolver.positionsAround(target),
-                neighbor -> GravityPowderBlockDataStore.get(world, neighbor)
-        )) {
-            enqueueWaveAdoption(world, neighbor);
+        for (Vector3i neighbor : ConnectableNeighborResolver.positionsAround(target)) {
+            if (neighbor.equals(target)) {
+                continue;
+            }
+            GravityPowderBlockDataStore.GravityPowderBlockData neighborData =
+                    GravityPowderBlockDataStore.get(world, neighbor);
+            if (neighborData != null && neighborData.dirty()) {
+                enqueueWaveAdoption(world, neighbor);
+            }
         }
         return !updated.effectiveState().equals(previousEffectiveState);
     }
