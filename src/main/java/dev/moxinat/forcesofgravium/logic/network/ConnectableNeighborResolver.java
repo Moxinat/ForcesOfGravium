@@ -1,8 +1,8 @@
 package dev.moxinat.forcesofgravium.logic.network;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3i;
+import org.joml.Vector3d;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -53,12 +53,12 @@ public final class ConnectableNeighborResolver {
 
     public static List<Vector3i> sourceNeighbors(World world, Vector3i position, Vector3i treatAsEmpty) {
         java.util.ArrayList<Vector3i> sources = new java.util.ArrayList<>();
-        addSourceNeighbor(world, sources, position.getX() + 1, position.getY(), position.getZ(), treatAsEmpty, WorldSide.WEST);
-        addSourceNeighbor(world, sources, position.getX() - 1, position.getY(), position.getZ(), treatAsEmpty, WorldSide.EAST);
-        addSourceNeighbor(world, sources, position.getX(), position.getY(), position.getZ() + 1, treatAsEmpty, WorldSide.NORTH);
-        addSourceNeighbor(world, sources, position.getX(), position.getY(), position.getZ() - 1, treatAsEmpty, WorldSide.SOUTH);
-        addSourceNeighbor(world, sources, position.getX(), position.getY() + 1, position.getZ(), treatAsEmpty, WorldSide.DOWN);
-        addSourceNeighbor(world, sources, position.getX(), position.getY() - 1, position.getZ(), treatAsEmpty, WorldSide.UP);
+        addSourceNeighbor(world, sources, position.x() + 1, position.y(), position.z(), treatAsEmpty, WorldSide.WEST);
+        addSourceNeighbor(world, sources, position.x() - 1, position.y(), position.z(), treatAsEmpty, WorldSide.EAST);
+        addSourceNeighbor(world, sources, position.x(), position.y(), position.z() + 1, treatAsEmpty, WorldSide.NORTH);
+        addSourceNeighbor(world, sources, position.x(), position.y(), position.z() - 1, treatAsEmpty, WorldSide.SOUTH);
+        addSourceNeighbor(world, sources, position.x(), position.y() + 1, position.z(), treatAsEmpty, WorldSide.DOWN);
+        addSourceNeighbor(world, sources, position.x(), position.y() - 1, position.z(), treatAsEmpty, WorldSide.UP);
         return List.copyOf(sources);
     }
 
@@ -68,7 +68,7 @@ public final class ConnectableNeighborResolver {
             return false;
         }
 
-        BlockType blockType = world.getBlockType(sourcePosition.getX(), sourcePosition.getY(), sourcePosition.getZ());
+        BlockType blockType = world.getBlockType(sourcePosition.x(), sourcePosition.y(), sourcePosition.z());
         if (blockType == null || !ConnectableBlockRoles.isSource(blockType.getId())) {
             return false;
         }
@@ -76,7 +76,7 @@ public final class ConnectableNeighborResolver {
             return false;
         }
 
-        BlockAccessor chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(sourcePosition.getX(), sourcePosition.getZ()));
+        BlockAccessor chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(sourcePosition.x(), sourcePosition.z()));
         if (chunk == null) {
             return false;
         }
@@ -88,12 +88,12 @@ public final class ConnectableNeighborResolver {
     public static List<Vector3i> positionsAround(Vector3i center) {
         LinkedHashSet<Vector3i> positions = new LinkedHashSet<>();
         positions.add(center);
-        positions.add(new Vector3i(center.getX() + 1, center.getY(), center.getZ()));
-        positions.add(new Vector3i(center.getX() - 1, center.getY(), center.getZ()));
-        positions.add(new Vector3i(center.getX(), center.getY(), center.getZ() + 1));
-        positions.add(new Vector3i(center.getX(), center.getY(), center.getZ() - 1));
-        positions.add(new Vector3i(center.getX(), center.getY() + 1, center.getZ()));
-        positions.add(new Vector3i(center.getX(), center.getY() - 1, center.getZ()));
+        positions.add(new Vector3i(center.x() + 1, center.y(), center.z()));
+        positions.add(new Vector3i(center.x() - 1, center.y(), center.z()));
+        positions.add(new Vector3i(center.x(), center.y(), center.z() + 1));
+        positions.add(new Vector3i(center.x(), center.y(), center.z() - 1));
+        positions.add(new Vector3i(center.x(), center.y() + 1, center.z()));
+        positions.add(new Vector3i(center.x(), center.y() - 1, center.z()));
         return List.copyOf(positions);
     }
 
@@ -160,9 +160,9 @@ public final class ConnectableNeighborResolver {
     }
 
     private static WorldSide worldSideFromSourceToTarget(Vector3i sourcePosition, Vector3i targetPosition) {
-        int dx = targetPosition.getX() - sourcePosition.getX();
-        int dy = targetPosition.getY() - sourcePosition.getY();
-        int dz = targetPosition.getZ() - sourcePosition.getZ();
+        int dx = targetPosition.x() - sourcePosition.x();
+        int dy = targetPosition.y() - sourcePosition.y();
+        int dz = targetPosition.z() - sourcePosition.z();
         if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) != 1) {
             return null;
         }
@@ -173,12 +173,12 @@ public final class ConnectableNeighborResolver {
         RotationTuple rotation = rotationFor(world, position);
         WorldSide worldSide = worldSideForLocalSide(rotation, localSideMask);
         return switch (worldSide) {
-            case EAST -> new Vector3i(position.getX() + 1, position.getY(), position.getZ());
-            case WEST -> new Vector3i(position.getX() - 1, position.getY(), position.getZ());
-            case SOUTH -> new Vector3i(position.getX(), position.getY(), position.getZ() + 1);
-            case NORTH -> new Vector3i(position.getX(), position.getY(), position.getZ() - 1);
-            case UP -> new Vector3i(position.getX(), position.getY() + 1, position.getZ());
-            case DOWN -> new Vector3i(position.getX(), position.getY() - 1, position.getZ());
+            case EAST -> new Vector3i(position.x() + 1, position.y(), position.z());
+            case WEST -> new Vector3i(position.x() - 1, position.y(), position.z());
+            case SOUTH -> new Vector3i(position.x(), position.y(), position.z() + 1);
+            case NORTH -> new Vector3i(position.x(), position.y(), position.z() - 1);
+            case UP -> new Vector3i(position.x(), position.y() + 1, position.z());
+            case DOWN -> new Vector3i(position.x(), position.y() - 1, position.z());
         };
     }
 
@@ -189,9 +189,9 @@ public final class ConnectableNeighborResolver {
 
     public static WorldSide worldSideForLocalSide(RotationTuple rotation, int localSideMask) {
         Vector3d rotated = rotation.rotatedVector(localNormal(localSideMask));
-        int x = (int) Math.round(rotated.getX());
-        int y = (int) Math.round(rotated.getY());
-        int z = (int) Math.round(rotated.getZ());
+        int x = (int) Math.round(rotated.x());
+        int y = (int) Math.round(rotated.y());
+        int z = (int) Math.round(rotated.z());
         return WorldSide.fromVector(x, y, z);
     }
 
@@ -219,9 +219,9 @@ public final class ConnectableNeighborResolver {
 
     private static boolean isTreatAsEmpty(Vector3i position, Vector3i treatAsEmpty) {
         return treatAsEmpty != null
-                && treatAsEmpty.getX() == position.getX()
-                && treatAsEmpty.getY() == position.getY()
-                && treatAsEmpty.getZ() == position.getZ();
+                && treatAsEmpty.x() == position.x()
+                && treatAsEmpty.y() == position.y()
+                && treatAsEmpty.z() == position.z();
     }
 
     public enum WorldSide {

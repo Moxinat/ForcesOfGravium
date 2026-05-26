@@ -1,12 +1,16 @@
 package dev.moxinat.forcesofgravium.commands;
 
-import com.hypixel.hytale.math.vector.Vector3i;
+import com.hypixel.hytale.component.Ref;
+import org.joml.Vector3d;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
@@ -66,13 +70,13 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             return;
         }
 
-        Player player = context.senderAs(Player.class);
-        if (player.getWorld() == null) {
+        PlayerCommandState playerState = playerState(context);
+        if (playerState == null) {
             context.sendMessage(Message.raw("Could not resolve player world."));
             return;
         }
 
-        World world = player.getWorld();
+        World world = playerState.world();
         if (args.length - startIndex < 2) {
             context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z>"));
             return;
@@ -84,7 +88,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         }
 
         if ("here".equalsIgnoreCase(args[startIndex + 1])) {
-            Vector3i position = getPlayerBlockPosition(player);
+            Vector3i position = getPlayerBlockPosition(playerState.ref());
             sendSingleGravityPowderDistance(context, world, position);
             return;
         }
@@ -110,13 +114,13 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             return;
         }
 
-        Player player = context.senderAs(Player.class);
-        if (player.getWorld() == null) {
+        PlayerCommandState playerState = playerState(context);
+        if (playerState == null) {
             context.sendMessage(Message.raw("Could not resolve player world."));
             return;
         }
 
-        World world = player.getWorld();
+        World world = playerState.world();
         if (args.length - startIndex < 2) {
             context.sendMessage(Message.raw("Usage: /fog invdist all | /fog invdist here | /fog invdist <x> <y> <z>"));
             return;
@@ -128,7 +132,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         }
 
         if ("here".equalsIgnoreCase(args[startIndex + 1])) {
-            Vector3i position = getPlayerBlockBelowPosition(player);
+            Vector3i position = getPlayerBlockBelowPosition(playerState.ref());
             sendSingleInverterDistance(context, world, position);
             return;
         }
@@ -154,13 +158,13 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             return;
         }
 
-        Player player = context.senderAs(Player.class);
-        if (player.getWorld() == null) {
+        PlayerCommandState playerState = playerState(context);
+        if (playerState == null) {
             context.sendMessage(Message.raw("Could not resolve player world."));
             return;
         }
 
-        context.sendMessage(Message.raw("World save path: " + WorldSaveFileService.debugSaveFilePath(player.getWorld())));
+        context.sendMessage(Message.raw("World save path: " + WorldSaveFileService.debugSaveFilePath(playerState.world())));
     }
 
     private void handleSaveWorld(@Nonnull CommandContext context) {
@@ -169,13 +173,13 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             return;
         }
 
-        Player player = context.senderAs(Player.class);
-        if (player.getWorld() == null) {
+        PlayerCommandState playerState = playerState(context);
+        if (playerState == null) {
             context.sendMessage(Message.raw("Could not resolve player world."));
             return;
         }
 
-        World world = player.getWorld();
+        World world = playerState.world();
         WorldSaveFileService.forceSaveWorld(world);
         context.sendMessage(Message.raw("Triggered forced save for world '" + world.getName() + "'."));
         context.sendMessage(Message.raw("World save path: " + WorldSaveFileService.debugSaveFilePath(world)));
@@ -192,22 +196,22 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        Player player = context.senderAs(Player.class);
-        if (player.getWorld() == null) {
+        PlayerCommandState playerState = playerState(context);
+        if (playerState == null) {
             context.sendMessage(Message.raw("Could not resolve player world."));
             return CompletableFuture.completedFuture(null);
         }
 
-        World world = player.getWorld();
+        World world = playerState.world();
         if ("powered".equalsIgnoreCase(args[startIndex + 1])) {
-            return handleSiphonBooleanState(context, world, player, args, startIndex, "powered");
+            return handleSiphonBooleanState(context, world, playerState.ref(), args, startIndex, "powered");
         }
         if ("locked".equalsIgnoreCase(args[startIndex + 1])) {
-            return handleSiphonBooleanState(context, world, player, args, startIndex, "locked");
+            return handleSiphonBooleanState(context, world, playerState.ref(), args, startIndex, "locked");
         }
 
         if ("here".equalsIgnoreCase(args[startIndex + 1])) {
-            return runOnWorldThread(context, world, () -> getPlayerBlockBelowPosition(player));
+            return runOnWorldThread(context, world, () -> getPlayerBlockBelowPosition(playerState.ref()));
         }
 
         if (args.length - startIndex < 4) {
@@ -227,7 +231,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         }
     }
 
-    private CompletableFuture<Void> handleSiphonBooleanState(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Player player, String[] args, int startIndex, @Nonnull String stateName) {
+    private CompletableFuture<Void> handleSiphonBooleanState(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Ref<EntityStore> playerRef, String[] args, int startIndex, @Nonnull String stateName) {
         if (args.length - startIndex < 4) {
             context.sendMessage(Message.raw("Usage: /fog siphon " + stateName + " here <true|false> | /fog siphon " + stateName + " <x> <y> <z> <true|false>"));
             return CompletableFuture.completedFuture(null);
@@ -239,7 +243,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
                 context.sendMessage(Message.raw(stateName + " must be true or false."));
                 return CompletableFuture.completedFuture(null);
             }
-            return runSiphonBooleanStateOnWorldThread(context, world, () -> getPlayerBlockBelowPosition(player), stateName, value);
+            return runSiphonBooleanStateOnWorldThread(context, world, () -> getPlayerBlockBelowPosition(playerRef), stateName, value);
         }
 
         if (args.length - startIndex < 6) {
@@ -279,7 +283,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
     }
 
     private void setSiphonBooleanState(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Vector3i position, @Nonnull String stateName, boolean value) {
-        BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
         if (blockType == null || !ConnectableRegistry.isGraviumSiphonId(blockType.getId())) {
             context.sendMessage(Message.raw("No gravium siphon at " + formatPosition(position) + "."));
             return;
@@ -309,7 +313,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
     }
 
     private void sendSiphonResult(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Vector3i position) {
-        BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
         if (blockType != null && ConnectableRegistry.isGraviumSiphonId(blockType.getId())) {
             GraviumSiphonStore.add(world, position);
         }
@@ -326,9 +330,9 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
 
         List<Map.Entry<Vector3i, GravityPowderBlockData>> entries = snapshot.entrySet().stream()
                 .sorted(Comparator
-                        .comparingInt((Map.Entry<Vector3i, GravityPowderBlockData> entry) -> entry.getKey().getY())
-                        .thenComparingInt(entry -> entry.getKey().getX())
-                        .thenComparingInt(entry -> entry.getKey().getZ()))
+                        .comparingInt((Map.Entry<Vector3i, GravityPowderBlockData> entry) -> entry.getKey().y())
+                        .thenComparingInt(entry -> entry.getKey().x())
+                        .thenComparingInt(entry -> entry.getKey().z()))
                 .toList();
 
         context.sendMessage(Message.raw("Gravity powder entries in world '" + world.getName() + "': " + entries.size()));
@@ -356,9 +360,9 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
 
         List<Map.Entry<Vector3i, InverterData>> entries = snapshot.entrySet().stream()
                 .sorted(Comparator
-                        .comparingInt((Map.Entry<Vector3i, InverterData> entry) -> entry.getKey().getY())
-                        .thenComparingInt(entry -> entry.getKey().getX())
-                        .thenComparingInt(entry -> entry.getKey().getZ()))
+                        .comparingInt((Map.Entry<Vector3i, InverterData> entry) -> entry.getKey().y())
+                        .thenComparingInt(entry -> entry.getKey().x())
+                        .thenComparingInt(entry -> entry.getKey().z()))
                 .toList();
 
         context.sendMessage(Message.raw("Inverter entries in world '" + world.getName() + "': " + entries.size()));
@@ -393,7 +397,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
     }
 
     private static String formatPosition(Vector3i position) {
-        return "(" + position.getX() + "," + position.getY() + "," + position.getZ() + ")";
+        return "(" + position.x() + "," + position.y() + "," + position.z() + ")";
     }
 
     private static @Nullable Boolean parseBoolean(String value) {
@@ -406,15 +410,39 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         return null;
     }
 
-    @SuppressWarnings("removal")
-    private static Vector3i getPlayerBlockPosition(Player player) {
-        return player.getTransformComponent().getPosition().toVector3i();
+    private static Vector3i getPlayerBlockPosition(Ref<EntityStore> playerRef) {
+        TransformComponent transform = playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType());
+        return blockPosition(transform.getPosition());
     }
 
-    @SuppressWarnings("removal")
-    private static Vector3i getPlayerBlockBelowPosition(Player player) {
-        Vector3i position = player.getTransformComponent().getPosition().toVector3i();
-        return new Vector3i(position.getX(), position.getY() - 1, position.getZ());
+    private static Vector3i getPlayerBlockBelowPosition(Ref<EntityStore> playerRef) {
+        Vector3i position = getPlayerBlockPosition(playerRef);
+        return new Vector3i(position.x(), position.y() - 1, position.z());
+    }
+
+    private static Vector3i blockPosition(Vector3d position) {
+        return new Vector3i(
+                (int) Math.floor(position.x()),
+                (int) Math.floor(position.y()),
+                (int) Math.floor(position.z())
+        );
+    }
+
+    private static @Nullable PlayerCommandState playerState(CommandContext context) {
+        Ref<EntityStore> playerRef = context.senderAsPlayerRef();
+        if (playerRef == null || !playerRef.isValid()) {
+            return null;
+        }
+
+        Player player = playerRef.getStore().getComponent(playerRef, Player.getComponentType());
+        World world = playerRef.getStore().getExternalData().getWorld();
+        if (player == null || world == null) {
+            return null;
+        }
+        return new PlayerCommandState(world, playerRef, player);
+    }
+
+    private record PlayerCommandState(@Nonnull World world, @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
     }
 
     private static String[] tokenize(String input) {

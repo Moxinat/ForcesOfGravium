@@ -1,6 +1,6 @@
 package dev.moxinat.forcesofgravium.logic.network;
 
-import com.hypixel.hytale.math.vector.Vector3i;
+import org.joml.Vector3i;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import org.junit.jupiter.api.Test;
 

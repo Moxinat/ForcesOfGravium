@@ -1,6 +1,6 @@
 package dev.moxinat.forcesofgravium.logic.inverter;
 
-import com.hypixel.hytale.math.vector.Vector3i;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
@@ -18,7 +18,7 @@ public final class InverterStateCalculator {
     }
 
     public static String computeInputMode(World world, Vector3i position) {
-        BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
         if (blockType == null || !ConnectableRegistry.isInverterId(blockType.getId())) {
             return GravityPowderBlockDataStore.STATE_OFF;
         }
@@ -29,9 +29,9 @@ public final class InverterStateCalculator {
                 ConnectableRegistry.SIDE_BACK
         );
         BlockType backNeighborType = world.getBlockType(
-                backNeighborPosition.getX(),
-                backNeighborPosition.getY(),
-                backNeighborPosition.getZ()
+                backNeighborPosition.x(),
+                backNeighborPosition.y(),
+                backNeighborPosition.z()
         );
         if (backNeighborType == null) {
             return GravityPowderBlockDataStore.STATE_OFF;

@@ -9,9 +9,9 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
-import com.hypixel.hytale.math.vector.Vector3i;
+import com.hypixel.hytale.math.vector.Rotation3f;
+import org.joml.Vector3d;
+import org.joml.Vector3i;
 import com.hypixel.hytale.protocol.BlockMaterial;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
@@ -58,7 +58,7 @@ public final class GraviumSiphonLogic {
         Objects.requireNonNull(world, "world");
 
         for (Vector3i position : ConnectableRotationStore.snapshotForWorld(world).keySet()) {
-            BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
+            BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
             if (blockType != null && ConnectableRegistry.isGraviumSiphonId(blockType.getId())) {
                 GraviumSiphonStore.add(world, position);
             }
@@ -66,7 +66,7 @@ public final class GraviumSiphonLogic {
 
         for (Map.Entry<Vector3i, GraviumSiphonData> entry : GraviumSiphonStore.snapshotForWorld(world).entrySet()) {
             Vector3i position = entry.getKey();
-            BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
+            BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
             if (blockType == null || !ConnectableRegistry.isGraviumSiphonId(blockType.getId())) {
                 GraviumSiphonStore.remove(world, position);
                 continue;
@@ -100,9 +100,9 @@ public final class GraviumSiphonLogic {
 
     private static @Nonnull String transferKey(@Nonnull World world, @Nonnull Vector3i position) {
         return world.getSavePath().toAbsolutePath().normalize()
-                + ":" + position.getX()
-                + "," + position.getY()
-                + "," + position.getZ();
+                + ":" + position.x()
+                + "," + position.y()
+                + "," + position.z();
     }
 
     public static @Nonnull SiphonMoveResult transferOneItem(@Nonnull World world, @Nonnull Vector3i siphonPosition) {
@@ -168,7 +168,7 @@ public final class GraviumSiphonLogic {
     }
 
     private static boolean isDroppableTarget(@Nonnull World world, @Nonnull Vector3i targetPosition) {
-        BlockType blockType = world.getBlockType(targetPosition.getX(), targetPosition.getY(), targetPosition.getZ());
+        BlockType blockType = world.getBlockType(targetPosition.x(), targetPosition.y(), targetPosition.z());
         return blockType != null && blockType.getMaterial() == BlockMaterial.Empty;
     }
 
@@ -185,7 +185,7 @@ public final class GraviumSiphonLogic {
                 if (transform == null || item == null || ItemStack.isEmpty(item.getItemStack())) {
                     continue;
                 }
-                if (position.equals(transform.getPosition().toVector3i())) {
+                if (position.equals(blockPosition(transform.getPosition()))) {
                     result[0] = new WorldItemSource(chunk.getReferenceTo(index), item);
                     return;
                 }
@@ -282,18 +282,18 @@ public final class GraviumSiphonLogic {
             @Nonnull ItemStack itemStack
     ) {
         Vector3d position = new Vector3d(
-                targetPosition.getX() + 0.5D,
-                targetPosition.getY() + 0.5D,
-                targetPosition.getZ() + 0.5D
+                targetPosition.x() + 0.5D,
+                targetPosition.y() + 0.5D,
+                targetPosition.z() + 0.5D
         );
-        float velocityX = outputVelocityComponent(targetPosition.getX() - velocityOriginPosition.getX());
-        float velocityY = outputVelocityComponent(targetPosition.getY() - velocityOriginPosition.getY());
-        float velocityZ = outputVelocityComponent(targetPosition.getZ() - velocityOriginPosition.getZ());
+        float velocityX = outputVelocityComponent(targetPosition.x() - velocityOriginPosition.x());
+        float velocityY = outputVelocityComponent(targetPosition.y() - velocityOriginPosition.y());
+        float velocityZ = outputVelocityComponent(targetPosition.z() - velocityOriginPosition.z());
         return ItemComponent.generateItemDrop(
                 commandBuffer,
                 itemStack,
                 position,
-                Vector3f.ZERO,
+                Rotation3f.ZERO,
                 velocityX,
                 velocityY,
                 velocityZ
@@ -302,6 +302,14 @@ public final class GraviumSiphonLogic {
 
     private static float outputVelocityComponent(int delta) {
         return Integer.compare(delta, 0) * DROPPED_ITEM_OUTPUT_SPEED;
+    }
+
+    private static @Nonnull Vector3i blockPosition(@Nonnull Vector3d position) {
+        return new Vector3i(
+                (int) Math.floor(position.x()),
+                (int) Math.floor(position.y()),
+                (int) Math.floor(position.z())
+        );
     }
 
     private record WorldItemSource(
@@ -355,7 +363,7 @@ public final class GraviumSiphonLogic {
         Vector3i basePosition = baseBlockPosition(world, position);
         ChunkStore chunkStore = world.getChunkStore();
         Ref<ChunkStore> chunkRef = chunkStore.getChunkReference(
-                ChunkUtil.indexChunkFromBlock(basePosition.getX(), basePosition.getZ())
+                ChunkUtil.indexChunkFromBlock(basePosition.x(), basePosition.z())
         );
         if (chunkRef == null) {
             return null;
@@ -368,19 +376,19 @@ public final class GraviumSiphonLogic {
         }
 
         return blockComponents.getEntityReference(ChunkUtil.indexBlockInColumn(
-                basePosition.getX(),
-                basePosition.getY(),
-                basePosition.getZ()
+                basePosition.x(),
+                basePosition.y(),
+                basePosition.z()
         ));
     }
 
     @SuppressWarnings("deprecation")
     private static @Nonnull Vector3i baseBlockPosition(@Nonnull World world, @Nonnull Vector3i position) {
-        if (position.getY() < 0 || position.getY() >= 320) {
+        if (position.y() < 0 || position.y() >= 320) {
             return position;
         }
 
-        WorldChunk chunk = world.getNonTickingChunk(ChunkUtil.indexChunkFromBlock(position.getX(), position.getZ()));
+        WorldChunk chunk = world.getNonTickingChunk(ChunkUtil.indexChunkFromBlock(position.x(), position.z()));
         if (chunk == null) {
             return position;
         }
@@ -390,19 +398,19 @@ public final class GraviumSiphonLogic {
             return position;
         }
 
-        BlockSection section = blockChunk.getSectionAtIndex(ChunkUtil.indexSection(position.getY()));
+        BlockSection section = blockChunk.getSectionAtIndex(ChunkUtil.indexSection(position.y()));
         if (section == null) {
             return position;
         }
-        int filler = section.getFiller(ChunkUtil.indexBlock(position.getX(), position.getY(), position.getZ()));
+        int filler = section.getFiller(ChunkUtil.indexBlock(position.x(), position.y(), position.z()));
         if (filler == FillerBlockUtil.NO_FILLER) {
             return position;
         }
 
         return new Vector3i(
-                position.getX() - FillerBlockUtil.unpackX(filler),
-                position.getY() - FillerBlockUtil.unpackY(filler),
-                position.getZ() - FillerBlockUtil.unpackZ(filler)
+                position.x() - FillerBlockUtil.unpackX(filler),
+                position.y() - FillerBlockUtil.unpackY(filler),
+                position.z() - FillerBlockUtil.unpackZ(filler)
         );
     }
 

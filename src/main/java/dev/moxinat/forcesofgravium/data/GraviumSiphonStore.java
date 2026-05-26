@@ -1,6 +1,6 @@
 package dev.moxinat.forcesofgravium.data;
 
-import com.hypixel.hytale.math.vector.Vector3i;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
@@ -105,7 +105,7 @@ public final class GraviumSiphonStore {
     private record BlockKey(@Nonnull String worldId, int x, int y, int z) {
 
         private static @Nonnull BlockKey from(@Nonnull World world, @Nonnull Vector3i position) {
-            return new BlockKey(world.getName(), position.getX(), position.getY(), position.getZ());
+            return new BlockKey(world.getName(), position.x(), position.y(), position.z());
         }
     }
 }

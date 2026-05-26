@@ -1,6 +1,6 @@
 package dev.moxinat.forcesofgravium.logic.source;
 
-import com.hypixel.hytale.math.vector.Vector3i;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
 import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;

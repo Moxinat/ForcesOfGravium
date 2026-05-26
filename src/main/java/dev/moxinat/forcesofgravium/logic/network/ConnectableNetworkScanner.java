@@ -1,6 +1,6 @@
 package dev.moxinat.forcesofgravium.logic.network;
 
-import com.hypixel.hytale.math.vector.Vector3i;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
@@ -152,7 +152,7 @@ public final class ConnectableNetworkScanner {
 
         @Override
         public boolean isCable(@Nonnull Vector3i position) {
-            BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
+            BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
             return blockType != null && ConnectableRegistry.isGravityPowderId(blockType.getId());
         }
 
@@ -171,7 +171,7 @@ public final class ConnectableNetworkScanner {
 
         @Override
         public boolean isInverter(@Nonnull Vector3i position) {
-            BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
+            BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
             return blockType != null && ConnectableRegistry.isInverterId(blockType.getId());
         }
 
@@ -208,7 +208,7 @@ public final class ConnectableNetworkScanner {
                 if (candidate.equals(position)) {
                     continue;
                 }
-                BlockType blockType = world.getBlockType(candidate.getX(), candidate.getY(), candidate.getZ());
+                BlockType blockType = world.getBlockType(candidate.x(), candidate.y(), candidate.z());
                 if (blockType != null && ConnectableBlockRoles.isConsumer(blockType.getId())) {
                     result.add(candidate);
                 }
