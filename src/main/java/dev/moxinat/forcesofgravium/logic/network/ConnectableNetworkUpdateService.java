@@ -1,6 +1,6 @@
 package dev.moxinat.forcesofgravium.logic.network;
 
-import com.hypixel.hytale.math.vector.Vector3i;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
@@ -80,14 +80,14 @@ public final class ConnectableNetworkUpdateService {
 
     private static void addControlNeighbor(@Nonnull World world, @Nonnull Set<Vector3i> result, @Nonnull Vector3i siphon, int localSide) {
         Vector3i neighbor = ConnectableNeighborResolver.adjacentPositionForLocalSide(world, siphon, localSide);
-        BlockType blockType = world.getBlockType(neighbor.getX(), neighbor.getY(), neighbor.getZ());
+        BlockType blockType = world.getBlockType(neighbor.x(), neighbor.y(), neighbor.z());
         if (blockType != null && ConnectableRegistry.isGravityPowderId(blockType.getId())) {
             result.add(neighbor);
         }
     }
 
     private static boolean isGraviumSiphon(@Nonnull World world, @Nonnull Vector3i position) {
-        BlockType blockType = world.getBlockType(position.getX(), position.getY(), position.getZ());
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
         return blockType != null && ConnectableRegistry.isGraviumSiphonId(blockType.getId());
     }
 

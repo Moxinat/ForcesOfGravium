@@ -6,8 +6,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
+import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -51,7 +51,7 @@ public final class BlockPlacementRotationSystem extends EntityEventSystem<Entity
             return;
         }
 
-        Vector3f rotation = headRotation.getRotation();
+        Rotation3f rotation = headRotation.getRotation();
         Vector3d direction = headRotation.getDirection();
         Rotation desiredPitch = verticalPitchFromLook(headRotation);
         if (desiredPitch == null) {
@@ -59,8 +59,8 @@ public final class BlockPlacementRotationSystem extends EntityEventSystem<Entity
                     "[FoG] PlaceBlockEvent kept vanilla rotation "
                             + event.getRotation()
                             + " placed=" + event.getTargetBlock()
-                            + " pitch=" + Math.round(rotation.getPitch())
-                            + " yaw=" + Math.round(rotation.getYaw())
+                            + " pitch=" + Math.round(rotation.pitch())
+                            + " yaw=" + Math.round(rotation.yaw())
                             + " direction=" + direction
                             + " entityIndex=" + entityRef.getIndex()
             );
@@ -73,8 +73,8 @@ public final class BlockPlacementRotationSystem extends EntityEventSystem<Entity
         System.out.println(
                 "[FoG] PlaceBlockEvent applied rotation " + desiredRotation
                         + " placed=" + event.getTargetBlock()
-                        + " pitch=" + Math.round(rotation.getPitch())
-                        + " yaw=" + Math.round(rotation.getYaw())
+                        + " pitch=" + Math.round(rotation.pitch())
+                        + " yaw=" + Math.round(rotation.yaw())
                         + " direction=" + direction
                         + " horizontal=" + headRotation.getHorizontalAxisDirection()
                         + " axis=" + headRotation.getAxisDirection()
@@ -85,11 +85,11 @@ public final class BlockPlacementRotationSystem extends EntityEventSystem<Entity
     private static Rotation verticalPitchFromLook(HeadRotation headRotation) {
         Vector3d direction = headRotation.getDirection();
 
-        if (direction.getY() >= VERTICAL_DIRECTION_THRESHOLD) {
+        if (direction.y() >= VERTICAL_DIRECTION_THRESHOLD) {
             return Rotation.TwoSeventy;
         }
 
-        if (direction.getY() <= -VERTICAL_DIRECTION_THRESHOLD) {
+        if (direction.y() <= -VERTICAL_DIRECTION_THRESHOLD) {
             return Rotation.Ninety;
         }
 

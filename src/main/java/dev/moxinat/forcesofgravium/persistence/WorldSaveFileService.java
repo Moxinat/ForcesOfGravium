@@ -1,6 +1,6 @@
 package dev.moxinat.forcesofgravium.persistence;
 
-import com.hypixel.hytale.math.vector.Vector3i;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -356,9 +356,9 @@ public final class WorldSaveFileService {
 
     private static BsonDocument writePosition(Vector3i position) {
         BsonDocument document = new BsonDocument();
-        document.put("x", new BsonInt32(position.getX()));
-        document.put("y", new BsonInt32(position.getY()));
-        document.put("z", new BsonInt32(position.getZ()));
+        document.put("x", new BsonInt32(position.x()));
+        document.put("y", new BsonInt32(position.y()));
+        document.put("z", new BsonInt32(position.z()));
         return document;
     }
 

@@ -1,7 +1,7 @@
 package dev.moxinat.forcesofgravium.logic.gravity;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.vector.Vector3i;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
@@ -29,7 +29,7 @@ public final class GravityPowderBlockRefresher {
     }
 
     public static void refreshAt(World world, Vector3i position) {
-        refreshAt(world, position.getX(), position.getY(), position.getZ(), null);
+        refreshAt(world, position.x(), position.y(), position.z(), null);
     }
 
     public static void refreshAt(World world, int x, int y, int z, Vector3i treatAsEmpty) {

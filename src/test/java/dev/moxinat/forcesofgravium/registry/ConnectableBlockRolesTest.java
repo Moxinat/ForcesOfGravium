@@ -18,6 +18,6 @@ class ConnectableBlockRolesTest {
     @Test
     void rejectsUnknownSourceAndMachineBlocks() {
         assertFalse(ConnectableBlockRoles.isSource("Unknown_Block"));
-        assertFalse(ConnectableBlockRoles.isMachine("Unknown_Block"));
+        assertFalse(ConnectableBlockRoles.isConsumer("Unknown_Block"));
     }
 }

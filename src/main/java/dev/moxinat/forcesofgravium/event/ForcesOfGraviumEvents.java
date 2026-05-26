@@ -13,7 +13,7 @@ public class ForcesOfGraviumEvents {
         if (player.getWorld() != null) {
             WorldSaveFileService.ensureLoaded(player.getWorld());
         }
-        player.sendMessage(Message.raw("Welcome " + player.getDisplayName() + " to ForcesOfGravium."));
+        player.getWorld().sendMessage(Message.raw("Welcome " + player.getLegacyDisplayName() + " to ForcesOfGravium."));
     }
 
     public static void onShutdown(ShutdownEvent event) {

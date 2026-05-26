@@ -1,7 +1,7 @@
 package dev.moxinat.forcesofgravium.logic.siphon;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.vector.Vector3i;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -20,9 +20,9 @@ public final class GraviumSiphonBlockRefresher {
     }
 
     public static void refreshAt(World world, Vector3i position) {
-        int x = position.getX();
-        int y = position.getY();
-        int z = position.getZ();
+        int x = position.x();
+        int y = position.y();
+        int z = position.z();
         BlockType blockType = world.getBlockType(x, y, z);
         if (blockType == null || !ConnectableRegistry.isGraviumSiphonId(blockType.getId())) {
             return;
