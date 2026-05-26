@@ -333,7 +333,7 @@ public final class ConnectablePropagationScheduler {
     private static Set<Vector3i> syncSourceTargets(World world, Set<Vector3i> sourceTargets, Set<Vector3i> cables) {
         LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
         for (Vector3i sourceTarget : sourceTargets) {
-            BlockType blockType = world.getBlockType(sourceTarget.getX(), sourceTarget.getY(), sourceTarget.getZ());
+            BlockType blockType = world.getBlockType(sourceTarget.x, sourceTarget.y, sourceTarget.z);
             if (blockType == null || !ConnectableBlockRoles.isSource(blockType.getId())) {
                 continue;
             }
