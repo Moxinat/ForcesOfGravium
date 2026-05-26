@@ -176,17 +176,64 @@ reserved for toggle input, not normal signal throughput.
 
 ### Phase 3: Wave State and Visual Refresh
 
-Gravity powder stores both an instant state and a wave state through `StateTimeline`.
-The visible/effective state remains the previous wave state while an instant/wave
-mismatch exists. Wave adoption is scheduled through `PENDING_WAVE_ADOPTION`, and
-adoption can cascade to neighboring mismatched cables.
+The current signal system has two layers:
 
-`ConnectablePropagationScheduler.onCableInstantStateChanged(...)` is currently a
-no-op.
+- The instant system is the logical source of truth. `ConnectableSignalRecalculator`
+  computes the current network result and writes it into stored cable
+  `instantState` values and inverter `currentMode` values.
+- The wave system is the delayed adoption/visualization layer. It must only adopt
+  states that the instant system already wrote. It must not invent new logical
+  `push`, `pull`, or `off` results.
 
-Needs verification: this appears intentional in the current propagation design,
-because wave scheduling happens through placement, breaking, and explicit adoption
-processing. Confirm that before wiring new behavior into this hook.
+This split lets network logic settle immediately while cable visuals and
+`effectiveState` can lag behind and move as a wave. The important rule is that
+instant state answers "what is logically true now?", while wave/effective state
+answers "what is currently visible/confirmed for consumers that intentionally
+observe delayed propagation?".
+
+Gravity powder stores its signal timeline in
+`GravityPowderBlockDataStore.GravityPowderBlockData`:
+
+- `instantState`: the newest recomputed logical state. Valid values are `off`,
+  `push`, and `pull`.
+- `waveState`: the last state adopted by the delayed wave layer.
+- `previousState`: the visible fallback while `instantState` and `waveState` do
+  not match.
+- `effectiveState()`: returns `instantState` when `waveState == instantState`;
+  otherwise returns `previousState`.
+- `dirty`: a persisted boolean that means this cable still needs wave adoption.
+
+`StateTimeline` owns the state transition rules:
+
+- `initialized(state)` sets instant, wave, and previous to the same value.
+- `withInstantState(next)` changes only `instantState`. If the existing
+  `waveState` already equals `next`, `previousState` is also updated to `next`;
+  otherwise `previousState` is kept.
+- `withWaveStateFromInstantState()` resets all three timeline states to the
+  current `instantState`.
+- `hasWaveMismatch()` is true when `waveState` and `instantState` differ.
+
+A cable is mismatched when `StateTimeline.hasWaveMismatch()` is true. A cable is
+dirty when `GravityPowderBlockData.dirty()` is true. In current code these are
+related but not identical concepts: mismatch describes timeline state; dirty is
+the scheduler's adoption marker. Dirty does not record why the cable changed,
+which wave it belongs to, which neighbor should trigger it, or whether a queued
+adoption is stale. Save/load preserves the current dirty flag for gravity powder;
+old saves without `dirty` default it from the loaded instant/wave mismatch.
+
+Inverters also contain a `StateTimeline` and `dirty` flag in `InverterDataStore`,
+but their current transition behavior is different from cables:
+
+- `InverterData.transition(...)` stores `currentMode` and creates a timeline whose
+  instant and wave state both equal `currentMode`.
+- `InverterDataStore.markWaveDirty(...)` marks an inverter whose output changed.
+- `syncDirtyInverterFronts(...)` later recomputes the affected component, adopts
+  the front cable, refreshes the inverter, and clears inverter dirty.
+
+Needs verification: inverter wave timeline fields are persisted and exposed, but
+the current delayed visual behavior is primarily implemented for gravity powder.
+Do not assume inverter visuals have the same delayed wave semantics as cables
+without checking the current code path.
 
 After recompute the scheduler refreshes block visuals:
 
@@ -196,6 +243,124 @@ After recompute the scheduler refreshes block visuals:
 Refreshing is separate from recomputing. Recompute updates store data; refreshers
 convert store data into concrete Hytale block state IDs and preserve rotation where
 needed.
+
+#### Recompute Flow
+
+`ConnectablePropagationScheduler.tickPropagation()` drains:
+
+- `PENDING_RECOMPUTE`
+- `PENDING_PLACED`
+- `PENDING_BROKEN`
+- `PENDING_WAVE_ADOPTION`
+
+For each world it calls `tickWorld(...)`. If recompute work exists,
+`affectedConnectablePositions(...)` expands from the dirty/touched positions into
+the connected component made from stored gravity powder and inverter positions.
+This keeps unrelated networks out of the recompute and still handles both sides of
+a broken bridge.
+
+Before recompute, the scheduler snapshots instant states for known cables in the
+affected component. `ConnectableSignalRecalculator.recompute(...)` then:
+
+- starts affected cables and inverters from `OFF`
+- seeds `PUSH` from active sources next to cables
+- seeds `PUSH` into an inverter if an active source faces its back
+- propagates cable signals to adjacent cables
+- lets cables feed inverters only through the inverter back
+- emits inverter output only from the inverter front
+- toggles inverter inversion on rising side-input edges
+- resolves `PUSH`/`PULL` collisions on cables by keeping `PUSH`
+
+Cable instant states change through `GravityPowderBlockDataStore.setInstantState`.
+When the instant state differs from the previous instant state,
+`ConnectableSignalRecalculator.WorldSignalAdapter.setCableSignal(...)` marks the
+cable wave-dirty. Visuals are not immediately forced to that instant state.
+`GravityPowderBlockRefresher` later renders `effectiveState()`, so a mismatched
+dirty cable can remain visibly at its previous state until wave adoption catches up.
+
+After recompute the scheduler finds cables whose instant state changed and removes
+them from already-drained/adjoining pending wave-adoption work:
+
+- `clearPendingWaveAdoptions(world, changedInstantCables)` removes matching
+  positions from the global pending queue.
+- `waveAdoptionTargets = without(waveAdoptionTargets, changedInstantCables)`
+  removes them from this tick's drained adoption set.
+
+This is a best-effort stale-entry cleanup by position only. There is no version,
+generation, parent direction, or wave identity attached to either dirty state or
+queue entries.
+
+#### Wave Adoption Flow
+
+Pending wave adoption is stored in
+`ConnectablePropagationScheduler.PENDING_WAVE_ADOPTION`, a per-world set of block
+positions. Because it is a set, multiple requests for the same cable collapse into
+one pending entry.
+
+A cable can be adopted immediately or queued for later:
+
+- `syncSourceTargets(...)` can adopt dirty cable neighbors of a placed/activated or
+  broken/expired source target.
+- `syncPlacedTargets(...)` adopts a placed cable immediately and adopts a placed
+  inverter's current mode.
+- `syncNeighborsOfBrokenTargets(...)` adopts cable neighbors of a broken target and
+  adopts neighboring inverter current modes.
+- `processWaveAdoptions(...)` processes entries drained from
+  `PENDING_WAVE_ADOPTION`.
+- `adoptInstantStateAndScheduleNeighbors(...)` queues dirty cable neighbors after a
+  successful adoption.
+- `syncDirtyInverterFronts(...)` can adopt the cable at a dirty inverter's front.
+
+The adoption operation is `adoptInstantStateAndScheduleNeighbors(...)`:
+
+1. Read the cable data.
+2. Return without doing anything if the cable is missing or `dirty == false`.
+3. Remember the previous `effectiveState()`.
+4. Call `GravityPowderBlockDataStore.adoptInstantState(...)`.
+5. Adoption sets `waveState = instantState`, sets `previousState = instantState`,
+   and clears `dirty`.
+6. Inspect the six neighboring positions. Any neighboring gravity powder entry that
+   is currently dirty is enqueued in `PENDING_WAVE_ADOPTION`.
+7. Return whether the cable's `effectiveState()` changed; callers use this to
+   decide which cable visuals and nearby siphons need refreshing.
+
+The tick order matters:
+
+1. `ConnectablePropagationSystem` runs once per world tick.
+2. It expires temporary sources first.
+3. It calls `ConnectablePropagationScheduler.tickPropagation()`.
+4. The scheduler drains recompute and wave-adoption queues at the start of the
+   scheduler tick.
+5. New wave-adoption entries created during adoption remain pending for a later
+   scheduler tick.
+6. Siphon item transfer runs after propagation every 5 world ticks.
+
+#### Visual and Consumer State
+
+Gravity powder visuals do not render `instantState` directly.
+`GravityPowderBlockRefresher.modeStateSuffix(...)` calls
+`GravityPowderBlockData.effectiveState()`, then maps it to the `Push` or `Pull`
+state suffix. That means the visible block can intentionally lag behind a newly
+computed instant state.
+
+This separation is required because recompute and refresh answer different
+questions:
+
+- Recompute updates the store and decides the authoritative logical network state.
+- Refresh converts stored state into Hytale block state IDs, shape state names,
+  connection masks, and rotations.
+
+`ConnectableNetworkScanner` also reads gravity powder through `effectiveState()`.
+Consequently `ConnectableNetworkUpdateService` resolves siphon `powered` and
+`locked` state from the delayed effective network, not directly from the newest
+instant state. A `PUSH` scan that finds any source powers a siphon; a `PULL` scan
+that finds any source locks it. Since locked siphons do not transfer, delayed wave
+adoption can delay when powered/locked changes become visible to siphon control.
+
+This timing is intentional in the current implementation, but it creates edge-case
+pressure: if a cable's instant state has changed while its effective state has not,
+siphon state can remain on the old effective network until adoption and refresh
+reach the relevant control cable.
 
 ### Phase 4: Siphon-State Refresh
 
@@ -355,13 +520,16 @@ Important persistence behavior:
 
 Save loading supports legacy gravity powder shapes:
 
-- current `instantState`/`waveState`/`previousState`
+- current `instantState`/`waveState`/`previousState` plus optional `dirty`
 - older `state`
 - older `currentMode`/`decayMark`
 - older `push`/`pull` booleans
 
 `effectiveState` is serialized as debug/readability data. It is derived from the
 timeline on load rather than treated as authoritative input.
+Gravity powder `dirty` is serialized as persistence data for the current wave
+adoption status. It does not change signal recompute rules, wave scheduling, or
+when dirty is set or cleared. Saves without `dirty` remain compatible.
 
 ## Hytale API Pitfalls
 
@@ -394,6 +562,38 @@ timeline on load rather than treated as authoritative input.
 
 ## Known Edge Cases and Invariants
 
+- Instant state is authoritative. Wave code must only adopt states that already
+  exist in instant state.
+- Wave adoption must never create a new logical signal result, override instant
+  recompute, or mark a newer instant change complete because an older queue entry
+  happened to run.
+- Visuals may be delayed, but store data must stay internally consistent:
+  `effectiveState()` is derived from `StateTimeline`; it is not an independent
+  stored source of truth.
+- A cable must not become logically excited only because it was dirty at some
+  earlier time. Dirty is an adoption marker, not a signal source.
+- `dirty` is currently only a boolean per cable or inverter. For gravity powder it
+  means "this cable still needs to adopt its instant state into wave state." It
+  does not identify the wave, source, parent direction, intended incoming side, or
+  generation that made it dirty.
+- Queue entries in `PENDING_WAVE_ADOPTION` are positions without version/context.
+  They can become stale if the same cable changes instant state again before the
+  old adoption entry is processed.
+- Clearing dirty with a simple boolean write is risky when multiple instant changes
+  overlap. An old queue entry can accidentally acknowledge a newer dirty state if
+  no version check exists.
+- Removing a position from `PENDING_WAVE_ADOPTION` is only sufficient when every
+  stale entry for that position is reliably removed or invalidated. The current
+  cleanup is position-based and has no generation check.
+- Old dirty states or origin cables can be re-triggered by dirty neighbors because
+  neighbor scheduling only checks `neighborData.dirty()`.
+- Multiple quick source changes can leave wave behavior ambiguous if old queue
+  entries and new dirty state refer to the same position but different logical
+  changes.
+- A future robust design should consider `dirtyVersion` or `waveGeneration` stored
+  per cable, queue entries carrying that version, a pending map keyed by position,
+  and optionally direction/parent context. If versions are introduced, only queue
+  entries whose version matches the cable's current dirty version may clear dirty.
 - Siphon control sides exclude local front and back.
 - Siphon front/back are reserved for item transfer.
 - Siphon `locked` wins over `powered`; locked siphons do not transfer.
@@ -412,6 +612,48 @@ timeline on load rather than treated as authoritative input.
 - Runtime stores may contain stale positions; tick/update code validates live block
   type before using or refreshes/removes stale entries.
 - Avoid reintroducing full initial network scans unless chunk/store safety is solved.
+
+### Wave Debugging Notes
+
+Stale dirty bugs usually show up as one of these symptoms:
+
+- a cable has `dirty=false` while `instantState != waveState`
+- a cable remains `dirty=true` even though no pending adoption can reach it
+- an old `PENDING_WAVE_ADOPTION` position clears a newer state change
+- visuals or siphon `powered`/`locked` state reflect an older network longer than
+  the intended wave delay
+
+Random wave excitation usually means something is treating dirty or mismatch as a
+logical signal instead of as delayed adoption state. Check for cables that become
+queued by a neighbor even though the instant recompute no longer supports that
+wave.
+
+Useful log fields per cable:
+
+- position
+- `instantState`
+- `waveState`
+- `previousState`
+- `effectiveState`
+- `dirty`
+- current tick
+- whether the position was in `PENDING_RECOMPUTE`
+- whether the position was in `PENDING_WAVE_ADOPTION`
+- optional future `dirtyVersion` or `waveGeneration`
+- optional future parent/direction context
+
+Useful log fields per queue operation:
+
+- enqueue tick
+- target position
+- reason (`placed`, `broken`, `source`, `neighbor-adoption`, `inverter-front`)
+- current instant/wave/previous/effective states at enqueue time
+- version/generation if that exists in a future implementation
+
+When debugging siphons, log the control neighbor, requested scan state, scan
+carriers, sources found, and the siphon's resulting `powered`/`locked` values.
+Remember that scans use cable `effectiveState()`, so a mismatch can intentionally
+keep a siphon on the old network state until adoption reaches the control cable.
 
 ## Resource Layout
 
@@ -449,9 +691,6 @@ relevant code.
   query can tick once per player, so this prevents duplicate per-world processing.
 - `StateTimeline.effectiveState()`: explain that visuals/network consumers keep the
   previous wave state until delayed wave adoption catches up to the instant state.
-- `ConnectablePropagationScheduler.onCableInstantStateChanged(...)`: either document
-  why it is intentionally empty or remove/implement it during the next propagation
-  cleanup.
 - `ConnectablePropagationScheduler.affectedConnectablePositions(...)`: note that the
   component expansion limits recompute to the touched network and handles bridge
   breaks.
@@ -488,3 +727,31 @@ Tests currently cover:
 When changing propagation, add tests through the adapter-based network tests before
 touching Hytale world APIs. They are the cheapest way to protect the core signal
 rules.
+
+Wave-specific tests that should exist or be expanded:
+
+- simple push wave over a cable line: instant states update first, then wave/effective
+  states adopt one step at a time
+- simple pull wave over a cable line through an enabled inverter
+- `PUSH` overwrites `PULL` when both reach the same cable
+- the origin cable of a wave must not be re-excited only because a neighbor was
+  still dirty
+- multiple source changes before adoption must not leave a cable permanently dirty
+  or mismatched
+- an old queue entry must not clear a newer dirty state for the same cable
+- disconnected networks must not enqueue or adopt each other's cables
+- inverter push/pull changes should update the front cable through wave adoption
+  without side-input toggle regressions
+- breaking the middle of a network should recompute both sides and not leak wave
+  adoption across the gap
+- wooden button activation and expiry should schedule recompute and wave adoption
+  consistently
+- siphon `powered` and `locked` should be tested while instant and effective cable
+  states differ, because scans currently use `effectiveState()`
+- persistence tests should confirm that `instantState`, `waveState`, and
+  `previousState` round-trip, and that gravity powder `dirty` is preserved without
+  changing legacy save compatibility
+
+Needs verification: there is no current test that exercises stale
+`PENDING_WAVE_ADOPTION` entries with overlapping instant changes. Add that before
+changing dirty/queue invalidation behavior.

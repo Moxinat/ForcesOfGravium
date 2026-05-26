@@ -181,36 +181,42 @@ public final class WorldSaveFileService {
             }
             BsonDocument entry = value.asDocument();
             Vector3i position = readPosition(entry.getDocument("position"));
-            GravityPowderBlockData data;
-            if (entry.containsKey("instantState") || entry.containsKey("push") || entry.containsKey("pull")) {
-                boolean push = entry.getBoolean("push", BsonBoolean.FALSE).getValue();
-                boolean pull = entry.getBoolean("pull", BsonBoolean.FALSE).getValue();
-                String instantState = entry.getString(
-                        "instantState",
-                        new BsonString(push ? GravityPowderBlockDataStore.STATE_PUSH : pull ? GravityPowderBlockDataStore.STATE_PULL : GravityPowderBlockDataStore.STATE_OFF)
-                ).getValue();
-                data = new GravityPowderBlockData(
-                        entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
-                        new StateTimeline(
-                                instantState,
-                                entry.getString("waveState", new BsonString(instantState)).getValue(),
-                                entry.getString("previousState", new BsonString(instantState)).getValue()
-                        )
-                );
-            } else if (entry.containsKey("state")) {
-                data = GravityPowderBlockDataStore.fromState(
-                        entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
-                        entry.getString("state", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue()
-                );
-            } else {
-                data = GravityPowderBlockDataStore.fromLegacyData(
-                        entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
-                        entry.getString("currentMode", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue(),
-                        entry.getString("decayMark", new BsonString("none")).getValue()
-                );
-            }
-            GravityPowderBlockDataStore.put(world, position, data);
+            GravityPowderBlockDataStore.put(world, position, readGravityPowderData(entry));
         }
+    }
+
+    private static GravityPowderBlockData readGravityPowderData(BsonDocument entry) {
+        GravityPowderBlockData data;
+        if (entry.containsKey("instantState") || entry.containsKey("push") || entry.containsKey("pull")) {
+            boolean push = entry.getBoolean("push", BsonBoolean.FALSE).getValue();
+            boolean pull = entry.getBoolean("pull", BsonBoolean.FALSE).getValue();
+            String instantState = entry.getString(
+                    "instantState",
+                    new BsonString(push ? GravityPowderBlockDataStore.STATE_PUSH : pull ? GravityPowderBlockDataStore.STATE_PULL : GravityPowderBlockDataStore.STATE_OFF)
+            ).getValue();
+            data = new GravityPowderBlockData(
+                    entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
+                    new StateTimeline(
+                            instantState,
+                            entry.getString("waveState", new BsonString(instantState)).getValue(),
+                            entry.getString("previousState", new BsonString(instantState)).getValue()
+                    )
+            );
+        } else if (entry.containsKey("state")) {
+            data = GravityPowderBlockDataStore.fromState(
+                    entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
+                    entry.getString("state", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue()
+            );
+        } else {
+            data = GravityPowderBlockDataStore.fromLegacyData(
+                    entry.getInt32("connectionsMask", new BsonInt32(0)).getValue(),
+                    entry.getString("currentMode", new BsonString(GravityPowderBlockDataStore.STATE_OFF)).getValue(),
+                    entry.getString("decayMark", new BsonString("none")).getValue()
+            );
+        }
+        return data.withDirty(entry.containsKey("dirty")
+                ? entry.getBoolean("dirty", BsonBoolean.FALSE).getValue()
+                : data.hasWaveMismatch());
     }
 
     private static void loadInverters(World world, BsonArray entries) {
@@ -286,17 +292,21 @@ public final class WorldSaveFileService {
     private static BsonArray serializeGravityPowder(World world) {
         BsonArray result = new BsonArray();
         for (Map.Entry<Vector3i, GravityPowderBlockData> entry : GravityPowderBlockDataStore.snapshotForWorld(world).entrySet()) {
-            GravityPowderBlockData data = entry.getValue();
-            BsonDocument document = new BsonDocument();
-            document.put("position", writePosition(entry.getKey()));
-            document.put("connectionsMask", new BsonInt32(data.connectionsMask()));
-            document.put("instantState", new BsonString(data.instantState()));
-            document.put("waveState", new BsonString(data.waveState()));
-            document.put("effectiveState", new BsonString(data.effectiveState()));
-            document.put("previousState", new BsonString(data.previousState()));
-            result.add(document);
+            result.add(writeGravityPowderDocument(entry.getKey(), entry.getValue()));
         }
         return result;
+    }
+
+    private static BsonDocument writeGravityPowderDocument(Vector3i position, GravityPowderBlockData data) {
+        BsonDocument document = new BsonDocument();
+        document.put("position", writePosition(position));
+        document.put("connectionsMask", new BsonInt32(data.connectionsMask()));
+        document.put("instantState", new BsonString(data.instantState()));
+        document.put("waveState", new BsonString(data.waveState()));
+        document.put("effectiveState", new BsonString(data.effectiveState()));
+        document.put("previousState", new BsonString(data.previousState()));
+        document.put("dirty", new BsonBoolean(data.dirty()));
+        return document;
     }
 
     private static BsonArray serializeInverters(World world) {

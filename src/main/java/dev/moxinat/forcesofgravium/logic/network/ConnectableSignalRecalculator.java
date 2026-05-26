@@ -5,6 +5,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
+import dev.moxinat.forcesofgravium.logic.inverter.InverterStateCalculator;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
@@ -159,7 +160,9 @@ public final class ConnectableSignalRecalculator {
                 enqueue(queue, visited, neighbor, step.signalState());
                 continue;
             }
-            if (adapter.isInverter(neighbor) && step.position().equals(adapter.inverterBack(neighbor))) {
+            if (adapter.isInverter(neighbor)
+                    && step.position().equals(adapter.inverterBack(neighbor))
+                    && adapter.cableHasEffectiveSignal(step.position(), step.signalState())) {
                 enqueue(queue, visited, neighbor, step.signalState());
             }
         }
@@ -230,6 +233,10 @@ public final class ConnectableSignalRecalculator {
         boolean hasSourceAtInverterBack(@Nonnull Vector3i inverter);
 
         boolean hasSourceFacingPosition(@Nonnull Vector3i sourcePosition, @Nonnull Vector3i targetPosition);
+
+        default boolean cableHasEffectiveSignal(@Nonnull Vector3i cable, @Nonnull SignalState state) {
+            return true;
+        }
 
         boolean isInvertEnabled(@Nonnull Vector3i inverter);
 
@@ -318,6 +325,11 @@ public final class ConnectableSignalRecalculator {
         }
 
         @Override
+        public boolean cableHasEffectiveSignal(@Nonnull Vector3i cable, @Nonnull SignalState state) {
+            return GravityPowderBlockDataStore.get(world, cable).effectiveState().equals(stateForSignal(state));
+        }
+
+        @Override
         public boolean isInvertEnabled(@Nonnull Vector3i inverter) {
             InverterData data = InverterDataStore.get(world, inverter);
             return data == null || data.invertEnabled();
@@ -351,13 +363,21 @@ public final class ConnectableSignalRecalculator {
             GravityPowderBlockDataStore.GravityPowderBlockData updated = GravityPowderBlockDataStore.get(world, position);
             String previousInstantState = previous == null ? GravityPowderBlockDataStore.STATE_OFF : previous.instantState();
             if (updated != null && !updated.instantState().equals(previousInstantState)) {
-                ConnectablePropagationScheduler.onCableInstantStateChanged(world, position);
+                GravityPowderBlockDataStore.markWaveDirty(world, position);
             }
         }
 
         @Override
         public void setInverterState(@Nonnull Vector3i position, @Nonnull String mode, boolean invertEnabled, boolean toggleInputActive) {
-            InverterDataStore.setState(world, position, mode, mode, invertEnabled, toggleInputActive);
+            InverterData previous = InverterDataStore.get(world, position);
+            String inputMode = InverterStateCalculator.computeInputMode(world, position);
+            String outputMode = invertEnabled ? InverterStateCalculator.invertMode(inputMode) : inputMode;
+            InverterDataStore.setState(world, position, outputMode, outputMode, invertEnabled, toggleInputActive);
+            InverterData updated = InverterDataStore.get(world, position);
+            String previousMode = previous == null ? GravityPowderBlockDataStore.STATE_OFF : previous.currentMode();
+            if (updated != null && !updated.currentMode().equals(previousMode)) {
+                InverterDataStore.markWaveDirty(world, position);
+            }
         }
     }
 }
