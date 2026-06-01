@@ -1,9 +1,9 @@
 package dev.moxinat.forcesofgravium.persistence;
 
-import com.hypixel.hytale.math.vector.Vector3i;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.StateTimeline;
+import org.joml.Vector3i;
 import org.bson.BsonBoolean;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
