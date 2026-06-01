@@ -62,11 +62,12 @@ Each entry includes:
 - current `mode`
 - whether inversion is enabled
 - whether the side toggle input is currently held active
+- last side toggle input mode
 
 Example output:
 
 ```text
-(12,64,5) mode=pull invertEnabled=true toggleInputActive=false
+(12,64,5) mode=pull invertEnabled=true toggleInputActive=false lastToggleInputMode=off
 ```
 
 ## `/fog invdist here`

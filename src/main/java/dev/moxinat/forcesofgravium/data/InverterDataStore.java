@@ -44,7 +44,7 @@ public final class InverterDataStore {
             @Nonnull String currentMode,
             @Nonnull String nextMode,
             boolean invertEnabled,
-            boolean toggleInputActive
+            @Nonnull String lastToggleInputMode
     ) {
         WorldSaveFileService.ensureLoaded(world);
         DATA.put(
@@ -54,10 +54,21 @@ public final class InverterDataStore {
                         currentMode,
                         nextMode,
                         invertEnabled,
-                        toggleInputActive
+                        lastToggleInputMode
                 )
         );
         WorldSaveFileService.markDirty(world);
+    }
+
+    public static void setState(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull String currentMode,
+            @Nonnull String nextMode,
+            boolean invertEnabled,
+            boolean toggleInputActive
+    ) {
+        setState(world, position, currentMode, nextMode, invertEnabled, modeFromLegacyToggle(toggleInputActive));
     }
 
     public static void adoptCurrentMode(@Nonnull World world, @Nonnull Vector3i position) {
@@ -106,7 +117,7 @@ public final class InverterDataStore {
             @Nonnull String currentMode,
             @Nonnull String nextMode,
             boolean invertEnabled,
-            boolean toggleInputActive,
+            @Nonnull String lastToggleInputMode,
             @Nonnull StateTimeline stateTimeline,
             boolean dirty
     ) {
@@ -114,21 +125,48 @@ public final class InverterDataStore {
                 @Nonnull String currentMode,
                 @Nonnull String nextMode,
                 boolean invertEnabled,
+                @Nonnull String lastToggleInputMode,
+                @Nonnull StateTimeline stateTimeline
+        ) {
+            this(currentMode, nextMode, invertEnabled, lastToggleInputMode, stateTimeline, false);
+        }
+
+        public InverterData(
+                @Nonnull String currentMode,
+                @Nonnull String nextMode,
+                boolean invertEnabled,
                 boolean toggleInputActive,
                 @Nonnull StateTimeline stateTimeline
         ) {
-            this(currentMode, nextMode, invertEnabled, toggleInputActive, stateTimeline, false);
+            this(currentMode, nextMode, invertEnabled, modeFromLegacyToggle(toggleInputActive), stateTimeline, false);
         }
 
         public InverterData {
             currentMode = Objects.requireNonNull(currentMode, "currentMode");
             nextMode = Objects.requireNonNull(nextMode, "nextMode");
+            lastToggleInputMode = GravityPowderBlockDataStore.normalizeState(lastToggleInputMode);
             stateTimeline = Objects.requireNonNull(stateTimeline, "stateTimeline");
             stateTimeline = new StateTimeline(currentMode, stateTimeline.waveState(), stateTimeline.previousState());
         }
 
         public static @Nonnull InverterData defaultData() {
-            return initialize("off", "off", true, false);
+            return initialize("off", "off", true, GravityPowderBlockDataStore.STATE_OFF);
+        }
+
+        public static @Nonnull InverterData initialize(
+                @Nonnull String currentMode,
+                @Nonnull String nextMode,
+                boolean invertEnabled,
+                @Nonnull String lastToggleInputMode
+        ) {
+            return new InverterData(
+                    currentMode,
+                    nextMode,
+                    invertEnabled,
+                    lastToggleInputMode,
+                    StateTimeline.initialized(currentMode),
+                    false
+            );
         }
 
         public static @Nonnull InverterData initialize(
@@ -137,13 +175,26 @@ public final class InverterDataStore {
                 boolean invertEnabled,
                 boolean toggleInputActive
         ) {
+            return initialize(currentMode, nextMode, invertEnabled, modeFromLegacyToggle(toggleInputActive));
+        }
+
+        public static @Nonnull InverterData transition(
+                @Nullable InverterData existing,
+                @Nonnull String currentMode,
+                @Nonnull String nextMode,
+                boolean invertEnabled,
+                @Nonnull String lastToggleInputMode
+        ) {
+            String previousState = existing == null || currentMode.equals(existing.currentMode())
+                    ? (existing == null ? currentMode : existing.previousState())
+                    : existing.currentMode();
             return new InverterData(
                     currentMode,
                     nextMode,
                     invertEnabled,
-                    toggleInputActive,
-                    StateTimeline.initialized(currentMode),
-                    false
+                    lastToggleInputMode,
+                    new StateTimeline(currentMode, currentMode, previousState),
+                    existing != null && existing.dirty
             );
         }
 
@@ -154,17 +205,7 @@ public final class InverterDataStore {
                 boolean invertEnabled,
                 boolean toggleInputActive
         ) {
-            String previousState = existing == null || currentMode.equals(existing.currentMode())
-                    ? (existing == null ? currentMode : existing.previousState())
-                    : existing.currentMode();
-            return new InverterData(
-                    currentMode,
-                    nextMode,
-                    invertEnabled,
-                    toggleInputActive,
-                    new StateTimeline(currentMode, currentMode, previousState),
-                    existing != null && existing.dirty
-            );
+            return transition(existing, currentMode, nextMode, invertEnabled, modeFromLegacyToggle(toggleInputActive));
         }
 
         public @Nonnull InverterData withWaveStateFromCurrentMode() {
@@ -172,14 +213,18 @@ public final class InverterDataStore {
                     currentMode,
                     nextMode,
                     invertEnabled,
-                    toggleInputActive,
+                    lastToggleInputMode,
                     StateTimeline.initialized(currentMode),
                     false
             );
         }
 
         public @Nonnull InverterData withDirty(boolean value) {
-            return new InverterData(currentMode, nextMode, invertEnabled, toggleInputActive, stateTimeline, value);
+            return new InverterData(currentMode, nextMode, invertEnabled, lastToggleInputMode, stateTimeline, value);
+        }
+
+        public boolean toggleInputActive() {
+            return !GravityPowderBlockDataStore.STATE_OFF.equals(lastToggleInputMode);
         }
 
         public @Nonnull String waveState() {
@@ -193,6 +238,10 @@ public final class InverterDataStore {
         public @Nonnull String previousState() {
             return stateTimeline.previousState();
         }
+    }
+
+    private static @Nonnull String modeFromLegacyToggle(boolean toggleInputActive) {
+        return toggleInputActive ? GravityPowderBlockDataStore.STATE_PUSH : GravityPowderBlockDataStore.STATE_OFF;
     }
 
     private record BlockKey(@Nonnull String worldId, int x, int y, int z) {

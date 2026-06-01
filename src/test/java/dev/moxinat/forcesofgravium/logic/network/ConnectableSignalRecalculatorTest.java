@@ -60,20 +60,24 @@ class ConnectableSignalRecalculatorTest {
     }
 
     @Test
-    void sideSignalTogglesInverterOnlyOnRisingEdge() {
+    void sideSignalTogglesInverterOnActiveModeChange() {
         Vector3i inputCable = new Vector3i(0, 0, 0);
         Vector3i inverter = new Vector3i(1, 0, 0);
         Vector3i outputCable = new Vector3i(2, 0, 0);
         Vector3i sideCable = new Vector3i(1, 1, 0);
-        TestAdapter adapter = new TestAdapter(Set.of(inputCable, outputCable, sideCable), Set.of(inverter))
+        Vector3i sideInverter = new Vector3i(1, 2, 0);
+        TestAdapter adapter = new TestAdapter(Set.of(inputCable, outputCable, sideCable), Set.of(inverter, sideInverter))
                 .withCableSource(inputCable)
                 .withCableSource(sideCable)
-                .withInverterSides(inverter, inputCable, outputCable);
+                .withCableEffectiveSignal(sideCable, SignalState.PUSH)
+                .withInverterSides(inverter, inputCable, outputCable)
+                .withInverterSides(sideInverter, new Vector3i(1, 3, 0), sideCable);
 
         ConnectableSignalRecalculator.recompute(adapter);
 
         assertFalse(adapter.invertEnabled(inverter));
         assertTrue(adapter.toggleInputActive(inverter));
+        assertEquals(SignalState.PUSH, adapter.lastToggleInputMode(inverter));
         assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adapter.inverterMode(inverter));
         assertEquals(SignalState.PUSH, adapter.cableSignal(outputCable));
 
@@ -81,22 +85,89 @@ class ConnectableSignalRecalculatorTest {
 
         assertFalse(adapter.invertEnabled(inverter));
         assertTrue(adapter.toggleInputActive(inverter));
+        assertEquals(SignalState.PUSH, adapter.lastToggleInputMode(inverter));
         assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adapter.inverterMode(inverter));
 
         adapter.withoutCableSource(sideCable);
+        adapter.withCableEffectiveSignal(sideCable, SignalState.OFF);
         ConnectableSignalRecalculator.recompute(adapter);
 
         assertFalse(adapter.invertEnabled(inverter));
         assertFalse(adapter.toggleInputActive(inverter));
+        assertEquals(SignalState.OFF, adapter.lastToggleInputMode(inverter));
         assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adapter.inverterMode(inverter));
 
         adapter.withCableSource(sideCable);
+        adapter.withCableEffectiveSignal(sideCable, SignalState.PUSH);
         ConnectableSignalRecalculator.recompute(adapter);
 
         assertTrue(adapter.invertEnabled(inverter));
         assertTrue(adapter.toggleInputActive(inverter));
+        assertEquals(SignalState.PUSH, adapter.lastToggleInputMode(inverter));
         assertEquals(GravityPowderBlockDataStore.STATE_PULL, adapter.inverterMode(inverter));
         assertEquals(SignalState.PULL, adapter.cableSignal(outputCable));
+
+        adapter.withoutCableSource(sideCable)
+                .withInverterBackSource(sideInverter)
+                .withCableEffectiveSignal(sideCable, SignalState.PULL);
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertFalse(adapter.invertEnabled(inverter));
+        assertTrue(adapter.toggleInputActive(inverter));
+        assertEquals(SignalState.PULL, adapter.lastToggleInputMode(inverter));
+        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adapter.inverterMode(inverter));
+        assertEquals(SignalState.PUSH, adapter.cableSignal(outputCable));
+    }
+
+    @Test
+    void sidePullSignalTogglesInverterFromOff() {
+        Vector3i inputCable = new Vector3i(0, 0, 0);
+        Vector3i inverter = new Vector3i(1, 0, 0);
+        Vector3i outputCable = new Vector3i(2, 0, 0);
+        Vector3i sideCable = new Vector3i(1, 1, 0);
+        Vector3i sideInverter = new Vector3i(1, 2, 0);
+        TestAdapter adapter = new TestAdapter(Set.of(inputCable, outputCable, sideCable), Set.of(inverter, sideInverter))
+                .withCableSource(inputCable)
+                .withInverterBackSource(sideInverter)
+                .withCableEffectiveSignal(sideCable, SignalState.PULL)
+                .withInverterSides(inverter, inputCable, outputCable)
+                .withInverterSides(sideInverter, new Vector3i(1, 3, 0), sideCable);
+
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertFalse(adapter.invertEnabled(inverter));
+        assertTrue(adapter.toggleInputActive(inverter));
+        assertEquals(SignalState.PULL, adapter.lastToggleInputMode(inverter));
+        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adapter.inverterMode(inverter));
+        assertEquals(SignalState.PUSH, adapter.cableSignal(outputCable));
+    }
+
+    @Test
+    void sideCableUsesEffectiveSignalInsteadOfInstantSignal() {
+        Vector3i inputCable = new Vector3i(0, 0, 0);
+        Vector3i inverter = new Vector3i(1, 0, 0);
+        Vector3i outputCable = new Vector3i(2, 0, 0);
+        Vector3i sideCable = new Vector3i(1, 1, 0);
+        TestAdapter adapter = new TestAdapter(Set.of(inputCable, outputCable, sideCable), Set.of(inverter))
+                .withCableSource(inputCable)
+                .withCableSource(sideCable)
+                .withCableEffectiveSignal(sideCable, SignalState.OFF)
+                .withInverterSides(inverter, inputCable, outputCable);
+
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertTrue(adapter.invertEnabled(inverter));
+        assertFalse(adapter.toggleInputActive(inverter));
+        assertEquals(SignalState.OFF, adapter.lastToggleInputMode(inverter));
+        assertEquals(SignalState.PULL, adapter.cableSignal(outputCable));
+
+        adapter.withCableEffectiveSignal(sideCable, SignalState.PUSH);
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertFalse(adapter.invertEnabled(inverter));
+        assertTrue(adapter.toggleInputActive(inverter));
+        assertEquals(SignalState.PUSH, adapter.lastToggleInputMode(inverter));
+        assertEquals(SignalState.PUSH, adapter.cableSignal(outputCable));
     }
 
     @Test
@@ -178,9 +249,10 @@ class ConnectableSignalRecalculatorTest {
         private final Map<Vector3i, Vector3i> inverterBacks = new LinkedHashMap<>();
         private final Map<Vector3i, Vector3i> inverterFronts = new LinkedHashMap<>();
         private final Map<Vector3i, SignalState> cableSignals = new LinkedHashMap<>();
+        private final Map<Vector3i, SignalState> cableEffectiveSignals = new LinkedHashMap<>();
         private final Map<Vector3i, String> inverterModes = new LinkedHashMap<>();
         private final Map<Vector3i, Boolean> invertEnabled = new LinkedHashMap<>();
-        private final Map<Vector3i, Boolean> toggleInputActive = new LinkedHashMap<>();
+        private final Map<Vector3i, SignalState> lastToggleInputModes = new LinkedHashMap<>();
 
         private TestAdapter(Set<Vector3i> cables, Set<Vector3i> inverters) {
             this.cables = new LinkedHashSet<>(cables);
@@ -212,6 +284,11 @@ class ConnectableSignalRecalculatorTest {
             return this;
         }
 
+        private TestAdapter withCableEffectiveSignal(Vector3i cable, SignalState mode) {
+            cableEffectiveSignals.put(cable, mode);
+            return this;
+        }
+
         private TestAdapter withInverterSides(Vector3i inverter, Vector3i back, Vector3i front) {
             inverterBacks.put(inverter, back);
             inverterFronts.put(inverter, front);
@@ -239,7 +316,11 @@ class ConnectableSignalRecalculatorTest {
         }
 
         private boolean toggleInputActive(Vector3i inverter) {
-            return toggleInputActive.getOrDefault(inverter, false);
+            return storedLastToggleInputMode(inverter) != SignalState.OFF;
+        }
+
+        private SignalState storedLastToggleInputMode(Vector3i inverter) {
+            return lastToggleInputModes.getOrDefault(inverter, SignalState.OFF);
         }
 
         @Override
@@ -283,8 +364,13 @@ class ConnectableSignalRecalculatorTest {
         }
 
         @Override
-        public boolean isToggleInputActive(@Nonnull Vector3i inverter) {
-            return toggleInputActive(inverter);
+        public @Nonnull SignalState cableEffectiveSignal(@Nonnull Vector3i cable) {
+            return cableEffectiveSignals.getOrDefault(cable, cableSignal(cable));
+        }
+
+        @Override
+        public @Nonnull SignalState lastToggleInputMode(@Nonnull Vector3i inverter) {
+            return storedLastToggleInputMode(inverter);
         }
 
         @Override
@@ -308,10 +394,10 @@ class ConnectableSignalRecalculatorTest {
         }
 
         @Override
-        public void setInverterState(@Nonnull Vector3i position, @Nonnull String mode, boolean nextInvertEnabled, boolean nextToggleInputActive) {
+        public void setInverterState(@Nonnull Vector3i position, @Nonnull String mode, boolean nextInvertEnabled, @Nonnull SignalState nextLastToggleInputMode) {
             inverterModes.put(position, mode);
             invertEnabled.put(position, nextInvertEnabled);
-            toggleInputActive.put(position, nextToggleInputActive);
+            lastToggleInputModes.put(position, nextLastToggleInputMode);
         }
     }
 }

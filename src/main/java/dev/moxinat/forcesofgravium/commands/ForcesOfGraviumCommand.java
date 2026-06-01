@@ -393,7 +393,8 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         return formatPosition(position)
                 + " mode=" + data.currentMode()
                 + " invertEnabled=" + data.invertEnabled()
-                + " toggleInputActive=" + data.toggleInputActive();
+                + " toggleInputActive=" + data.toggleInputActive()
+                + " lastToggleInputMode=" + data.lastToggleInputMode();
     }
 
     private static String formatPosition(Vector3i position) {

@@ -3,6 +3,7 @@ package dev.moxinat.forcesofgravium.logic.network;
 import org.joml.Vector3i;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
+import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.data.StateTimeline;
 import org.junit.jupiter.api.Test;
 
@@ -10,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConnectablePropagationSchedulerTest {
@@ -92,5 +94,33 @@ class ConnectablePropagationSchedulerTest {
         );
 
         assertEquals(Set.of(mismatched), pending);
+    }
+
+    @Test
+    void sideInputInvertersForChangedCablesExcludesBackAndFrontInputs() {
+        Vector3i sideCable = new Vector3i(0, 1, 0);
+        Vector3i backCable = new Vector3i(-1, 0, 0);
+        Vector3i frontCable = new Vector3i(1, 0, 0);
+        Vector3i inverter = new Vector3i(0, 0, 0);
+        Vector3i isolatedInverter = new Vector3i(20, 0, 0);
+
+        Set<Vector3i> sideInverters = ConnectablePropagationScheduler.sideInputInvertersForChangedCables(
+                Set.of(sideCable, backCable, frontCable),
+                Set.of(inverter, isolatedInverter),
+                candidate -> candidate.equals(inverter) ? backCable : new Vector3i(19, 0, 0),
+                candidate -> candidate.equals(inverter) ? frontCable : new Vector3i(21, 0, 0)
+        );
+
+        assertEquals(Set.of(inverter), sideInverters);
+    }
+
+    @Test
+    void placedInverterAdoptionIsSkippedWhenRecomputeMarkedItDirty() {
+        InverterData dirty = InverterData.defaultData().withDirty(true);
+        InverterData clean = InverterData.defaultData();
+
+        assertFalse(ConnectablePropagationScheduler.shouldAdoptPlacedInverter(dirty));
+        assertTrue(ConnectablePropagationScheduler.shouldAdoptPlacedInverter(clean));
+        assertTrue(ConnectablePropagationScheduler.shouldAdoptPlacedInverter(null));
     }
 }

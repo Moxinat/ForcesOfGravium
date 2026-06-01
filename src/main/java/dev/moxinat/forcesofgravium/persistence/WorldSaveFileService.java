@@ -231,7 +231,12 @@ public final class WorldSaveFileService {
                     currentMode,
                     entry.getString("nextMode", new BsonString("off")).getValue(),
                     entry.getBoolean("invertEnabled", BsonBoolean.TRUE).getValue(),
-                    entry.getBoolean("toggleInputActive", BsonBoolean.FALSE).getValue(),
+                    entry.getString(
+                            "lastToggleInputMode",
+                            new BsonString(entry.getBoolean("toggleInputActive", BsonBoolean.FALSE).getValue()
+                                    ? GravityPowderBlockDataStore.STATE_PUSH
+                                    : GravityPowderBlockDataStore.STATE_OFF)
+                    ).getValue(),
                     new StateTimeline(
                             currentMode,
                             entry.getString("waveState", new BsonString(currentMode)).getValue(),
@@ -319,6 +324,7 @@ public final class WorldSaveFileService {
             document.put("nextMode", new BsonString(data.nextMode()));
             document.put("invertEnabled", new BsonBoolean(data.invertEnabled()));
             document.put("toggleInputActive", new BsonBoolean(data.toggleInputActive()));
+            document.put("lastToggleInputMode", new BsonString(data.lastToggleInputMode()));
             document.put("waveState", new BsonString(data.waveState()));
             document.put("effectiveState", new BsonString(data.effectiveState()));
             document.put("previousState", new BsonString(data.previousState()));

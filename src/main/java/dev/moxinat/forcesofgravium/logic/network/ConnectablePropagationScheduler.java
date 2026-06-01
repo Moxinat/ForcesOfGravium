@@ -18,6 +18,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 public final class ConnectablePropagationScheduler {
 
@@ -79,6 +80,7 @@ public final class ConnectablePropagationScheduler {
                 GravityPowderBlockRefresher.refreshAt(world, cable);
             }
             visibleChangedCables.addAll(updateInvertersWithBackIn(world, visibleChangedCables));
+            updateInvertersWithSideIn(world, visibleChangedCables);
             visibleChangedCables.addAll(syncDirtyInverterFronts(world, InverterDataStore.snapshotForWorld(world).keySet()));
             ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(dirtyPositions, visibleChangedCables));
             return;
@@ -111,8 +113,10 @@ public final class ConnectablePropagationScheduler {
             }
             InverterBlockRefresher.refreshAt(world, inverter);
         }
+        updateInvertersWithSideIn(world, visibleChangedCables);
         visibleChangedCables.addAll(syncDirtyInverterFronts(world, inverters));
         visibleChangedCables.addAll(updateInvertersWithBackIn(world, visibleChangedCables));
+        updateInvertersWithSideIn(world, visibleChangedCables);
         visibleChangedCables.addAll(syncDirtyInverterFronts(world, inverters));
         ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(merge(dirtyPositions, affectedPositions), visibleChangedCables));
     }
@@ -128,12 +132,14 @@ public final class ConnectablePropagationScheduler {
 
             InverterData previous = InverterDataStore.get(world, inverter);
             boolean invertEnabled = previous == null || previous.invertEnabled();
-            boolean toggleInputActive = previous != null && previous.toggleInputActive();
+            String lastToggleInputMode = previous == null
+                    ? GravityPowderBlockDataStore.STATE_OFF
+                    : previous.lastToggleInputMode();
             String inputMode = InverterStateCalculator.computeInputMode(world, inverter);
             String outputMode = invertEnabled ? InverterStateCalculator.invertMode(inputMode) : inputMode;
             String previousMode = previous == null ? GravityPowderBlockDataStore.STATE_OFF : previous.currentMode();
 
-            InverterDataStore.setState(world, inverter, outputMode, outputMode, invertEnabled, toggleInputActive);
+            InverterDataStore.setState(world, inverter, outputMode, outputMode, invertEnabled, lastToggleInputMode);
             InverterBlockRefresher.refreshAt(world, inverter);
             if (outputMode.equals(previousMode)) {
                 continue;
@@ -142,6 +148,27 @@ public final class ConnectablePropagationScheduler {
             InverterDataStore.markWaveDirty(world, inverter);
         }
         return Set.copyOf(visibleChangedCables);
+    }
+
+    private static void updateInvertersWithSideIn(World world, Set<Vector3i> cablePositions) {
+        Set<Vector3i> inverters = InverterDataStore.snapshotForWorld(world).keySet();
+        Set<Vector3i> sideInputInverters = sideInputInvertersForChangedCables(
+                cablePositions,
+                inverters,
+                inverter -> ConnectableNeighborResolver.adjacentPositionForLocalSide(world, inverter, ConnectableRegistry.SIDE_BACK),
+                inverter -> ConnectableNeighborResolver.adjacentPositionForLocalSide(world, inverter, ConnectableRegistry.SIDE_FRONT)
+        );
+        if (sideInputInverters.isEmpty()) {
+            return;
+        }
+
+        Set<Vector3i> affectedPositions = affectedConnectablePositions(world, sideInputInverters);
+        Map<Vector3i, String> previousInstantStates = snapshotInstantStates(world, retainKnownCables(world, affectedPositions));
+        ConnectableSignalRecalculator.recompute(world, affectedPositions);
+        clearPendingWaveAdoptions(world, changedInstantStateCables(world, previousInstantStates));
+        for (Vector3i inverter : sideInputInverters) {
+            InverterBlockRefresher.refreshAt(world, inverter);
+        }
     }
 
     private static Set<Vector3i> syncDirtyInverterFronts(World world, Set<Vector3i> inverters) {
@@ -330,6 +357,33 @@ public final class ConnectablePropagationScheduler {
         return Set.copyOf(mismatched);
     }
 
+    static Set<Vector3i> sideInputInvertersForChangedCables(
+            Set<Vector3i> cablePositions,
+            Set<Vector3i> inverters,
+            Function<Vector3i, Vector3i> backResolver,
+            Function<Vector3i, Vector3i> frontResolver
+    ) {
+        if (cablePositions.isEmpty() || inverters.isEmpty()) {
+            return Set.of();
+        }
+
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+        for (Vector3i inverter : inverters) {
+            Vector3i back = backResolver.apply(inverter);
+            Vector3i front = frontResolver.apply(inverter);
+            for (Vector3i cable : cablePositions) {
+                if (!ConnectableNeighborResolver.positionsAround(inverter).contains(cable)) {
+                    continue;
+                }
+                if (!cable.equals(back) && !cable.equals(front)) {
+                    result.add(inverter);
+                    break;
+                }
+            }
+        }
+        return Set.copyOf(result);
+    }
+
     private static Set<Vector3i> syncSourceTargets(World world, Set<Vector3i> sourceTargets, Set<Vector3i> cables) {
         LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
         for (Vector3i sourceTarget : sourceTargets) {
@@ -359,10 +413,17 @@ public final class ConnectablePropagationScheduler {
                 }
             }
             if (inverters.contains(target)) {
-                InverterDataStore.adoptCurrentMode(world, target);
+                InverterData data = InverterDataStore.get(world, target);
+                if (shouldAdoptPlacedInverter(data)) {
+                    InverterDataStore.adoptCurrentMode(world, target);
+                }
             }
         }
         return Set.copyOf(visibleChangedCables);
+    }
+
+    static boolean shouldAdoptPlacedInverter(InverterData data) {
+        return data == null || !data.dirty();
     }
 
     private static Set<Vector3i> syncNeighborsOfBrokenTargets(World world, Set<Vector3i> brokenTargets, Set<Vector3i> cables, Set<Vector3i> inverters) {
