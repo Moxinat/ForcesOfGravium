@@ -241,6 +241,75 @@ class ConnectableSignalRecalculatorTest {
         assertEquals(SignalState.OFF, adapter.cableSignal(outputCable));
     }
 
+    @Test
+    void inverterBackCableChangingToOffPropagatesThroughFront() {
+        Vector3i backCable = new Vector3i(0, 0, 0);
+        Vector3i inverter = new Vector3i(1, 0, 0);
+        Vector3i frontCable = new Vector3i(2, 0, 0);
+        TestAdapter adapter = new TestAdapter(Set.of(backCable, frontCable), Set.of(inverter))
+                .withCableSource(backCable)
+                .withInverterSides(inverter, backCable, frontCable);
+
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertEquals(GravityPowderBlockDataStore.STATE_PULL, adapter.inverterMode(inverter));
+        assertEquals(SignalState.PULL, adapter.cableSignal(frontCable));
+
+        adapter.withoutCableSource(backCable)
+                .withCableEffectiveSignal(backCable, SignalState.OFF)
+                .resetChangeCounts();
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertEquals(GravityPowderBlockDataStore.STATE_OFF, adapter.inverterMode(inverter));
+        assertEquals(SignalState.OFF, adapter.cableSignal(frontCable));
+        assertEquals(1, adapter.inverterChangeCount(inverter));
+        assertEquals(1, adapter.cableChangeCount(frontCable));
+    }
+
+    @Test
+    void inverterBackCableRemovalRecomputesAndPropagatesThroughFront() {
+        Vector3i backCable = new Vector3i(0, 0, 0);
+        Vector3i inverter = new Vector3i(1, 0, 0);
+        Vector3i frontCable = new Vector3i(2, 0, 0);
+        TestAdapter adapter = new TestAdapter(Set.of(backCable, frontCable), Set.of(inverter))
+                .withCableSource(backCable)
+                .withInverterSides(inverter, backCable, frontCable);
+
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertEquals(GravityPowderBlockDataStore.STATE_PULL, adapter.inverterMode(inverter));
+        assertEquals(SignalState.PULL, adapter.cableSignal(frontCable));
+
+        adapter.removeCable(backCable)
+                .withoutCableSource(backCable)
+                .resetChangeCounts();
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertEquals(GravityPowderBlockDataStore.STATE_OFF, adapter.inverterMode(inverter));
+        assertEquals(SignalState.OFF, adapter.cableSignal(frontCable));
+        assertEquals(1, adapter.inverterChangeCount(inverter));
+        assertEquals(1, adapter.cableChangeCount(frontCable));
+    }
+
+    @Test
+    void unchangedInverterBackRemovalDoesNotRecordPropagationChanges() {
+        Vector3i backCable = new Vector3i(0, 0, 0);
+        Vector3i inverter = new Vector3i(1, 0, 0);
+        Vector3i frontCable = new Vector3i(2, 0, 0);
+        TestAdapter adapter = new TestAdapter(Set.of(backCable, frontCable), Set.of(inverter))
+                .withInverterSides(inverter, backCable, frontCable);
+
+        ConnectableSignalRecalculator.recompute(adapter);
+        adapter.removeCable(backCable).resetChangeCounts();
+
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertEquals(GravityPowderBlockDataStore.STATE_OFF, adapter.inverterMode(inverter));
+        assertEquals(SignalState.OFF, adapter.cableSignal(frontCable));
+        assertEquals(0, adapter.inverterChangeCount(inverter));
+        assertEquals(0, adapter.cableChangeCount(frontCable));
+    }
+
     private static final class TestAdapter implements ConnectableSignalRecalculator.SignalAdapter {
         private final Set<Vector3i> cables;
         private final Set<Vector3i> inverters;
@@ -253,6 +322,8 @@ class ConnectableSignalRecalculatorTest {
         private final Map<Vector3i, String> inverterModes = new LinkedHashMap<>();
         private final Map<Vector3i, Boolean> invertEnabled = new LinkedHashMap<>();
         private final Map<Vector3i, SignalState> lastToggleInputModes = new LinkedHashMap<>();
+        private final Map<Vector3i, Integer> cableChangeCounts = new LinkedHashMap<>();
+        private final Map<Vector3i, Integer> inverterChangeCounts = new LinkedHashMap<>();
 
         private TestAdapter(Set<Vector3i> cables, Set<Vector3i> inverters) {
             this.cables = new LinkedHashSet<>(cables);
@@ -261,6 +332,13 @@ class ConnectableSignalRecalculatorTest {
 
         private TestAdapter addCable(Vector3i cable) {
             cables.add(cable);
+            return this;
+        }
+
+        private TestAdapter removeCable(Vector3i cable) {
+            cables.remove(cable);
+            cableSignals.remove(cable);
+            cableEffectiveSignals.remove(cable);
             return this;
         }
 
@@ -321,6 +399,20 @@ class ConnectableSignalRecalculatorTest {
 
         private SignalState storedLastToggleInputMode(Vector3i inverter) {
             return lastToggleInputModes.getOrDefault(inverter, SignalState.OFF);
+        }
+
+        private TestAdapter resetChangeCounts() {
+            cableChangeCounts.clear();
+            inverterChangeCounts.clear();
+            return this;
+        }
+
+        private int cableChangeCount(Vector3i cable) {
+            return cableChangeCounts.getOrDefault(cable, 0);
+        }
+
+        private int inverterChangeCount(Vector3i inverter) {
+            return inverterChangeCounts.getOrDefault(inverter, 0);
         }
 
         @Override
@@ -390,14 +482,26 @@ class ConnectableSignalRecalculatorTest {
 
         @Override
         public void setCableSignal(@Nonnull Vector3i position, @Nonnull SignalState mode) {
+            SignalState previous = cableSignal(position);
             cableSignals.put(position, mode);
+            if (previous != mode) {
+                cableChangeCounts.merge(position, 1, Integer::sum);
+            }
         }
 
         @Override
         public void setInverterState(@Nonnull Vector3i position, @Nonnull String mode, boolean nextInvertEnabled, @Nonnull SignalState nextLastToggleInputMode) {
+            String previousMode = inverterMode(position);
+            boolean previousInvertEnabled = invertEnabled(position);
+            SignalState previousLastToggleInputMode = storedLastToggleInputMode(position);
             inverterModes.put(position, mode);
             invertEnabled.put(position, nextInvertEnabled);
             lastToggleInputModes.put(position, nextLastToggleInputMode);
+            if (!previousMode.equals(mode)
+                    || previousInvertEnabled != nextInvertEnabled
+                    || previousLastToggleInputMode != nextLastToggleInputMode) {
+                inverterChangeCounts.merge(position, 1, Integer::sum);
+            }
         }
     }
 }

@@ -439,11 +439,18 @@ public final class ConnectablePropagationScheduler {
                     }
                 }
                 if (inverters.contains(neighbor)) {
-                    InverterDataStore.adoptCurrentMode(world, neighbor);
+                    InverterData data = InverterDataStore.get(world, neighbor);
+                    if (shouldAdoptBrokenNeighborInverter(data)) {
+                        InverterDataStore.adoptCurrentMode(world, neighbor);
+                    }
                 }
             }
         }
         return Set.copyOf(visibleChangedCables);
+    }
+
+    static boolean shouldAdoptBrokenNeighborInverter(InverterData data) {
+        return data == null || !data.dirty();
     }
 
     private static Set<Vector3i> processWaveAdoptions(World world, Set<Vector3i> waveAdoptionTargets) {

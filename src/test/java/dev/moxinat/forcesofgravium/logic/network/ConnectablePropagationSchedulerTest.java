@@ -123,4 +123,14 @@ class ConnectablePropagationSchedulerTest {
         assertTrue(ConnectablePropagationScheduler.shouldAdoptPlacedInverter(clean));
         assertTrue(ConnectablePropagationScheduler.shouldAdoptPlacedInverter(null));
     }
+
+    @Test
+    void brokenNeighborInverterAdoptionIsSkippedWhenRecomputeMarkedItDirty() {
+        InverterData dirty = InverterData.defaultData().withDirty(true);
+        InverterData clean = InverterData.defaultData();
+
+        assertFalse(ConnectablePropagationScheduler.shouldAdoptBrokenNeighborInverter(dirty));
+        assertTrue(ConnectablePropagationScheduler.shouldAdoptBrokenNeighborInverter(clean));
+        assertTrue(ConnectablePropagationScheduler.shouldAdoptBrokenNeighborInverter(null));
+    }
 }
