@@ -1,0 +1,110 @@
+{
+  "TranslationProperties": {
+    "Name": "items.Curve_Cased_Gravity_Powder.name",
+    "Description": "items.Curve_Cased_Gravity_Powder.description"
+  },
+  "ItemLevel": 10,
+  "MaxStack": 100,
+  "Icon": "Icons/ItemsGenerated/Gravity_Powder_Default.png",
+  "Categories": [
+    "ForcesOfGraviumCategory.items"
+  ],
+  "PlayerAnimationsId": "Block",
+  "Set": "Curve_Cased_Gravity_Powder",
+  "BlockType": {
+    "Material": "Empty",
+    "DrawType": "Model",
+    "HitboxType": "Gravity_Powder_Custom",
+    "CustomModel": "Blocks/Gravity_Powder_Cased/gravity_powder_curve_cased.blockymodel",
+    "CustomModelAnimation": "Blocks/Gravity_Powder/gravity_powder_off_two.blockyanim",
+    "Looping": true,
+    "CustomModelTexture": [
+      {
+        "Texture": "BlockTextures/grav_powder_fullcasing_Off.png",
+        "Weight": 1
+      }
+    ],
+    "Group": "Stone",
+    "Flags": {},
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks"
+      }
+    },
+    "State": {
+      "Definitions": {
+        "Off": {
+          "CustomModel": "Blocks/Gravity_Powder_Cased/gravity_powder_curve_cased.blockymodel",
+          "CustomModelAnimation": "Blocks/Gravity_Powder/gravity_powder_off_two.blockyanim",
+          "Looping": true,
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/grav_powder_fullcasing_Off.png",
+              "Weight": 1
+            }
+          ]
+        },
+        "Push": {
+          "CustomModel": "Blocks/Gravity_Powder_Cased/gravity_powder_curve_cased.blockymodel",
+          "CustomModelAnimation": "Blocks/Gravity_Powder/gravity_powder_push_three.blockyanim",
+          "Looping": true,
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/grav_powder_fullcasing_Push.png",
+              "Weight": 1
+            }
+          ]
+        },
+        "Pull": {
+          "CustomModel": "Blocks/Gravity_Powder_Cased/gravity_powder_curve_cased.blockymodel",
+          "CustomModelAnimation": "Blocks/Gravity_Powder/gravity_powder_push_three.blockyanim",
+          "Looping": true,
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/grav_powder_fullcasing_Pull.png",
+              "Weight": 1
+            }
+          ]
+        }
+      }
+    },
+    "Support": {
+      "All": [
+        {
+          "Support": "Ignored"
+        }
+      ]
+    },
+    "ParticleColor": "#737055",
+    "VariantRotation": "All",
+    "BlockSoundSetId": "Stone",
+    "Aliases": [
+      "Curve_Cased_Gravity_Powder"
+    ],
+    "BlockBreakingDecalId": "Breaking_Decals_Rock",
+    "IgnoreSupportWhenPlaced": true,
+    "PlacementSettings": {
+      "AllowBreakReplace": false,
+      "PlaceInEmptyBlocks": true,
+      "RotationMode": "BlockNormal"
+    }
+  },
+  "Tags": {
+    "Type": [
+      "Rock"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Stone",
+  "IconProperties": {
+    "Scale": 1.7,
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ],
+    "Translation": [
+      0,
+      -13.5
+    ]
+  }
+}
