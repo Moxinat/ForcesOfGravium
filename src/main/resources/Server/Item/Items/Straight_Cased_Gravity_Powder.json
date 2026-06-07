@@ -16,7 +16,7 @@
     "DrawType": "Model",
     "HitboxType": "Gravity_Powder_Custom",
     "CustomModel": "Blocks/Gravity_Powder_Cased/gravity_powder_straight_cased.blockymodel",
-    "CustomModelAnimation": "Blocks/Gravity_Powder/gravity_powder_off.blockyanim",
+    "CustomModelAnimation": "Blocks/Gravity_Powder/gravity_powder_off_three.blockyanim",
     "Looping": true,
     "CustomModelTexture": [
       {
@@ -35,7 +35,7 @@
       "Definitions": {
         "Off": {
           "CustomModel": "Blocks/Gravity_Powder_Cased/gravity_powder_straight_cased.blockymodel",
-          "CustomModelAnimation": "Blocks/Gravity_Powder/gravity_powder_off.blockyanim",
+          "CustomModelAnimation": "Blocks/Gravity_Powder/gravity_powder_off_three.blockyanim",
           "Looping": true,
           "CustomModelTexture": [
             {
