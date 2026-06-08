@@ -23,7 +23,8 @@ public final class BlockPlacementRotationSystem extends EntityEventSystem<Entity
 
     private static final Set<String> ROTATION_CONTROLLED_BLOCKS = Set.of(
             "Inverter_Block",
-            "Gravium_Siphon_Block"
+            "Gravium_Siphon_Block",
+            "Straight_Cased_Gravity_Powder"
     );
     private static final double VERTICAL_DIRECTION_THRESHOLD = 0.9D;
 
@@ -53,6 +54,7 @@ public final class BlockPlacementRotationSystem extends EntityEventSystem<Entity
 
         Rotation3f rotation = headRotation.getRotation();
         Vector3d direction = headRotation.getDirection();
+        RotationTuple currentRotation = event.getRotation();
         Rotation desiredPitch = verticalPitchFromLook(headRotation);
         if (desiredPitch == null) {
             System.out.println(
@@ -67,7 +69,6 @@ public final class BlockPlacementRotationSystem extends EntityEventSystem<Entity
             return;
         }
 
-        RotationTuple currentRotation = event.getRotation();
         RotationTuple desiredRotation = RotationTuple.of(currentRotation.yaw(), desiredPitch, currentRotation.roll());
         event.setRotation(desiredRotation);
         System.out.println(

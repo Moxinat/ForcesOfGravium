@@ -1,16 +1,20 @@
 package dev.moxinat.forcesofgravium.commands;
 
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
@@ -57,10 +61,13 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             handleSaveWorld(context);
             return CompletableFuture.completedFuture(null);
         }
+        if (args.length - startIndex >= 2 && "rotation".equalsIgnoreCase(args[startIndex])) {
+            return handleRotationDebug(context, args, startIndex);
+        }
         if (args.length - startIndex >= 2 && "siphon".equalsIgnoreCase(args[startIndex])) {
             return handleSiphon(context, args, startIndex);
         }
-        context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z> | /fog invdist all | /fog invdist here | /fog invdist <x> <y> <z> | /fog siphon here | /fog siphon <x> <y> <z> | /fog siphon powered here <true|false> | /fog siphon powered <x> <y> <z> <true|false> | /fog siphon locked here <true|false> | /fog siphon locked <x> <y> <z> <true|false> | /fog saveinfo | /fog saveworld"));
+        context.sendMessage(Message.raw("Usage: /fog gpdist all | /fog gpdist here | /fog gpdist <x> <y> <z> | /fog invdist all | /fog invdist here | /fog invdist <x> <y> <z> | /fog rotation here | /fog rotation <x> <y> <z> | /fog siphon here | /fog siphon <x> <y> <z> | /fog siphon powered here <true|false> | /fog siphon powered <x> <y> <z> <true|false> | /fog siphon locked here <true|false> | /fog siphon locked <x> <y> <z> <true|false> | /fog saveinfo | /fog saveworld"));
         return CompletableFuture.completedFuture(null);
     }
 
@@ -188,6 +195,78 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         if (!lastError.isBlank()) {
             context.sendMessage(Message.raw("Last save error: " + lastError));
         }
+    }
+
+    private CompletableFuture<Void> handleRotationDebug(@Nonnull CommandContext context, String[] args, int startIndex) {
+        if (!context.isPlayer()) {
+            context.sendMessage(Message.raw("This command currently requires a player sender."));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        Ref<EntityStore> playerRef = context.senderAsPlayerRef();
+        if (playerRef == null || !playerRef.isValid()) {
+            context.sendMessage(Message.raw("Could not resolve player world."));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        World world = playerRef.getStore().getExternalData().getWorld();
+        if (world == null) {
+            context.sendMessage(Message.raw("Could not resolve player world."));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        if ("here".equalsIgnoreCase(args[startIndex + 1])) {
+            return runRotationDebugOnWorldThread(context, world, () -> getPlayerBlockBelowPosition(playerRef));
+        }
+
+        if (args.length - startIndex < 4) {
+            context.sendMessage(Message.raw("Usage: /fog rotation here | /fog rotation <x> <y> <z>"));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        try {
+            int x = Integer.parseInt(args[startIndex + 1]);
+            int y = Integer.parseInt(args[startIndex + 2]);
+            int z = Integer.parseInt(args[startIndex + 3]);
+            Vector3i position = new Vector3i(x, y, z);
+            return runRotationDebugOnWorldThread(context, world, () -> position);
+        } catch (NumberFormatException exception) {
+            context.sendMessage(Message.raw("Coordinates must be integers."));
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    private CompletableFuture<Void> runRotationDebugOnWorldThread(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Supplier<Vector3i> positionSupplier) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        world.execute(() -> {
+            try {
+                sendRotationDebug(context, world, positionSupplier.get());
+                future.complete(null);
+            } catch (Exception exception) {
+                context.sendMessage(Message.raw("Rotation debug failed: " + exception.getClass().getSimpleName() + ": " + exception.getMessage()));
+                future.complete(null);
+            }
+        });
+        return future;
+    }
+
+    private void sendRotationDebug(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Vector3i position) {
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
+        RotationTuple storedRotation = ConnectableRotationStore.get(world, position);
+        RotationTuple worldRotation = getWorldRotation(world, position);
+
+        context.sendMessage(Message.raw("Rotation debug at " + formatPosition(position)));
+        context.sendMessage(Message.raw("block=" + (blockType != null ? blockType.getId() : "null")));
+        context.sendMessage(Message.raw("storedRotation=" + storedRotation));
+        context.sendMessage(Message.raw("worldRotation=" + worldRotation));
+    }
+
+    private static @Nullable RotationTuple getWorldRotation(@Nonnull World world, @Nonnull Vector3i position) {
+        BlockAccessor blockAccessor = world.getChunk(ChunkUtil.indexChunkFromBlock(position.x(), position.z()));
+        if (blockAccessor == null) {
+            return null;
+        }
+        return blockAccessor.getRotation(position.x(), position.y(), position.z());
     }
 
     private CompletableFuture<Void> handleSiphon(@Nonnull CommandContext context, String[] args, int startIndex) {

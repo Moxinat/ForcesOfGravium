@@ -10,10 +10,14 @@ public final class ConnectableRegistry {
     public static final String WIND_GENERATOR_BLOCK_ID = "WindGenerator_Block";
     public static final String GRAVIUM_SIPHON_BLOCK_ID = "Gravium_Siphon_Block";
     public static final String WOODEN_BUTTON_BLOCK_ID = "Wooden_Button_Block";
+    public static final String STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID = "Straight_Cased_Gravity_Powder";
+    public static final String CURVE_CASED_GRAVITY_POWDER_BLOCK_ID = "Curve_Cased_Gravity_Powder";
     public static final String GRAVITY_POWDER_STATE_PREFIX = "*" + GRAVITY_POWDER_BLOCK_ID + "_State_";
     public static final String INVERTER_STATE_PREFIX = "*" + INVERTER_BLOCK_ID + "_State_";
     public static final String GRAVIUM_SIPHON_STATE_PREFIX = "*" + GRAVIUM_SIPHON_BLOCK_ID + "_State_";
     public static final String WOODEN_BUTTON_STATE_PREFIX = "*" + WOODEN_BUTTON_BLOCK_ID + "_State_";
+    public static final String STRAIGHT_CASED_GRAVITY_POWDER_STATE_PREFIX = "*" + STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID + "_State_";
+    public static final String CURVE_CASED_GRAVITY_POWDER_STATE_PREFIX = "*" + CURVE_CASED_GRAVITY_POWDER_BLOCK_ID + "_State_";
     public static final int SIDE_FRONT = 1;
     public static final int SIDE_BACK = 1 << 1;
     public static final int SIDE_RIGHT = 1 << 2;
@@ -28,7 +32,9 @@ public final class ConnectableRegistry {
             INVERTER_BLOCK_ID, ALL_SIDES_MASK,
             WIND_GENERATOR_BLOCK_ID, SIDE_BACK,
             GRAVIUM_SIPHON_BLOCK_ID, SIDES_EXCEPT_FRONT_BACK_MASK,
-            WOODEN_BUTTON_BLOCK_ID, ALL_SIDES_MASK
+            WOODEN_BUTTON_BLOCK_ID, ALL_SIDES_MASK,
+            STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID, SIDE_FRONT | SIDE_BACK,
+            CURVE_CASED_GRAVITY_POWDER_BLOCK_ID, SIDE_BOTTOM | SIDE_BACK
     );
 
     private ConnectableRegistry() {
@@ -59,6 +65,12 @@ public final class ConnectableRegistry {
         if (isWoodenButtonId(blockId)) {
             return CONNECTABLE_SIDE_MASKS.getOrDefault(WOODEN_BUTTON_BLOCK_ID, 0);
         }
+        if (isStraightCasedGravityPowderId(blockId)) {
+            return CONNECTABLE_SIDE_MASKS.getOrDefault(STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID, 0);
+        }
+        if (isCurveCasedGravityPowderId(blockId)) {
+            return CONNECTABLE_SIDE_MASKS.getOrDefault(CURVE_CASED_GRAVITY_POWDER_BLOCK_ID, 0);
+        }
 
         return CONNECTABLE_SIDE_MASKS.getOrDefault(blockId, 0);
     }
@@ -85,5 +97,15 @@ public final class ConnectableRegistry {
     public static boolean isWoodenButtonId(@Nullable String blockId) {
         return WOODEN_BUTTON_BLOCK_ID.equals(blockId)
                 || (blockId != null && blockId.startsWith(WOODEN_BUTTON_STATE_PREFIX));
+    }
+
+    public static boolean isStraightCasedGravityPowderId(@Nullable String blockId) {
+        return STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID.equals(blockId)
+                || (blockId != null && blockId.startsWith(STRAIGHT_CASED_GRAVITY_POWDER_STATE_PREFIX));
+    }
+
+    public static boolean isCurveCasedGravityPowderId(@Nullable String blockId) {
+        return CURVE_CASED_GRAVITY_POWDER_BLOCK_ID.equals(blockId)
+                || (blockId != null && blockId.startsWith(CURVE_CASED_GRAVITY_POWDER_STATE_PREFIX));
     }
 }

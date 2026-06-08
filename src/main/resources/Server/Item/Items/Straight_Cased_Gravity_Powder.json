@@ -5,14 +5,14 @@
   },
   "ItemLevel": 10,
   "MaxStack": 100,
-  "Icon": "Icons/ItemsGenerated/Gravity_Powder_Default.png",
+  "Icon": "Icons/ItemsGenerated/Straight_Cased_Gravity_Powder.png",
   "Categories": [
     "ForcesOfGraviumCategory.items"
   ],
   "PlayerAnimationsId": "Block",
   "Set": "Straight_Cased_Gravity_Powder",
   "BlockType": {
-    "Material": "Empty",
+    "Material": "Solid",
     "DrawType": "Model",
     "HitboxType": "Gravity_Powder_Custom",
     "CustomModel": "Blocks/Gravity_Powder_Cased/gravity_powder_straight_cased.blockymodel",
