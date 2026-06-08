@@ -81,7 +81,9 @@ public final class ConnectableNetworkUpdateService {
     private static void addControlNeighbor(@Nonnull World world, @Nonnull Set<Vector3i> result, @Nonnull Vector3i siphon, int localSide) {
         Vector3i neighbor = ConnectableNeighborResolver.adjacentPositionForLocalSide(world, siphon, localSide);
         BlockType blockType = world.getBlockType(neighbor.x(), neighbor.y(), neighbor.z());
-        if (blockType != null && ConnectableRegistry.isGravityPowderId(blockType.getId())) {
+        if (blockType != null
+                && ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())
+                && ConnectableNeighborResolver.areMutuallyConnected(world, siphon, neighbor)) {
             result.add(neighbor);
         }
     }

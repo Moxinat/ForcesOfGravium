@@ -17,10 +17,13 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
+import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
+import java.util.Set;
 
 public final class CurveCasedGravityPowderRotationSystem {
 
@@ -66,8 +69,11 @@ public final class CurveCasedGravityPowderRotationSystem {
                 return;
             }
 
+            Set<Vector3i> previousNeighbors = ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, position);
             ConnectableRotationStore.put(world, position, nextRotation);
             blockAccessor.placeBlock(position.x(), position.y(), position.z(), blockType.getId(), nextRotation, 0, false);
+            Set<Vector3i> nextNeighbors = ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, position);
+            ConnectablePropagationScheduler.onConnectableConnectionsChanged(world, position, previousNeighbors, nextNeighbors);
         }
     }
 

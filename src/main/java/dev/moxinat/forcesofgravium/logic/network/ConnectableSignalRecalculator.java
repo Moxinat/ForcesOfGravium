@@ -1,6 +1,7 @@
 package dev.moxinat.forcesofgravium.logic.network;
 
 import org.joml.Vector3i;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
@@ -124,6 +125,7 @@ public final class ConnectableSignalRecalculator {
                 continue;
             }
             SignalState cableSignal = adapter.isCable(neighbor)
+                    && adapter.areMutuallyConnected(neighbor, inverter)
                     ? adapter.cableEffectiveSignal(neighbor)
                     : SignalState.OFF;
             if (isActive(cableSignal)) {
@@ -158,12 +160,13 @@ public final class ConnectableSignalRecalculator {
             if (neighbor.equals(step.position())) {
                 continue;
             }
-            if (adapter.isCable(neighbor)) {
+            if (adapter.isCable(neighbor) && adapter.areMutuallyConnected(step.position(), neighbor)) {
                 enqueue(queue, visited, neighbor, step.signalState());
                 continue;
             }
             if (adapter.isInverter(neighbor)
                     && step.position().equals(adapter.inverterBack(neighbor))
+                    && adapter.areMutuallyConnected(step.position(), neighbor)
                     && adapter.cableHasEffectiveSignal(step.position(), step.signalState())) {
                 enqueue(queue, visited, neighbor, step.signalState());
             }
@@ -172,7 +175,7 @@ public final class ConnectableSignalRecalculator {
 
     private static void addInverterOutput(SignalAdapter adapter, Vector3i inverter, SignalState mode, ArrayDeque<SignalStep> queue, Set<SignalStep> visited) {
         Vector3i front = adapter.inverterFront(inverter);
-        if (adapter.isCable(front)) {
+        if (adapter.isCable(front) && adapter.areMutuallyConnected(inverter, front)) {
             enqueue(queue, visited, front, mode);
             return;
         }
@@ -254,6 +257,10 @@ public final class ConnectableSignalRecalculator {
 
         @Nonnull List<Vector3i> positionsAround(@Nonnull Vector3i position);
 
+        default boolean areMutuallyConnected(@Nonnull Vector3i first, @Nonnull Vector3i second) {
+            return true;
+        }
+
         void setCableSignal(@Nonnull Vector3i position, @Nonnull SignalState mode);
 
         void setInverterState(@Nonnull Vector3i position, @Nonnull String mode, boolean invertEnabled, @Nonnull SignalState lastToggleInputMode);
@@ -306,7 +313,12 @@ public final class ConnectableSignalRecalculator {
 
         @Override
         public boolean isCable(@Nonnull Vector3i position) {
-            return cables.contains(position);
+            if (!cables.contains(position)) {
+                return false;
+            }
+
+            BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
+            return blockType != null && ConnectableRegistry.isGravityPowderCarrierId(blockType.getId());
         }
 
         @Override
@@ -316,7 +328,12 @@ public final class ConnectableSignalRecalculator {
 
         @Override
         public boolean hasAdjacentSourceForCable(@Nonnull Vector3i cable) {
-            return !ConnectableNeighborResolver.sourceNeighbors(world, cable, null).isEmpty();
+            for (Vector3i source : ConnectableNeighborResolver.sourceNeighbors(world, cable, null)) {
+                if (ConnectableNeighborResolver.hasConnectableSideFacing(world, cable, source)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         @Override
@@ -332,7 +349,8 @@ public final class ConnectableSignalRecalculator {
 
         @Override
         public boolean cableHasEffectiveSignal(@Nonnull Vector3i cable, @Nonnull SignalState state) {
-            return GravityPowderBlockDataStore.get(world, cable).effectiveState().equals(stateForSignal(state));
+            GravityPowderBlockDataStore.GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, cable);
+            return data != null && data.effectiveState().equals(stateForSignal(state));
         }
 
         @Override
@@ -372,6 +390,11 @@ public final class ConnectableSignalRecalculator {
         @Override
         public @Nonnull List<Vector3i> positionsAround(@Nonnull Vector3i position) {
             return ConnectableNeighborResolver.positionsAround(position);
+        }
+
+        @Override
+        public boolean areMutuallyConnected(@Nonnull Vector3i first, @Nonnull Vector3i second) {
+            return ConnectableNeighborResolver.areMutuallyConnected(world, first, second);
         }
 
         @Override

@@ -44,7 +44,10 @@ public final class InverterStateCalculator {
             return directSourceInputMode(world, backNeighborPosition, backNeighborType.getId());
         }
 
-        if (ConnectableRegistry.isGravityPowderId(backNeighborType.getId())) {
+        if (ConnectableRegistry.isGravityPowderCarrierId(backNeighborType.getId())) {
+            if (!ConnectableNeighborResolver.areMutuallyConnected(world, backNeighborPosition, position)) {
+                return GravityPowderBlockDataStore.STATE_OFF;
+            }
             GravityPowderBlockData backNeighborData = GravityPowderBlockDataStore.getOrCreate(world, backNeighborPosition);
             return backNeighborData.effectiveState();
         }

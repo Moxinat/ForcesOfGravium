@@ -56,7 +56,7 @@ public final class ConnectableBlockLifecycleSystem {
 
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
-            if (ConnectableRegistry.isGravityPowderId(itemInHand.getItemId())) {
+            if (ConnectableRegistry.isGravityPowderCarrierId(itemInHand.getItemId())) {
                 GravityPowderBlockDataStore.putDefault(world, target);
             }
             if (ConnectableRegistry.isInverterId(itemInHand.getItemId())) {
@@ -100,7 +100,7 @@ public final class ConnectableBlockLifecycleSystem {
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
             ConnectableRotationStore.remove(world, target);
-            if (ConnectableRegistry.isGravityPowderId(brokenType.getId())) {
+            if (ConnectableRegistry.isGravityPowderCarrierId(brokenType.getId())) {
                 GravityPowderBlockDataStore.remove(world, target);
             }
             if (ConnectableRegistry.isInverterId(brokenType.getId())) {

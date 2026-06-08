@@ -84,6 +84,10 @@ public final class ConnectableRegistry {
                 || (blockId != null && blockId.startsWith(GRAVITY_POWDER_STATE_PREFIX));
     }
 
+    public static boolean isGravityPowderCarrierId(@Nullable String blockId) {
+        return isGravityPowderId(blockId) || isCasedGravityPowderId(blockId);
+    }
+
     public static boolean isInverterId(@Nullable String blockId) {
         return INVERTER_BLOCK_ID.equals(blockId)
                 || (blockId != null && blockId.startsWith(INVERTER_STATE_PREFIX));
@@ -107,5 +111,9 @@ public final class ConnectableRegistry {
     public static boolean isCurveCasedGravityPowderId(@Nullable String blockId) {
         return CURVE_CASED_GRAVITY_POWDER_BLOCK_ID.equals(blockId)
                 || (blockId != null && blockId.startsWith(CURVE_CASED_GRAVITY_POWDER_STATE_PREFIX));
+    }
+
+    public static boolean isCasedGravityPowderId(@Nullable String blockId) {
+        return isStraightCasedGravityPowderId(blockId) || isCurveCasedGravityPowderId(blockId);
     }
 }

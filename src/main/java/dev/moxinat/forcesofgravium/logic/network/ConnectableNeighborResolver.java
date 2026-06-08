@@ -120,6 +120,57 @@ public final class ConnectableNeighborResolver {
         return mask;
     }
 
+    public static boolean areMutuallyConnected(World world, Vector3i first, Vector3i second) {
+        WorldSide firstToSecond = worldSideFromSourceToTarget(first, second);
+        if (firstToSecond == null) {
+            return false;
+        }
+
+        BlockType firstType = world.getBlockType(first.x(), first.y(), first.z());
+        BlockType secondType = world.getBlockType(second.x(), second.y(), second.z());
+        if (firstType == null || secondType == null) {
+            return false;
+        }
+
+        String firstId = firstType.getId();
+        String secondId = secondType.getId();
+        if (ConnectableRegistry.isNotConnectable(firstId) || ConnectableRegistry.isNotConnectable(secondId)) {
+            return false;
+        }
+
+        RotationTuple firstRotation = rotationFor(world, first);
+        RotationTuple secondRotation = rotationFor(world, second);
+        return hasLocalSideFacingWorldSide(firstId, firstRotation, firstToSecond)
+                && hasLocalSideFacingWorldSide(secondId, secondRotation, firstToSecond.opposite());
+    }
+
+    public static java.util.Set<Vector3i> mutuallyConnectedNeighbors(World world, Vector3i position) {
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+        for (Vector3i candidate : positionsAround(position)) {
+            if (candidate.equals(position)) {
+                continue;
+            }
+            if (areMutuallyConnected(world, position, candidate)) {
+                result.add(candidate);
+            }
+        }
+        return java.util.Set.copyOf(result);
+    }
+
+    public static boolean hasConnectableSideFacing(World world, Vector3i position, Vector3i target) {
+        WorldSide worldSide = worldSideFromSourceToTarget(position, target);
+        if (worldSide == null) {
+            return false;
+        }
+
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
+        if (blockType == null || ConnectableRegistry.isNotConnectable(blockType.getId())) {
+            return false;
+        }
+
+        return hasLocalSideFacingWorldSide(blockType.getId(), rotationFor(world, position), worldSide);
+    }
+
     private static void addSourceNeighbor(World world, List<Vector3i> sources, int x, int y, int z, Vector3i treatAsEmpty, WorldSide requiredWorldSide) {
         if (isTreatAsEmpty(new Vector3i(x, y, z), treatAsEmpty)) {
             return;
@@ -249,6 +300,17 @@ public final class ConnectableNeighborResolver {
                 }
             }
             throw new IllegalArgumentException("Unsupported world direction vector: " + x + "," + y + "," + z);
+        }
+
+        public WorldSide opposite() {
+            return switch (this) {
+                case EAST -> WEST;
+                case WEST -> EAST;
+                case SOUTH -> NORTH;
+                case NORTH -> SOUTH;
+                case UP -> DOWN;
+                case DOWN -> UP;
+            };
         }
     }
 }

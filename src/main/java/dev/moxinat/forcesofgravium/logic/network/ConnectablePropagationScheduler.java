@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
+import dev.moxinat.forcesofgravium.logic.gravity.CasedGravityPowderBlockRefresher;
 import dev.moxinat.forcesofgravium.logic.gravity.GravityPowderBlockRefresher;
 import dev.moxinat.forcesofgravium.logic.inverter.InverterBlockRefresher;
 import dev.moxinat.forcesofgravium.logic.inverter.InverterStateCalculator;
@@ -38,6 +39,21 @@ public final class ConnectablePropagationScheduler {
     public static void onConnectableBroken(World world, Vector3i target) {
         PENDING_BROKEN.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet()).add(target);
         enqueueRecompute(world, target);
+    }
+
+    public static void onConnectableConnectionsChanged(World world, Vector3i target, Set<Vector3i> previousNeighbors, Set<Vector3i> nextNeighbors) {
+        PENDING_BROKEN.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet()).add(target);
+        PENDING_BROKEN.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet()).addAll(previousNeighbors);
+        PENDING_PLACED.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet()).add(target);
+        PENDING_PLACED.computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet()).addAll(nextNeighbors);
+
+        enqueueRecompute(world, target);
+        for (Vector3i neighbor : previousNeighbors) {
+            enqueueRecompute(world, neighbor);
+        }
+        for (Vector3i neighbor : nextNeighbors) {
+            enqueueRecompute(world, neighbor);
+        }
     }
 
     public static void tickPropagation() {
@@ -77,7 +93,7 @@ public final class ConnectablePropagationScheduler {
         if (affectedPositions.isEmpty()) {
             visibleChangedCables.addAll(processWaveAdoptions(world, waveAdoptionTargets));
             for (Vector3i cable : visibleChangedCables) {
-                GravityPowderBlockRefresher.refreshAt(world, cable);
+                refreshCableAt(world, cable);
             }
             visibleChangedCables.addAll(updateInvertersWithBackIn(world, visibleChangedCables));
             updateInvertersWithSideIn(world, visibleChangedCables);
@@ -105,7 +121,7 @@ public final class ConnectablePropagationScheduler {
             if (!cables.contains(cable)) {
                 continue;
             }
-            GravityPowderBlockRefresher.refreshAt(world, cable);
+            refreshCableAt(world, cable);
         }
         for (Vector3i inverter : affectedPositions) {
             if (!inverters.contains(inverter)) {
@@ -184,8 +200,9 @@ public final class ConnectablePropagationScheduler {
             Map<Vector3i, String> previousInstantStates = snapshotInstantStates(world, retainKnownCables(world, affectedPositions));
             ConnectableSignalRecalculator.recompute(world, affectedPositions);
             clearPendingWaveAdoptions(world, changedInstantStateCables(world, previousInstantStates));
-            if (adoptInstantStateAndScheduleNeighbors(world, front)) {
-                GravityPowderBlockRefresher.refreshAt(world, front);
+            if (ConnectableNeighborResolver.areMutuallyConnected(world, inverter, front)
+                    && adoptInstantStateAndScheduleNeighbors(world, front)) {
+                refreshCableAt(world, front);
                 visibleChangedCables.add(front);
             }
             InverterDataStore.clearWaveDirty(world, inverter);
@@ -198,6 +215,22 @@ public final class ConnectablePropagationScheduler {
         result.addAll(first);
         result.addAll(second);
         return Set.copyOf(result);
+    }
+
+    private static void refreshCableAt(World world, Vector3i cable) {
+        BlockType blockType = world.getBlockType(cable.x(), cable.y(), cable.z());
+        if (blockType == null) {
+            return;
+        }
+
+        if (ConnectableRegistry.isCasedGravityPowderId(blockType.getId())) {
+            CasedGravityPowderBlockRefresher.refreshAt(world, cable);
+            return;
+        }
+
+        if (ConnectableRegistry.isGravityPowderId(blockType.getId())) {
+            GravityPowderBlockRefresher.refreshAt(world, cable);
+        }
     }
 
     private static void enqueueRecompute(World world, Vector3i target) {
@@ -303,7 +336,67 @@ public final class ConnectablePropagationScheduler {
     private static Set<Vector3i> affectedConnectablePositions(World world, Set<Vector3i> dirtyPositions) {
         Set<Vector3i> cables = GravityPowderBlockDataStore.snapshotForWorld(world).keySet();
         Set<Vector3i> inverters = InverterDataStore.snapshotForWorld(world).keySet();
-        return affectedConnectablePositions(dirtyPositions, cables, inverters);
+        Set<Vector3i> connectables = new HashSet<>();
+        connectables.addAll(cables);
+        connectables.addAll(inverters);
+        if (connectables.isEmpty()) {
+            return Set.of();
+        }
+
+        LinkedHashSet<Vector3i> affected = new LinkedHashSet<>();
+        LinkedHashSet<Vector3i> queue = new LinkedHashSet<>();
+        for (Vector3i dirtyPosition : dirtyPositions) {
+            if (isKnownConnectable(world, dirtyPosition) && connectables.contains(dirtyPosition) && affected.add(dirtyPosition)) {
+                queue.add(dirtyPosition);
+            }
+            for (Vector3i candidate : ConnectableNeighborResolver.positionsAround(dirtyPosition)) {
+                if (candidate.equals(dirtyPosition) || !connectables.contains(candidate) || !isKnownConnectable(world, candidate)) {
+                    continue;
+                }
+                if (isConnectableAffectedByDirtyPosition(world, dirtyPosition, candidate, connectables)
+                        && affected.add(candidate)) {
+                    queue.add(candidate);
+                }
+            }
+        }
+
+        while (!queue.isEmpty()) {
+            Vector3i current = queue.removeFirst();
+            for (Vector3i neighbor : ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, current)) {
+                if (!connectables.contains(neighbor) || !isKnownConnectable(world, neighbor)) {
+                    continue;
+                }
+                if (affected.add(neighbor)) {
+                    queue.add(neighbor);
+                }
+            }
+        }
+
+        return Set.copyOf(affected);
+    }
+
+    private static boolean isConnectableAffectedByDirtyPosition(
+            World world,
+            Vector3i dirtyPosition,
+            Vector3i candidate,
+            Set<Vector3i> connectables
+    ) {
+        if (isKnownConnectable(world, dirtyPosition) && connectables.contains(dirtyPosition)) {
+            return ConnectableNeighborResolver.areMutuallyConnected(world, dirtyPosition, candidate);
+        }
+
+        BlockType dirtyType = world.getBlockType(dirtyPosition.x(), dirtyPosition.y(), dirtyPosition.z());
+        if (dirtyType != null && ConnectableBlockRoles.isSource(dirtyType.getId())) {
+            return ConnectableNeighborResolver.hasConnectableSideFacing(world, dirtyPosition, candidate)
+                    && ConnectableNeighborResolver.hasConnectableSideFacing(world, candidate, dirtyPosition);
+        }
+
+        return ConnectableNeighborResolver.hasConnectableSideFacing(world, candidate, dirtyPosition);
+    }
+
+    private static boolean isKnownConnectable(World world, Vector3i position) {
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
+        return blockType != null && !ConnectableRegistry.isNotConnectable(blockType.getId());
     }
 
     static Set<Vector3i> affectedConnectablePositions(Set<Vector3i> dirtyPositions, Set<Vector3i> cables, Set<Vector3i> inverters) {
@@ -395,6 +488,10 @@ public final class ConnectablePropagationScheduler {
                 if (!cables.contains(neighbor)) {
                     continue;
                 }
+                if (!ConnectableNeighborResolver.isSourceNeighborOf(world, sourceTarget, neighbor)
+                        || !ConnectableNeighborResolver.hasConnectableSideFacing(world, neighbor, sourceTarget)) {
+                    continue;
+                }
                 GravityPowderBlockDataStore.GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, neighbor);
                 if (data != null && data.dirty() && adoptInstantStateAndScheduleNeighbors(world, neighbor)) {
                     visibleChangedCables.add(neighbor);
@@ -434,6 +531,9 @@ public final class ConnectablePropagationScheduler {
                     continue;
                 }
                 if (cables.contains(neighbor)) {
+                    if (!ConnectableNeighborResolver.hasConnectableSideFacing(world, neighbor, target)) {
+                        continue;
+                    }
                     if (adoptInstantStateAndScheduleNeighbors(world, neighbor)) {
                         visibleChangedCables.add(neighbor);
                     }
@@ -476,10 +576,7 @@ public final class ConnectablePropagationScheduler {
             return false;
         }
 
-        for (Vector3i neighbor : ConnectableNeighborResolver.positionsAround(target)) {
-            if (neighbor.equals(target)) {
-                continue;
-            }
+        for (Vector3i neighbor : ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, target)) {
             GravityPowderBlockDataStore.GravityPowderBlockData neighborData =
                     GravityPowderBlockDataStore.get(world, neighbor);
             if (neighborData != null && neighborData.dirty()) {

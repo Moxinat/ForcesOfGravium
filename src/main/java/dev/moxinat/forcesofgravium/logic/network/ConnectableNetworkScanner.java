@@ -71,7 +71,7 @@ public final class ConnectableNetworkScanner {
             SignalState mode
     ) {
         for (Vector3i neighbor : adapter.positionsAround(position)) {
-            if (neighbor.equals(position) || !adapter.isCable(neighbor)) {
+            if (neighbor.equals(position) || !adapter.isCable(neighbor) || !adapter.areMutuallyConnected(position, neighbor)) {
                 continue;
             }
             enqueueIfCarrier(adapter, queue, visited, neighbor, mode);
@@ -98,6 +98,9 @@ public final class ConnectableNetworkScanner {
             if (!cable.equals(back) && !cable.equals(front)) {
                 continue;
             }
+            if (!adapter.areMutuallyConnected(cable, neighbor)) {
+                continue;
+            }
 
             inverters.add(neighbor);
             sources.addAll(adapter.sourceNeighbors(neighbor));
@@ -105,7 +108,9 @@ public final class ConnectableNetworkScanner {
 
             SignalState otherSideMode = adapter.isInvertEnabled(neighbor) ? mode.inverted() : mode;
             Vector3i otherSide = cable.equals(back) ? front : back;
-            enqueueIfCarrier(adapter, queue, visited, otherSide, otherSideMode);
+            if (adapter.isCable(otherSide) && adapter.areMutuallyConnected(neighbor, otherSide)) {
+                enqueueIfCarrier(adapter, queue, visited, otherSide, otherSideMode);
+            }
         }
     }
 
@@ -139,6 +144,10 @@ public final class ConnectableNetworkScanner {
 
         @Nonnull List<Vector3i> positionsAround(@Nonnull Vector3i position);
 
+        default boolean areMutuallyConnected(@Nonnull Vector3i first, @Nonnull Vector3i second) {
+            return true;
+        }
+
         @Nonnull Set<Vector3i> sourceNeighbors(@Nonnull Vector3i position);
 
         @Nonnull Set<Vector3i> consumerNeighbors(@Nonnull Vector3i position);
@@ -153,7 +162,7 @@ public final class ConnectableNetworkScanner {
         @Override
         public boolean isCable(@Nonnull Vector3i position) {
             BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
-            return blockType != null && ConnectableRegistry.isGravityPowderId(blockType.getId());
+            return blockType != null && ConnectableRegistry.isGravityPowderCarrierId(blockType.getId());
         }
 
         @Override
@@ -197,8 +206,19 @@ public final class ConnectableNetworkScanner {
         }
 
         @Override
+        public boolean areMutuallyConnected(@Nonnull Vector3i first, @Nonnull Vector3i second) {
+            return ConnectableNeighborResolver.areMutuallyConnected(world, first, second);
+        }
+
+        @Override
         public @Nonnull Set<Vector3i> sourceNeighbors(@Nonnull Vector3i position) {
-            return Set.copyOf(ConnectableNeighborResolver.sourceNeighbors(world, position, null));
+            LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+            for (Vector3i source : ConnectableNeighborResolver.sourceNeighbors(world, position, null)) {
+                if (ConnectableNeighborResolver.hasConnectableSideFacing(world, position, source)) {
+                    result.add(source);
+                }
+            }
+            return Set.copyOf(result);
         }
 
         @Override
