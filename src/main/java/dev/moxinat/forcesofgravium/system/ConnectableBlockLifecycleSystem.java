@@ -14,7 +14,7 @@ import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
@@ -68,7 +68,7 @@ public final class ConnectableBlockLifecycleSystem {
             if (ConnectableBlockRoles.isSource(itemInHand.getItemId())) {
                 SourceBlockDataStore.putDefault(world, target, itemInHand.getItemId());
             }
-            ConnectableRotationStore.put(world, target, event.getRotation());
+            ConnectableRuntimeAccessor.setRotation(world, target, event.getRotation());
             ConnectablePropagationScheduler.onConnectablePlaced(world, target);
         }
     }
@@ -99,7 +99,7 @@ public final class ConnectableBlockLifecycleSystem {
 
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
-            ConnectableRotationStore.remove(world, target);
+            ConnectableRuntimeAccessor.remove(world, target);
             if (ConnectableRegistry.isGravityPowderCarrierId(brokenType.getId())) {
                 GravityPowderBlockDataStore.remove(world, target);
             }

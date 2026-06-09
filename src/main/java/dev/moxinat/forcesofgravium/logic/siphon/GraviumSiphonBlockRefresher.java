@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
 import dev.moxinat.forcesofgravium.data.GraviumSiphonStore.GraviumSiphonData;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -47,7 +47,7 @@ public final class GraviumSiphonBlockRefresher {
             return;
         }
 
-        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, position, RotationTuple.NONE);
+        RotationTuple rotation = ConnectableRuntimeAccessor.getRotation(world, position);
         chunk.placeBlock(x, y, z, blockKey, rotation, 0, false);
     }
 

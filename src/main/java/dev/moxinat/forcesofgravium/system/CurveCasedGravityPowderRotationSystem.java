@@ -16,7 +16,7 @@ import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -58,7 +58,7 @@ public final class CurveCasedGravityPowderRotationSystem {
 
             World world = player.getWorld();
             Vector3i position = new Vector3i(event.getTargetBlock());
-            RotationTuple currentRotation = ConnectableRotationStore.get(world, position);
+            RotationTuple currentRotation = ConnectableRuntimeAccessor.storedRotation(world, position);
             if (currentRotation == null) {
                 return;
             }
@@ -70,7 +70,7 @@ public final class CurveCasedGravityPowderRotationSystem {
             }
 
             Set<Vector3i> previousNeighbors = ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, position);
-            ConnectableRotationStore.put(world, position, nextRotation);
+            ConnectableRuntimeAccessor.setRotation(world, position, nextRotation);
             blockAccessor.placeBlock(position.x(), position.y(), position.z(), blockType.getId(), nextRotation, 0, false);
             Set<Vector3i> nextNeighbors = ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, position);
             ConnectablePropagationScheduler.onConnectableConnectionsChanged(world, position, previousNeighbors, nextNeighbors);

@@ -17,14 +17,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public final class ConnectableRuntimeAccessor {
-
-    private static final Map<ConnectableRuntimeKey, Long> NETWORK_IDS = new ConcurrentHashMap<>();
-    private static final Map<ConnectableRuntimeKey, Integer> ENERGY_DELTAS = new ConcurrentHashMap<>();
-    private static final Map<ConnectableRuntimeKey, Boolean> PASSING_OVERRIDES = new ConcurrentHashMap<>();
 
     private ConnectableRuntimeAccessor() {
     }
@@ -54,21 +49,14 @@ public final class ConnectableRuntimeAccessor {
     }
 
     public static @Nonnull ConnectableRuntimeData get(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String blockId) {
-        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, position, RotationTuple.NONE);
-        long networkId = getNetworkId(world, position);
+        RotationTuple rotation = getRotation(world, position);
+        ConnectableRuntimeData mirror = ConnectableDataStore.get(world, position);
+        long networkId = mirror == null ? ConnectableRuntimeData.NO_NETWORK : mirror.networkId();
 
-        if (ConnectableRegistry.isGravityPowderCarrierId(blockId)) {
-            return fromGravityPowder(world, position, rotation, networkId);
-        }
-        if (ConnectableRegistry.isInverterId(blockId)) {
-            return fromInverter(world, position, rotation, networkId);
-        }
-        if (ConnectableBlockRoles.isSource(blockId)) {
-            return fromSource(world, position, blockId, rotation, networkId);
-        }
-        return ConnectableRuntimeData.defaultData()
-                .withRotation(rotation)
-                .withNetworkId(networkId);
+        ConnectableRuntimeData data = fromOldStores(world, position, blockId, rotation, networkId);
+        data = withMirrorRuntimeOnlyFields(data, mirror);
+        ConnectableDataStore.put(world, position, data);
+        return data;
     }
 
     public static void put(@Nonnull World world, @Nonnull Vector3i position, @Nonnull ConnectableRuntimeData data) {
@@ -77,6 +65,7 @@ public final class ConnectableRuntimeAccessor {
             return;
         }
 
+        ConnectableDataStore.put(world, position, data);
         setRotation(world, position, data.rotation());
         setNetworkId(world, position, data.networkId());
         setPassing(world, position, data.passing());
@@ -107,15 +96,65 @@ public final class ConnectableRuntimeAccessor {
         // Delegates to the existing wave adoption behavior; no dirty-versioning or timing semantics change here.
         if (ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())) {
             GravityPowderBlockDataStore.adoptInstantState(world, position);
+            mirrorFromOldStores(world, position, blockType.getId());
             return;
         }
         if (ConnectableRegistry.isInverterId(blockType.getId())) {
             InverterDataStore.adoptCurrentMode(world, position);
+            mirrorFromOldStores(world, position, blockType.getId());
         }
     }
 
+    public static @Nonnull RotationTuple rotation(@Nonnull World world, @Nonnull Vector3i position) {
+        return getRotation(world, position);
+    }
+
+    public static @Nonnull RotationTuple getRotation(@Nonnull World world, @Nonnull Vector3i position) {
+        ConnectableRuntimeData mirror = ConnectableDataStore.get(world, position);
+        if (mirror != null) {
+            return mirror.rotation();
+        }
+
+        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, position, RotationTuple.NONE);
+        // Rotation is runtime-owned by ConnectableDataStore from this step onward.
+        // The old rotation store remains the persistence/compatibility fallback until save migration.
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
+        ConnectableRuntimeData data = blockType == null || ConnectableRegistry.isNotConnectable(blockType.getId())
+                ? ConnectableRuntimeData.defaultData().withRotation(rotation)
+                : fromOldStores(world, position, blockType.getId(), rotation, ConnectableRuntimeData.NO_NETWORK);
+        ConnectableDataStore.put(world, position, data);
+        return rotation;
+    }
+
+    public static @Nullable RotationTuple storedRotation(@Nonnull World world, @Nonnull Vector3i position) {
+        RotationTuple rotation = ConnectableRotationStore.get(world, position);
+        if (rotation == null) {
+            return null;
+        }
+
+        ConnectableRuntimeData mirror = ConnectableDataStore.get(world, position);
+        if (mirror != null) {
+            return mirror.rotation();
+        }
+
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
+        ConnectableRuntimeData data = blockType == null || ConnectableRegistry.isNotConnectable(blockType.getId())
+                ? ConnectableRuntimeData.defaultData().withRotation(rotation)
+                : fromOldStores(world, position, blockType.getId(), rotation, ConnectableRuntimeData.NO_NETWORK);
+        ConnectableDataStore.put(world, position, data);
+        return rotation;
+    }
+
     public static void setRotation(@Nonnull World world, @Nonnull Vector3i position, @Nonnull RotationTuple rotation) {
+        ConnectableRuntimeData data = get(world, position)
+                .orElseGet(() -> ConnectableRuntimeData.defaultData().withRotation(rotation));
+        ConnectableDataStore.put(world, position, data.withRotation(rotation));
         ConnectableRotationStore.put(world, position, rotation);
+    }
+
+    public static void remove(@Nonnull World world, @Nonnull Vector3i position) {
+        ConnectableDataStore.remove(world, position);
+        ConnectableRotationStore.remove(world, position);
     }
 
     public static void setInstantState(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String instantState) {
@@ -126,6 +165,7 @@ public final class ConnectableRuntimeAccessor {
         // Delegates to the old physical stores. The unified runtime layer does not own timeline data yet.
         if (ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())) {
             GravityPowderBlockDataStore.setInstantState(world, position, instantState);
+            mirrorFromOldStores(world, position, blockType.getId());
             return;
         }
         if (ConnectableRegistry.isInverterId(blockType.getId())) {
@@ -138,6 +178,7 @@ public final class ConnectableRuntimeAccessor {
                     existing.invertEnabled(),
                     existing.lastToggleInputMode()
             );
+            mirrorFromOldStores(world, position, blockType.getId());
         }
     }
 
@@ -152,6 +193,7 @@ public final class ConnectableRuntimeAccessor {
             } else {
                 GravityPowderBlockDataStore.clearWaveDirty(world, position);
             }
+            mirrorFromOldStores(world, position, blockType.getId());
             return;
         }
         if (ConnectableRegistry.isInverterId(blockType.getId())) {
@@ -160,6 +202,7 @@ public final class ConnectableRuntimeAccessor {
             } else {
                 InverterDataStore.clearWaveDirty(world, position);
             }
+            mirrorFromOldStores(world, position, blockType.getId());
         }
     }
 
@@ -173,21 +216,16 @@ public final class ConnectableRuntimeAccessor {
                 invertEnabled,
                 existing.lastToggleInputMode()
         );
+        mirrorFromOldStores(world, position, ConnectableRegistry.INVERTER_BLOCK_ID);
     }
 
     public static void setPassing(@Nonnull World world, @Nonnull Vector3i position, boolean passing) {
-        ConnectableRuntimeKey key = ConnectableRuntimeKey.from(world, position);
-        boolean defaultPassing = defaultPassing(world, position);
-        if (passing == defaultPassing) {
-            PASSING_OVERRIDES.remove(key);
-            return;
-        }
         // Runtime-only placeholder. There is no old-store field for generic pass behavior yet.
-        PASSING_OVERRIDES.put(key, passing);
+        mirrorRuntimeData(world, position, currentOrDefault(world, position).withPassing(passing));
     }
 
     public static int energyDelta(@Nonnull World world, @Nonnull Vector3i position) {
-        return ENERGY_DELTAS.getOrDefault(ConnectableRuntimeKey.from(world, position), defaultEnergyDelta(world, position));
+        return currentOrDefault(world, position).energyDelta();
     }
 
     public static int getEnergyDelta(@Nonnull World world, @Nonnull Vector3i position) {
@@ -195,14 +233,8 @@ public final class ConnectableRuntimeAccessor {
     }
 
     public static void setEnergyDelta(@Nonnull World world, @Nonnull Vector3i position, int energyDelta) {
-        ConnectableRuntimeKey key = ConnectableRuntimeKey.from(world, position);
-        int defaultEnergyDelta = defaultEnergyDelta(world, position);
-        if (energyDelta == defaultEnergyDelta) {
-            ENERGY_DELTAS.remove(key);
-            return;
-        }
         // Runtime-only placeholder. This must not activate power mechanics or source behavior yet.
-        ENERGY_DELTAS.put(key, energyDelta);
+        mirrorRuntimeData(world, position, currentOrDefault(world, position).withEnergyDelta(energyDelta));
     }
 
     public static long networkId(@Nonnull World world, @Nonnull Vector3i position) {
@@ -210,41 +242,34 @@ public final class ConnectableRuntimeAccessor {
     }
 
     public static long getNetworkId(@Nonnull World world, @Nonnull Vector3i position) {
-        return NETWORK_IDS.getOrDefault(ConnectableRuntimeKey.from(world, position), ConnectableRuntimeData.NO_NETWORK);
+        ConnectableRuntimeData data = ConnectableDataStore.get(world, position);
+        return data == null ? ConnectableRuntimeData.NO_NETWORK : data.networkId();
     }
 
     public static void setNetworkId(@Nonnull World world, @Nonnull Vector3i position, long networkId) {
-        ConnectableRuntimeKey key = ConnectableRuntimeKey.from(world, position);
-        if (networkId == ConnectableRuntimeData.NO_NETWORK) {
-            NETWORK_IDS.remove(key);
-            return;
-        }
-        NETWORK_IDS.put(key, networkId);
+        mirrorRuntimeData(world, position, currentOrDefault(world, position).withNetworkId(networkId));
     }
 
     public static void clearNetworkId(@Nonnull World world, @Nonnull Vector3i position) {
-        NETWORK_IDS.remove(ConnectableRuntimeKey.from(world, position));
+        setNetworkId(world, position, ConnectableRuntimeData.NO_NETWORK);
     }
 
     public static void clearNetworkIds(@Nonnull World world) {
-        String worldIdentity = world.getName();
-        NETWORK_IDS.keySet().removeIf(key -> key.worldIdentity().equals(worldIdentity));
+        for (Map.Entry<Vector3i, ConnectableRuntimeData> entry : ConnectableDataStore.snapshotForWorld(world).entrySet()) {
+            ConnectableDataStore.put(world, entry.getKey(), entry.getValue().withNetworkId(ConnectableRuntimeData.NO_NETWORK));
+        }
     }
 
-    public static void clearRuntimeOnlyDataForWorld(@Nonnull World world) {
-        String worldIdentity = world.getName();
-        NETWORK_IDS.keySet().removeIf(key -> key.worldIdentity().equals(worldIdentity));
-        ENERGY_DELTAS.keySet().removeIf(key -> key.worldIdentity().equals(worldIdentity));
-        PASSING_OVERRIDES.keySet().removeIf(key -> key.worldIdentity().equals(worldIdentity));
+    public static void clearMirrorForWorld(@Nonnull World world) {
+        ConnectableDataStore.clearWorld(world);
     }
 
     public static @Nonnull Map<Vector3i, Long> networkIdSnapshotForWorld(@Nonnull World world) {
-        String worldIdentity = world.getName();
-        return NETWORK_IDS.entrySet().stream()
-                .filter(entry -> entry.getKey().worldIdentity().equals(worldIdentity))
+        return ConnectableDataStore.snapshotForWorld(world).entrySet().stream()
+                .filter(entry -> entry.getValue().networkId() != ConnectableRuntimeData.NO_NETWORK)
                 .collect(Collectors.toMap(
-                        entry -> entry.getKey().position(),
-                        Map.Entry::getValue
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().networkId()
                 ));
     }
 
@@ -290,8 +315,8 @@ public final class ConnectableRuntimeAccessor {
                 data.effectiveState(),
                 data.dirty(),
                 false,
-                passing(world, position, true),
-                energyDelta(world, position),
+                true,
+                defaultEnergyDelta(world, position),
                 networkId
         );
     }
@@ -314,8 +339,8 @@ public final class ConnectableRuntimeAccessor {
                 data.effectiveState(),
                 data.dirty(),
                 data.invertEnabled(),
-                passing(world, position, true),
-                energyDelta(world, position),
+                true,
+                defaultEnergyDelta(world, position),
                 networkId
         );
     }
@@ -338,10 +363,31 @@ public final class ConnectableRuntimeAccessor {
                 state,
                 false,
                 false,
-                passing(world, position, false),
-                energyDelta(world, position),
+                false,
+                defaultEnergyDelta(world, position),
                 networkId
         );
+    }
+
+    private static @Nonnull ConnectableRuntimeData fromOldStores(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull String blockId,
+            @Nonnull RotationTuple rotation,
+            long networkId
+    ) {
+        if (ConnectableRegistry.isGravityPowderCarrierId(blockId)) {
+            return fromGravityPowder(world, position, rotation, networkId);
+        }
+        if (ConnectableRegistry.isInverterId(blockId)) {
+            return fromInverter(world, position, rotation, networkId);
+        }
+        if (ConnectableBlockRoles.isSource(blockId)) {
+            return fromSource(world, position, blockId, rotation, networkId);
+        }
+        return ConnectableRuntimeData.defaultData()
+                .withRotation(rotation)
+                .withNetworkId(networkId);
     }
 
     private static void writeGravityPowder(
@@ -378,17 +424,29 @@ public final class ConnectableRuntimeAccessor {
         setDirty(world, position, data.dirty());
     }
 
-    private static boolean passing(@Nonnull World world, @Nonnull Vector3i position, boolean defaultValue) {
-        return PASSING_OVERRIDES.getOrDefault(ConnectableRuntimeKey.from(world, position), defaultValue);
+    private static @Nonnull ConnectableRuntimeData currentOrDefault(@Nonnull World world, @Nonnull Vector3i position) {
+        return get(world, position).orElse(ConnectableRuntimeData.defaultData());
     }
 
-    private static boolean defaultPassing(@Nonnull World world, @Nonnull Vector3i position) {
-        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
-        if (blockType == null) {
-            return false;
+    private static void mirrorRuntimeData(@Nonnull World world, @Nonnull Vector3i position, @Nonnull ConnectableRuntimeData data) {
+        ConnectableDataStore.put(world, position, data);
+    }
+
+    private static void mirrorFromOldStores(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String blockId) {
+        get(world, position, blockId);
+    }
+
+    private static @Nonnull ConnectableRuntimeData withMirrorRuntimeOnlyFields(
+            @Nonnull ConnectableRuntimeData oldStoreData,
+            @Nullable ConnectableRuntimeData mirror
+    ) {
+        if (mirror == null) {
+            return oldStoreData;
         }
-        return ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())
-                || ConnectableRegistry.isInverterId(blockType.getId());
+        return oldStoreData
+                .withPassing(mirror.passing())
+                .withEnergyDelta(mirror.energyDelta())
+                .withNetworkId(mirror.networkId());
     }
 
     private static int defaultEnergyDelta(@Nonnull World world, @Nonnull Vector3i position) {

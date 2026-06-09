@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
-import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import org.joml.Vector3i;
@@ -52,7 +51,7 @@ public final class CasedGravityPowderBlockRefresher {
             return;
         }
 
-        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, new Vector3i(x, y, z), RotationTuple.NONE);
+        RotationTuple rotation = ConnectableRuntimeAccessor.getRotation(world, new Vector3i(x, y, z));
         chunk.placeBlock(x, y, z, blockKey, rotation, 0, false);
     }
 

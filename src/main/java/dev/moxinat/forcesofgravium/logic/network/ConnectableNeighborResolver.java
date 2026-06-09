@@ -7,7 +7,7 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -249,8 +249,7 @@ public final class ConnectableNeighborResolver {
     }
 
     public static RotationTuple rotationFor(World world, Vector3i position) {
-        RotationTuple storedRotation = ConnectableRotationStore.get(world, position);
-        return storedRotation != null ? storedRotation : RotationTuple.NONE;
+        return ConnectableRuntimeAccessor.getRotation(world, position);
     }
 
     public static WorldSide worldSideForLocalSide(RotationTuple rotation, int localSideMask) {

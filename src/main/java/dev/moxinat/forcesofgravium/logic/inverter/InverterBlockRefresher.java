@@ -8,7 +8,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
-import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
@@ -41,7 +40,7 @@ public final class InverterBlockRefresher {
             return;
         }
 
-        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, position, RotationTuple.NONE);
+        RotationTuple rotation = ConnectableRuntimeAccessor.getRotation(world, position);
         chunk.placeBlock(x, y, z, blockKey, rotation, 0, false);
     }
 
