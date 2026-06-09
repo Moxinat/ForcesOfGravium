@@ -1,7 +1,10 @@
 package dev.moxinat.forcesofgravium.registry;
 
+import dev.moxinat.forcesofgravium.connectable.ConnectableDefinition;
+import dev.moxinat.forcesofgravium.connectable.ConnectableDefinitions;
+
 import javax.annotation.Nullable;
-import java.util.Map;
+import java.util.Optional;
 
 public final class ConnectableRegistry {
 
@@ -27,16 +30,6 @@ public final class ConnectableRegistry {
     public static final int ALL_SIDES_MASK = SIDE_FRONT | SIDE_BACK | SIDE_RIGHT | SIDE_LEFT | SIDE_TOP | SIDE_BOTTOM;
     public static final int SIDES_EXCEPT_FRONT_BACK_MASK = SIDE_RIGHT | SIDE_LEFT | SIDE_TOP | SIDE_BOTTOM;
 
-    private static final Map<String, Integer> CONNECTABLE_SIDE_MASKS = Map.of(
-            GRAVITY_POWDER_BLOCK_ID, ALL_SIDES_MASK,
-            INVERTER_BLOCK_ID, ALL_SIDES_MASK,
-            WIND_GENERATOR_BLOCK_ID, SIDE_BACK,
-            GRAVIUM_SIPHON_BLOCK_ID, SIDES_EXCEPT_FRONT_BACK_MASK,
-            WOODEN_BUTTON_BLOCK_ID, ALL_SIDES_MASK,
-            STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID, SIDE_FRONT | SIDE_BACK,
-            CURVE_CASED_GRAVITY_POWDER_BLOCK_ID, SIDE_BOTTOM | SIDE_BACK
-    );
-
     private ConnectableRegistry() {
     }
 
@@ -49,34 +42,59 @@ public final class ConnectableRegistry {
     }
 
     public static int getConnectableSidesMask(@Nullable String blockId) {
-        if (blockId == null) {
+        Optional<ConnectableDefinition> definition = ConnectableDefinitions.findByBlockId(blockId);
+        if (definition.isEmpty()) {
             return 0;
         }
 
-        if (isGravityPowderId(blockId)) {
-            return CONNECTABLE_SIDE_MASKS.getOrDefault(GRAVITY_POWDER_BLOCK_ID, 0);
-        }
-        if (isInverterId(blockId)) {
-            return CONNECTABLE_SIDE_MASKS.getOrDefault(INVERTER_BLOCK_ID, 0);
-        }
-        if (isGraviumSiphonId(blockId)) {
-            return CONNECTABLE_SIDE_MASKS.getOrDefault(GRAVIUM_SIPHON_BLOCK_ID, 0);
-        }
-        if (isWoodenButtonId(blockId)) {
-            return CONNECTABLE_SIDE_MASKS.getOrDefault(WOODEN_BUTTON_BLOCK_ID, 0);
-        }
-        if (isStraightCasedGravityPowderId(blockId)) {
-            return CONNECTABLE_SIDE_MASKS.getOrDefault(STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID, 0);
-        }
-        if (isCurveCasedGravityPowderId(blockId)) {
-            return CONNECTABLE_SIDE_MASKS.getOrDefault(CURVE_CASED_GRAVITY_POWDER_BLOCK_ID, 0);
-        }
-
-        return CONNECTABLE_SIDE_MASKS.getOrDefault(blockId, 0);
+        ConnectableDefinition value = definition.get();
+        return value.signalInputSidesMask() | value.signalOutputSidesMask() | value.controlInputSidesMask();
     }
 
     public static boolean isConnectableOnSide(@Nullable String blockId, int sideMask) {
         return (getConnectableSidesMask(blockId) & sideMask) != 0;
+    }
+
+    public static int signalInputSidesMask(@Nullable String blockId) {
+        return ConnectableDefinitions.findByBlockId(blockId)
+                .map(ConnectableDefinition::signalInputSidesMask)
+                .orElse(0);
+    }
+
+    public static int signalOutputSidesMask(@Nullable String blockId) {
+        return ConnectableDefinitions.findByBlockId(blockId)
+                .map(ConnectableDefinition::signalOutputSidesMask)
+                .orElse(0);
+    }
+
+    public static int controlInputSidesMask(@Nullable String blockId) {
+        return ConnectableDefinitions.findByBlockId(blockId)
+                .map(ConnectableDefinition::controlInputSidesMask)
+                .orElse(0);
+    }
+
+    public static boolean canReceiveSignalFrom(@Nullable String blockId, int localSide) {
+        return (signalInputSidesMask(blockId) & localSide) != 0;
+    }
+
+    public static boolean canOutputSignalTo(@Nullable String blockId, int localSide) {
+        return (signalOutputSidesMask(blockId) & localSide) != 0;
+    }
+
+    public static boolean canReceiveControlFrom(@Nullable String blockId, int localSide) {
+        return (controlInputSidesMask(blockId) & localSide) != 0;
+    }
+
+    public static boolean isInvertCapable(@Nullable String blockId) {
+        return ConnectableDefinitions.findByBlockId(blockId)
+                .map(ConnectableDefinition::invertCapable)
+                .orElse(false);
+    }
+
+    public static boolean isPassBehaviorCapable(@Nullable String blockId) {
+        return ConnectableDefinitions.findByBlockId(blockId)
+                .map(ConnectableDefinition::passBehaviorCapable)
+                .orElse(false);
     }
 
     public static boolean isGravityPowderId(@Nullable String blockId) {
