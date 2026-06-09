@@ -2,7 +2,7 @@ package dev.moxinat.forcesofgravium.logic.source;
 
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
 
 import javax.annotation.Nonnull;
@@ -18,7 +18,7 @@ public final class SourceActivationScheduler {
     }
 
     public static void activateForTicks(@Nonnull World world, @Nonnull Vector3i position, long ticks) {
-        SourceBlockDataStore.setActive(world, position, true);
+        ConnectableRuntimeAccessor.setEnergyDelta(world, position, 1);
         ACTIVE_UNTIL_TICKS.computeIfAbsent(world, ignored -> new ConcurrentHashMap<>())
                 .put(position, world.getTick() + ticks);
         ConnectablePropagationScheduler.onConnectablePlaced(world, position);
@@ -43,7 +43,7 @@ public final class SourceActivationScheduler {
             if (!activeUntilByPosition.remove(position, entry.getValue())) {
                 continue;
             }
-            SourceBlockDataStore.setActive(world, position, false);
+            ConnectableRuntimeAccessor.setEnergyDelta(world, position, 0);
             ConnectablePropagationScheduler.onConnectableBroken(world, position);
         }
         if (activeUntilByPosition.isEmpty()) {

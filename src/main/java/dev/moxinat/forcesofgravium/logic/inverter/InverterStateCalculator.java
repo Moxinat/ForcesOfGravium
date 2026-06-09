@@ -6,7 +6,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
-import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
 import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -71,10 +70,9 @@ public final class InverterStateCalculator {
     }
 
     static String directSourceInputMode(World world, Vector3i position, String blockId) {
-        if (ConnectableBlockRoles.isSource(blockId) && SourceBlockDataStore.isActive(world, position, blockId)) {
-            return GravityPowderBlockDataStore.STATE_PUSH;
-        }
-        return GravityPowderBlockDataStore.STATE_OFF;
+        return ConnectableBlockRoles.isSource(blockId)
+                ? ConnectableRuntimeAccessor.sourceOutputState(world, position)
+                : GravityPowderBlockDataStore.STATE_OFF;
     }
 
     public static String invertMode(String mode) {

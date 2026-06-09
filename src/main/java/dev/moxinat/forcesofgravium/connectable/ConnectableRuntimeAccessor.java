@@ -53,7 +53,9 @@ public final class ConnectableRuntimeAccessor {
         ConnectableRuntimeData mirror = ConnectableDataStore.get(world, position);
         long networkId = mirror == null ? ConnectableRuntimeData.NO_NETWORK : mirror.networkId();
 
-        ConnectableRuntimeData data = fromOldStores(world, position, blockId, rotation, networkId);
+        ConnectableRuntimeData data = ConnectableBlockRoles.isSource(blockId) && mirror != null
+                ? fromSource(world, position, rotation, mirror.energyDelta(), networkId)
+                : fromOldStores(world, position, blockId, rotation, networkId);
         data = withMirrorRuntimeOnlyFields(data, mirror);
         ConnectableDataStore.put(world, position, data);
         return data;
@@ -79,12 +81,7 @@ public final class ConnectableRuntimeAccessor {
             return;
         }
         if (ConnectableBlockRoles.isSource(blockType.getId())) {
-            // TODO: when energy mechanics are introduced, derive source active state from energyDelta > 0.
-            SourceBlockDataStore.setActive(
-                    world,
-                    position,
-                    GravityPowderBlockDataStore.STATE_PUSH.equals(data.instantState())
-            );
+            setEnergyDelta(world, position, data.energyDelta());
         }
     }
 
@@ -232,9 +229,41 @@ public final class ConnectableRuntimeAccessor {
         return energyDelta(world, position);
     }
 
+    public static boolean contributesEnergy(@Nonnull World world, @Nonnull Vector3i position) {
+        return getEnergyDelta(world, position) != 0;
+    }
+
+    public static boolean isEnergyProducer(@Nonnull World world, @Nonnull Vector3i position) {
+        return getEnergyDelta(world, position) > 0;
+    }
+
+    public static boolean isEnergyConsumer(@Nonnull World world, @Nonnull Vector3i position) {
+        return getEnergyDelta(world, position) < 0;
+    }
+
     public static void setEnergyDelta(@Nonnull World world, @Nonnull Vector3i position, int energyDelta) {
-        // Runtime-only placeholder. This must not activate power mechanics or source behavior yet.
-        mirrorRuntimeData(world, position, currentOrDefault(world, position).withEnergyDelta(energyDelta));
+        ConnectableRuntimeData current = currentOrDefault(world, position);
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
+        if (blockType != null && ConnectableBlockRoles.isSource(blockType.getId())) {
+            mirrorRuntimeData(world, position, fromSource(world, position, current.rotation(), energyDelta, current.networkId()));
+            // Compatibility bridge only: source save data mirrors runtime source truth until save migration.
+            SourceBlockDataStore.setActive(world, position, energyDelta > 0);
+            return;
+        }
+        mirrorRuntimeData(world, position, current.withEnergyDelta(energyDelta));
+    }
+
+    public static boolean isSignalSourceActive(@Nonnull World world, @Nonnull Vector3i position) {
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
+        return blockType != null
+                && ConnectableBlockRoles.isSource(blockType.getId())
+                && energyDelta(world, position) > 0;
+    }
+
+    public static @Nonnull String sourceOutputState(@Nonnull World world, @Nonnull Vector3i position) {
+        return isSignalSourceActive(world, position)
+                ? GravityPowderBlockDataStore.STATE_PUSH
+                : GravityPowderBlockDataStore.STATE_OFF;
     }
 
     public static long networkId(@Nonnull World world, @Nonnull Vector3i position) {
@@ -352,9 +381,18 @@ public final class ConnectableRuntimeAccessor {
             @Nonnull RotationTuple rotation,
             long networkId
     ) {
-        boolean active = SourceBlockDataStore.isActive(world, position, blockId);
-        String state = active ? GravityPowderBlockDataStore.STATE_PUSH : GravityPowderBlockDataStore.STATE_OFF;
-        // Source active state still comes from SourceBlockDataStore; energyDelta is inert runtime data for now.
+        return fromSource(world, position, rotation, defaultEnergyDelta(world, position, blockId), networkId);
+    }
+
+    private static @Nonnull ConnectableRuntimeData fromSource(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull RotationTuple rotation,
+            int energyDelta,
+            long networkId
+    ) {
+        String state = energyDelta > 0 ? GravityPowderBlockDataStore.STATE_PUSH : GravityPowderBlockDataStore.STATE_OFF;
+        // Source active state is now runtime energyDelta truth; the old source store initializes and mirrors it.
         return new ConnectableRuntimeData(
                 rotation,
                 state,
@@ -364,7 +402,7 @@ public final class ConnectableRuntimeAccessor {
                 false,
                 false,
                 false,
-                defaultEnergyDelta(world, position),
+                energyDelta,
                 networkId
         );
     }
@@ -454,9 +492,13 @@ public final class ConnectableRuntimeAccessor {
         if (blockType == null) {
             return 0;
         }
-        if (ConnectableBlockRoles.isSource(blockType.getId())) {
-            return SourceBlockDataStore.isActive(world, position, blockType.getId()) ? 1 : 0;
+        return defaultEnergyDelta(world, position, blockType.getId());
+    }
+
+    private static int defaultEnergyDelta(@Nonnull World world, @Nonnull Vector3i position, @Nullable String blockId) {
+        if (!ConnectableBlockRoles.isSource(blockId)) {
+            return 0;
         }
-        return 0;
+        return SourceBlockDataStore.isActive(world, position, blockId) ? 1 : 0;
     }
 }

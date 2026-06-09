@@ -8,7 +8,6 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
@@ -72,7 +71,7 @@ public final class ConnectableNeighborResolver {
         if (blockType == null || !ConnectableBlockRoles.isSource(blockType.getId())) {
             return false;
         }
-        if (!SourceBlockDataStore.isActive(world, sourcePosition, blockType.getId())) {
+        if (!ConnectableRuntimeAccessor.isSignalSourceActive(world, sourcePosition)) {
             return false;
         }
 
@@ -180,7 +179,8 @@ public final class ConnectableNeighborResolver {
         if (blockType == null || !ConnectableBlockRoles.isSource(blockType.getId())) {
             return;
         }
-        if (!SourceBlockDataStore.isActive(world, new Vector3i(x, y, z), blockType.getId())) {
+        Vector3i sourcePosition = new Vector3i(x, y, z);
+        if (!ConnectableRuntimeAccessor.isSignalSourceActive(world, sourcePosition)) {
             return;
         }
 
@@ -189,9 +189,9 @@ public final class ConnectableNeighborResolver {
             return;
         }
 
-        RotationTuple rotation = rotationFor(world, new Vector3i(x, y, z));
+        RotationTuple rotation = rotationFor(world, sourcePosition);
         if (hasSignalOutputSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide)) {
-            sources.add(new Vector3i(x, y, z));
+            sources.add(sourcePosition);
         }
     }
 

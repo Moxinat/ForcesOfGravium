@@ -101,6 +101,7 @@ public final class ConnectablePropagationScheduler {
             updateInvertersWithSideIn(world, visibleChangedCables);
             visibleChangedCables.addAll(syncDirtyInverterFronts(world, InverterDataStore.snapshotForWorld(world).keySet()));
             ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(dirtyPositions, visibleChangedCables));
+            ConnectableNetworkIndexer.rebuildWorld(world);
             return;
         }
 
@@ -137,6 +138,7 @@ public final class ConnectablePropagationScheduler {
         updateInvertersWithSideIn(world, visibleChangedCables);
         visibleChangedCables.addAll(syncDirtyInverterFronts(world, inverters));
         ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(merge(dirtyPositions, affectedPositions), visibleChangedCables));
+        ConnectableNetworkIndexer.rebuildWorld(world);
     }
 
     private static Set<Vector3i> updateInvertersWithBackIn(World world, Set<Vector3i> cablePositions) {
