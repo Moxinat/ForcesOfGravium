@@ -5,9 +5,10 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import org.joml.Vector3i;
 
@@ -38,8 +39,9 @@ public final class CasedGravityPowderBlockRefresher {
             return;
         }
 
-        GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, new Vector3i(x, y, z));
-        String stateName = stateNameFor(data);
+        String stateName = stateNameFor(ConnectableRuntimeAccessor.getRuntimeData(world, new Vector3i(x, y, z))
+                .map(ConnectableRuntimeData::effectiveState)
+                .orElse(GravityPowderBlockDataStore.STATE_OFF));
         String blockKey = baseType.getBlockKeyForState(stateName);
         if (blockKey == null) {
             blockKey = baseBlockId;
@@ -64,12 +66,8 @@ public final class CasedGravityPowderBlockRefresher {
         return null;
     }
 
-    private static String stateNameFor(@Nullable GravityPowderBlockData data) {
-        if (data == null) {
-            return "Off";
-        }
-
-        return switch (data.effectiveState()) {
+    private static String stateNameFor(@Nullable String effectiveState) {
+        return switch (GravityPowderBlockDataStore.normalizeState(effectiveState)) {
             case GravityPowderBlockDataStore.STATE_PUSH -> "Push";
             case GravityPowderBlockDataStore.STATE_PULL -> "Pull";
             default -> "Off";

@@ -104,6 +104,7 @@ public final class ConnectableRuntimeAccessor {
         if (blockType == null) {
             return;
         }
+        // Delegates to the existing wave adoption behavior; no dirty-versioning or timing semantics change here.
         if (ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())) {
             GravityPowderBlockDataStore.adoptInstantState(world, position);
             return;
@@ -122,6 +123,7 @@ public final class ConnectableRuntimeAccessor {
         if (blockType == null) {
             return;
         }
+        // Delegates to the old physical stores. The unified runtime layer does not own timeline data yet.
         if (ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())) {
             GravityPowderBlockDataStore.setInstantState(world, position, instantState);
             return;
@@ -280,8 +282,10 @@ public final class ConnectableRuntimeAccessor {
         // previousInstantState has no exact old-store field yet, so it mirrors the current instant state.
         return new ConnectableRuntimeData(
                 rotation,
+                // No physical previous-instant field exists yet; mirror instant until store migration.
                 data.instantState(),
                 data.instantState(),
+                // Existing previousState is the visible fallback, so it maps to previousEffectiveState.
                 data.previousState(),
                 data.effectiveState(),
                 data.dirty(),
@@ -302,8 +306,10 @@ public final class ConnectableRuntimeAccessor {
         // previousInstantState has no exact old-store field yet, so it mirrors the current output mode.
         return new ConnectableRuntimeData(
                 rotation,
+                // No physical previous-instant field exists yet; mirror current output mode until store migration.
                 data.currentMode(),
                 data.currentMode(),
+                // Existing previousState is the visible fallback, so it maps to previousEffectiveState.
                 data.previousState(),
                 data.effectiveState(),
                 data.dirty(),

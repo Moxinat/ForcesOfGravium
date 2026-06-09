@@ -3,6 +3,8 @@ package dev.moxinat.forcesofgravium.logic.network;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
@@ -161,7 +163,7 @@ public final class ConnectablePropagationScheduler {
                 continue;
             }
 
-            InverterDataStore.markWaveDirty(world, inverter);
+            ConnectableRuntimeAccessor.setDirty(world, inverter, true);
         }
         return Set.copyOf(visibleChangedCables);
     }
@@ -190,8 +192,9 @@ public final class ConnectablePropagationScheduler {
     private static Set<Vector3i> syncDirtyInverterFronts(World world, Set<Vector3i> inverters) {
         LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
         for (Vector3i inverter : inverters) {
-            InverterData data = InverterDataStore.get(world, inverter);
-            if (data == null || !data.dirty()) {
+            if (!ConnectableRuntimeAccessor.getRuntimeData(world, inverter)
+                    .map(ConnectableRuntimeData::dirty)
+                    .orElse(false)) {
                 continue;
             }
 
@@ -205,7 +208,7 @@ public final class ConnectablePropagationScheduler {
                 refreshCableAt(world, front);
                 visibleChangedCables.add(front);
             }
-            InverterDataStore.clearWaveDirty(world, inverter);
+            ConnectableRuntimeAccessor.setDirty(world, inverter, false);
         }
         return Set.copyOf(visibleChangedCables);
     }
@@ -272,10 +275,8 @@ public final class ConnectablePropagationScheduler {
     private static Map<Vector3i, String> snapshotInstantStates(World world, Set<Vector3i> cables) {
         Map<Vector3i, String> result = new HashMap<>();
         for (Vector3i cable : cables) {
-            GravityPowderBlockDataStore.GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, cable);
-            if (data != null) {
-                result.put(cable, data.instantState());
-            }
+            ConnectableRuntimeAccessor.getRuntimeData(world, cable)
+                    .ifPresent(data -> result.put(cable, data.instantState()));
         }
         return Map.copyOf(result);
     }
@@ -283,8 +284,8 @@ public final class ConnectablePropagationScheduler {
     private static Set<Vector3i> changedInstantStateCables(World world, Map<Vector3i, String> previousInstantStates) {
         LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
         for (Map.Entry<Vector3i, String> entry : previousInstantStates.entrySet()) {
-            GravityPowderBlockDataStore.GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, entry.getKey());
-            if (data != null && !data.instantState().equals(entry.getValue())) {
+            java.util.Optional<ConnectableRuntimeData> data = ConnectableRuntimeAccessor.getRuntimeData(world, entry.getKey());
+            if (data.isPresent() && !data.get().instantState().equals(entry.getValue())) {
                 result.add(entry.getKey());
             }
         }
@@ -492,8 +493,10 @@ public final class ConnectablePropagationScheduler {
                         || !ConnectableNeighborResolver.hasConnectableSideFacing(world, neighbor, sourceTarget)) {
                     continue;
                 }
-                GravityPowderBlockDataStore.GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, neighbor);
-                if (data != null && data.dirty() && adoptInstantStateAndScheduleNeighbors(world, neighbor)) {
+                boolean dirty = ConnectableRuntimeAccessor.getRuntimeData(world, neighbor)
+                        .map(ConnectableRuntimeData::dirty)
+                        .orElse(false);
+                if (dirty && adoptInstantStateAndScheduleNeighbors(world, neighbor)) {
                     visibleChangedCables.add(neighbor);
                 }
             }
@@ -512,7 +515,7 @@ public final class ConnectablePropagationScheduler {
             if (inverters.contains(target)) {
                 InverterData data = InverterDataStore.get(world, target);
                 if (shouldAdoptPlacedInverter(data)) {
-                    InverterDataStore.adoptCurrentMode(world, target);
+                    ConnectableRuntimeAccessor.adoptInstantState(world, target);
                 }
             }
         }
@@ -541,7 +544,7 @@ public final class ConnectablePropagationScheduler {
                 if (inverters.contains(neighbor)) {
                     InverterData data = InverterDataStore.get(world, neighbor);
                     if (shouldAdoptBrokenNeighborInverter(data)) {
-                        InverterDataStore.adoptCurrentMode(world, neighbor);
+                        ConnectableRuntimeAccessor.adoptInstantState(world, neighbor);
                     }
                 }
             }
@@ -564,25 +567,26 @@ public final class ConnectablePropagationScheduler {
     }
 
     private static boolean adoptInstantStateAndScheduleNeighbors(World world, Vector3i target) {
-        GravityPowderBlockDataStore.GravityPowderBlockData previous = GravityPowderBlockDataStore.get(world, target);
-        if (previous == null || !previous.dirty()) {
+        java.util.Optional<ConnectableRuntimeData> previous = ConnectableRuntimeAccessor.getRuntimeData(world, target);
+        if (previous.isEmpty() || !previous.get().dirty()) {
             return false;
         }
 
-        String previousEffectiveState = previous.effectiveState();
-        GravityPowderBlockDataStore.adoptInstantState(world, target);
-        GravityPowderBlockDataStore.GravityPowderBlockData updated = GravityPowderBlockDataStore.get(world, target);
-        if (updated == null) {
+        String previousEffectiveState = previous.get().effectiveState();
+        ConnectableRuntimeAccessor.adoptInstantState(world, target);
+        java.util.Optional<ConnectableRuntimeData> updated = ConnectableRuntimeAccessor.getRuntimeData(world, target);
+        if (updated.isEmpty()) {
             return false;
         }
 
         for (Vector3i neighbor : ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, target)) {
-            GravityPowderBlockDataStore.GravityPowderBlockData neighborData =
-                    GravityPowderBlockDataStore.get(world, neighbor);
-            if (neighborData != null && neighborData.dirty()) {
+            boolean neighborDirty = ConnectableRuntimeAccessor.getRuntimeData(world, neighbor)
+                    .map(ConnectableRuntimeData::dirty)
+                    .orElse(false);
+            if (neighborDirty) {
                 enqueueWaveAdoption(world, neighbor);
             }
         }
-        return !updated.effectiveState().equals(previousEffectiveState);
+        return !updated.get().effectiveState().equals(previousEffectiveState);
     }
 }

@@ -3,10 +3,10 @@ package dev.moxinat.forcesofgravium.logic.network;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
-import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
@@ -167,13 +167,12 @@ public final class ConnectableNetworkScanner {
 
         @Override
         public boolean cableHasSignal(@Nonnull Vector3i position, @Nonnull SignalState mode) {
-            GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, position);
-            if (data == null) {
-                return false;
-            }
+            String effectiveState = ConnectableRuntimeAccessor.getRuntimeData(world, position)
+                    .map(ConnectableRuntimeData::effectiveState)
+                    .orElse(GravityPowderBlockDataStore.STATE_OFF);
             return switch (mode) {
-                case PUSH -> GravityPowderBlockDataStore.STATE_PUSH.equals(data.effectiveState());
-                case PULL -> GravityPowderBlockDataStore.STATE_PULL.equals(data.effectiveState());
+                case PUSH -> GravityPowderBlockDataStore.STATE_PUSH.equals(effectiveState);
+                case PULL -> GravityPowderBlockDataStore.STATE_PULL.equals(effectiveState);
                 case OFF -> false;
             };
         }
@@ -186,8 +185,9 @@ public final class ConnectableNetworkScanner {
 
         @Override
         public boolean isInvertEnabled(@Nonnull Vector3i inverter) {
-            InverterData data = InverterDataStore.get(world, inverter);
-            return data == null || data.invertEnabled();
+            return ConnectableRuntimeAccessor.getRuntimeData(world, inverter)
+                    .map(ConnectableRuntimeData::invertEnabled)
+                    .orElse(true);
         }
 
         @Override

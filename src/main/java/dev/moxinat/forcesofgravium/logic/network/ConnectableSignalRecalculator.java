@@ -3,6 +3,8 @@ package dev.moxinat.forcesofgravium.logic.network;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
@@ -349,23 +351,23 @@ public final class ConnectableSignalRecalculator {
 
         @Override
         public boolean cableHasEffectiveSignal(@Nonnull Vector3i cable, @Nonnull SignalState state) {
-            GravityPowderBlockDataStore.GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, cable);
-            return data != null && data.effectiveState().equals(stateForSignal(state));
+            return ConnectableRuntimeAccessor.getRuntimeData(world, cable)
+                    .map(data -> data.effectiveState().equals(stateForSignal(state)))
+                    .orElse(false);
         }
 
         @Override
         public @Nonnull SignalState cableEffectiveSignal(@Nonnull Vector3i cable) {
-            GravityPowderBlockDataStore.GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, cable);
-            if (data == null) {
-                return SignalState.OFF;
-            }
-            return signalForState(data.effectiveState());
+            return ConnectableRuntimeAccessor.getRuntimeData(world, cable)
+                    .map(data -> signalForState(data.effectiveState()))
+                    .orElse(SignalState.OFF);
         }
 
         @Override
         public boolean isInvertEnabled(@Nonnull Vector3i inverter) {
-            InverterData data = InverterDataStore.get(world, inverter);
-            return data == null || data.invertEnabled();
+            return ConnectableRuntimeAccessor.getRuntimeData(world, inverter)
+                    .map(ConnectableRuntimeData::invertEnabled)
+                    .orElse(true);
         }
 
         @Override
@@ -399,12 +401,13 @@ public final class ConnectableSignalRecalculator {
 
         @Override
         public void setCableSignal(@Nonnull Vector3i position, @Nonnull SignalState mode) {
-            GravityPowderBlockDataStore.GravityPowderBlockData previous = GravityPowderBlockDataStore.get(world, position);
-            GravityPowderBlockDataStore.setInstantState(world, position, stateForSignal(mode));
-            GravityPowderBlockDataStore.GravityPowderBlockData updated = GravityPowderBlockDataStore.get(world, position);
-            String previousInstantState = previous == null ? GravityPowderBlockDataStore.STATE_OFF : previous.instantState();
-            if (updated != null && !updated.instantState().equals(previousInstantState)) {
-                GravityPowderBlockDataStore.markWaveDirty(world, position);
+            String previousInstantState = ConnectableRuntimeAccessor.getRuntimeData(world, position)
+                    .map(ConnectableRuntimeData::instantState)
+                    .orElse(GravityPowderBlockDataStore.STATE_OFF);
+            ConnectableRuntimeAccessor.setInstantState(world, position, stateForSignal(mode));
+            java.util.Optional<ConnectableRuntimeData> updated = ConnectableRuntimeAccessor.getRuntimeData(world, position);
+            if (updated.isPresent() && !updated.get().instantState().equals(previousInstantState)) {
+                ConnectableRuntimeAccessor.setDirty(world, position, true);
             }
         }
 
@@ -417,7 +420,7 @@ public final class ConnectableSignalRecalculator {
             InverterData updated = InverterDataStore.get(world, position);
             String previousMode = previous == null ? GravityPowderBlockDataStore.STATE_OFF : previous.currentMode();
             if (updated != null && !updated.currentMode().equals(previousMode)) {
-                InverterDataStore.markWaveDirty(world, position);
+                ConnectableRuntimeAccessor.setDirty(world, position, true);
             }
         }
     }
