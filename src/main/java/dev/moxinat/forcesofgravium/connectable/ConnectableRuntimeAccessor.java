@@ -247,33 +247,27 @@ public final class ConnectableRuntimeAccessor {
     }
 
     public static int signalInputSides(@Nullable String blockId) {
-        return definitionFor(blockId)
-                .map(ConnectableDefinition::signalInputSidesMask)
-                .orElse(0);
+        return ConnectableRegistry.signalInputSidesMask(blockId);
     }
 
     public static int signalOutputSides(@Nullable String blockId) {
-        return definitionFor(blockId)
-                .map(ConnectableDefinition::signalOutputSidesMask)
-                .orElse(0);
+        return ConnectableRegistry.signalOutputSidesMask(blockId);
     }
 
     public static int controlInputSides(@Nullable String blockId) {
-        return definitionFor(blockId)
-                .map(ConnectableDefinition::controlInputSidesMask)
-                .orElse(0);
+        return ConnectableRegistry.controlInputSidesMask(blockId);
     }
 
     public static boolean canReceiveSignalFrom(@Nullable String blockId, int localSide) {
-        return (signalInputSides(blockId) & localSide) != 0;
+        return ConnectableRegistry.canReceiveSignalFrom(blockId, localSide);
     }
 
     public static boolean canOutputSignalTo(@Nullable String blockId, int localSide) {
-        return (signalOutputSides(blockId) & localSide) != 0;
+        return ConnectableRegistry.canOutputSignalTo(blockId, localSide);
     }
 
     public static boolean canReceiveControlFrom(@Nullable String blockId, int localSide) {
-        return (controlInputSides(blockId) & localSide) != 0;
+        return ConnectableRegistry.canReceiveControlFrom(blockId, localSide);
     }
 
     private static @Nonnull ConnectableRuntimeData fromGravityPowder(

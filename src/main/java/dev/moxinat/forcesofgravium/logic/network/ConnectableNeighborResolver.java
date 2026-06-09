@@ -82,7 +82,7 @@ public final class ConnectableNeighborResolver {
         }
 
         RotationTuple rotation = rotationFor(world, sourcePosition);
-        return hasLocalSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide);
+        return hasSignalOutputSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide);
     }
 
     public static List<Vector3i> positionsAround(Vector3i center) {
@@ -190,9 +190,19 @@ public final class ConnectableNeighborResolver {
         }
 
         RotationTuple rotation = rotationFor(world, new Vector3i(x, y, z));
-        if (hasLocalSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide)) {
+        if (hasSignalOutputSideFacingWorldSide(blockType.getId(), rotation, requiredWorldSide)) {
             sources.add(new Vector3i(x, y, z));
         }
+    }
+
+    private static boolean hasSignalOutputSideFacingWorldSide(String blockId, RotationTuple rotation, WorldSide requiredWorldSide) {
+        RotationTuple resolvedRotation = rotation == null ? RotationTuple.NONE : rotation;
+        return isLocalSignalOutputSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_FRONT, requiredWorldSide)
+                || isLocalSignalOutputSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_BACK, requiredWorldSide)
+                || isLocalSignalOutputSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_RIGHT, requiredWorldSide)
+                || isLocalSignalOutputSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_LEFT, requiredWorldSide)
+                || isLocalSignalOutputSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_TOP, requiredWorldSide)
+                || isLocalSignalOutputSideFacingWorldSide(blockId, resolvedRotation, ConnectableRegistry.SIDE_BOTTOM, requiredWorldSide);
     }
 
     private static boolean hasLocalSideFacingWorldSide(String blockId, RotationTuple rotation, WorldSide requiredWorldSide) {
@@ -207,6 +217,11 @@ public final class ConnectableNeighborResolver {
 
     private static boolean isLocalSideFacingWorldSide(String blockId, RotationTuple rotation, int localSideMask, WorldSide requiredWorldSide) {
         return ConnectableRegistry.isConnectableOnSide(blockId, localSideMask)
+                && worldSideForLocalSide(rotation, localSideMask) == requiredWorldSide;
+    }
+
+    private static boolean isLocalSignalOutputSideFacingWorldSide(String blockId, RotationTuple rotation, int localSideMask, WorldSide requiredWorldSide) {
+        return ConnectableRegistry.canOutputSignalTo(blockId, localSideMask)
                 && worldSideForLocalSide(rotation, localSideMask) == requiredWorldSide;
     }
 

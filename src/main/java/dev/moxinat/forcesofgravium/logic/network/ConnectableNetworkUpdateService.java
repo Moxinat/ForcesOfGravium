@@ -71,11 +71,19 @@ public final class ConnectableNetworkUpdateService {
 
     private static @Nonnull Set<Vector3i> controlNeighbors(@Nonnull World world, @Nonnull Vector3i siphon) {
         LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
-        addControlNeighbor(world, result, siphon, ConnectableRegistry.SIDE_RIGHT);
-        addControlNeighbor(world, result, siphon, ConnectableRegistry.SIDE_LEFT);
-        addControlNeighbor(world, result, siphon, ConnectableRegistry.SIDE_TOP);
-        addControlNeighbor(world, result, siphon, ConnectableRegistry.SIDE_BOTTOM);
+        addControlNeighborIfSignalInput(world, result, siphon, ConnectableRegistry.SIDE_FRONT);
+        addControlNeighborIfSignalInput(world, result, siphon, ConnectableRegistry.SIDE_BACK);
+        addControlNeighborIfSignalInput(world, result, siphon, ConnectableRegistry.SIDE_RIGHT);
+        addControlNeighborIfSignalInput(world, result, siphon, ConnectableRegistry.SIDE_LEFT);
+        addControlNeighborIfSignalInput(world, result, siphon, ConnectableRegistry.SIDE_TOP);
+        addControlNeighborIfSignalInput(world, result, siphon, ConnectableRegistry.SIDE_BOTTOM);
         return Set.copyOf(result);
+    }
+
+    private static void addControlNeighborIfSignalInput(@Nonnull World world, @Nonnull Set<Vector3i> result, @Nonnull Vector3i siphon, int localSide) {
+        if (ConnectableRegistry.canReceiveSignalFrom(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, localSide)) {
+            addControlNeighbor(world, result, siphon, localSide);
+        }
     }
 
     private static void addControlNeighbor(@Nonnull World world, @Nonnull Set<Vector3i> result, @Nonnull Vector3i siphon, int localSide) {
