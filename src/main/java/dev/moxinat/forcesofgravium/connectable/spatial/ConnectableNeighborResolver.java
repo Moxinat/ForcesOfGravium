@@ -225,7 +225,7 @@ public final class ConnectableNeighborResolver {
                 && worldSideForLocalSide(rotation, localSideMask) == requiredWorldSide;
     }
 
-    private static WorldSide worldSideFromSourceToTarget(Vector3i sourcePosition, Vector3i targetPosition) {
+    public static WorldSide worldSideFromSourceToTarget(Vector3i sourcePosition, Vector3i targetPosition) {
         int dx = targetPosition.x() - sourcePosition.x();
         int dy = targetPosition.y() - sourcePosition.y();
         int dz = targetPosition.z() - sourcePosition.z();
@@ -258,6 +258,22 @@ public final class ConnectableNeighborResolver {
         int y = (int) Math.round(rotated.y());
         int z = (int) Math.round(rotated.z());
         return WorldSide.fromVector(x, y, z);
+    }
+
+    public static int localSideForWorldSide(RotationTuple rotation, WorldSide worldSide) {
+        for (int localSideMask : List.of(
+                ConnectableRegistry.SIDE_FRONT,
+                ConnectableRegistry.SIDE_BACK,
+                ConnectableRegistry.SIDE_RIGHT,
+                ConnectableRegistry.SIDE_LEFT,
+                ConnectableRegistry.SIDE_TOP,
+                ConnectableRegistry.SIDE_BOTTOM
+        )) {
+            if (worldSideForLocalSide(rotation, localSideMask) == worldSide) {
+                return localSideMask;
+            }
+        }
+        return 0;
     }
 
     private static Vector3d localNormal(int localSideMask) {

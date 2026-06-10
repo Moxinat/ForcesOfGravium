@@ -1,15 +1,13 @@
 package dev.moxinat.forcesofgravium.connectable.propagation;
 
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
-
-import org.joml.Vector3i;
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
 import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore;
 import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore.InverterData;
-import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver.WorldSide;
+import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayDeque;
@@ -18,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 public final class ConnectableSignalRecalculator {
@@ -26,59 +25,70 @@ public final class ConnectableSignalRecalculator {
     }
 
     public static void recompute(@Nonnull World world, @Nonnull Set<Vector3i> affectedPositions) {
-        recompute(new WorldSignalAdapter(world, affectedPositions));
+        recompute(new WorldNodeAdapter(world, affectedPositions));
     }
 
-    public static void recompute(@Nonnull SignalAdapter adapter) {
+    public static void recompute(@Nonnull NodeAdapter adapter) {
         Objects.requireNonNull(adapter, "adapter");
         Map<Vector3i, Boolean> invertEnabled = new LinkedHashMap<>();
-        Map<Vector3i, SignalState> lastToggleInputModes = new LinkedHashMap<>();
-        for (Vector3i inverter : adapter.inverterPositions()) {
-            invertEnabled.put(inverter, adapter.isInvertEnabled(inverter));
-            lastToggleInputModes.put(inverter, adapter.lastToggleInputMode(inverter));
+        Map<Vector3i, SignalState> controlInputMemory = new LinkedHashMap<>();
+        for (Vector3i position : adapter.nodePositions()) {
+            ConnectableNode node = adapter.nodeAt(position).orElse(null);
+            if (node == null || !node.invertCapable()) {
+                continue;
+            }
+            invertEnabled.put(position, node.invertEnabled());
+            controlInputMemory.put(position, adapter.readControlInputMemory(node));
         }
 
         PropagationResult propagation = propagate(adapter, invertEnabled);
-        for (int remainingPasses = adapter.inverterPositions().size(); remainingPasses >= 0; remainingPasses--) {
+        for (int remainingPasses = invertEnabled.size(); remainingPasses >= 0; remainingPasses--) {
             boolean toggled = false;
-            Map<Vector3i, SignalState> nextToggleInputModes = new LinkedHashMap<>();
-            for (Vector3i inverter : adapter.inverterPositions()) {
-                SignalState sideInputMode = sideInputMode(adapter, inverter, propagation.inverterOutputs());
-                SignalState previousSideInputMode = lastToggleInputModes.getOrDefault(inverter, SignalState.OFF);
-                nextToggleInputModes.put(inverter, sideInputMode);
-                if (sideInputMode != SignalState.OFF && sideInputMode != previousSideInputMode) {
-                    invertEnabled.put(inverter, !invertEnabled.getOrDefault(inverter, true));
+            Map<Vector3i, SignalState> nextControlInputMemory = new LinkedHashMap<>();
+            for (Vector3i position : invertEnabled.keySet()) {
+                ConnectableNode node = adapter.nodeAt(position).orElse(null);
+                if (node == null || !node.invertCapable()) {
+                    continue;
+                }
+                SignalState controlInput = controlInputSignal(adapter, node, propagation.nodeSignals());
+                SignalState previousControlInput = controlInputMemory.getOrDefault(position, SignalState.OFF);
+                nextControlInputMemory.put(position, controlInput);
+                if (controlInput != SignalState.OFF && controlInput != previousControlInput) {
+                    invertEnabled.put(position, !invertEnabled.getOrDefault(position, node.invertEnabled()));
                     toggled = true;
                 }
             }
-            lastToggleInputModes = nextToggleInputModes;
+            controlInputMemory = nextControlInputMemory;
             if (!toggled || remainingPasses == 0) {
                 break;
             }
             propagation = propagate(adapter, invertEnabled);
         }
 
-        for (Map.Entry<Vector3i, SignalState> entry : propagation.cableSignals().entrySet()) {
-            adapter.setCableSignal(entry.getKey(), entry.getValue());
+        for (Map.Entry<Vector3i, SignalState> entry : propagation.nodeSignals().entrySet()) {
+            ConnectableNode node = adapter.nodeAt(entry.getKey()).orElse(null);
+            if (node == null || !node.shouldStorePropagatedInstantState()) {
+                continue;
+            }
+            adapter.writeInstantState(node, entry.getValue());
         }
-        for (Map.Entry<Vector3i, SignalState> entry : propagation.inverterOutputs().entrySet()) {
-            adapter.setInverterState(
-                    entry.getKey(),
-                    stateForSignal(entry.getValue()),
-                    invertEnabled.getOrDefault(entry.getKey(), true),
-                    lastToggleInputModes.getOrDefault(entry.getKey(), SignalState.OFF)
-            );
+        for (Map.Entry<Vector3i, Boolean> entry : invertEnabled.entrySet()) {
+            ConnectableNode node = adapter.nodeAt(entry.getKey()).orElse(null);
+            if (node == null || !node.invertCapable()) {
+                continue;
+            }
+            SignalState memory = controlInputMemory.getOrDefault(entry.getKey(), SignalState.OFF);
+            adapter.writeInvertRuntime(node, entry.getValue(), memory);
         }
     }
 
-    private static @Nonnull PropagationResult propagate(@Nonnull SignalAdapter adapter, @Nonnull Map<Vector3i, Boolean> invertEnabled) {
-        Map<Vector3i, SignalState> cableSignals = new LinkedHashMap<>();
-        Map<Vector3i, SignalState> inverterOutputs = new LinkedHashMap<>();
-        for (Vector3i cable : adapter.cablePositions()) {
-            cableSignals.put(cable, SignalState.OFF);
-        }
-        for (Vector3i inverter : adapter.inverterPositions()) {
-            inverterOutputs.put(inverter, SignalState.OFF);
+    private static @Nonnull PropagationResult propagate(@Nonnull NodeAdapter adapter, @Nonnull Map<Vector3i, Boolean> invertEnabled) {
+        Map<Vector3i, SignalState> nodeSignals = new LinkedHashMap<>();
+        for (Vector3i position : adapter.nodePositions()) {
+            ConnectableNode node = adapter.nodeAt(position).orElse(null);
+            if (node != null && node.shouldStorePropagatedInstantState()) {
+                nodeSignals.put(position, SignalState.OFF);
+            }
         }
 
         ArrayDeque<SignalStep> queue = new ArrayDeque<>();
@@ -87,103 +97,130 @@ public final class ConnectableSignalRecalculator {
 
         while (!queue.isEmpty()) {
             SignalStep step = queue.removeFirst();
-            if (adapter.isCable(step.position())) {
-                boolean changed = setSignal(cableSignals, step.position(), step.signalState());
+            ConnectableNode node = adapter.nodeAt(step.position()).orElse(null);
+            if (node == null) {
+                continue;
+            }
+
+            SignalState outputSignal = outputSignalState(
+                    step.signalState(),
+                    node.invertCapable() && invertEnabled.getOrDefault(step.position(), node.invertEnabled())
+            );
+            if (node.shouldStorePropagatedInstantState()) {
+                boolean changed = setSignal(nodeSignals, step.position(), outputSignal);
                 if (!changed) {
                     continue;
                 }
-                addCableOutputs(adapter, step, queue, visited);
+            }
+            if (outputSignal == SignalState.OFF) {
                 continue;
             }
-
-            if (!adapter.isInverter(step.position())) {
-                continue;
-            }
-
-            SignalState outputState = outputSignalState(step.signalState(), invertEnabled.getOrDefault(step.position(), true));
-            if (outputState == SignalState.OFF) {
-                continue;
-            }
-            boolean changed = setSignal(inverterOutputs, step.position(), outputState);
-            if (!changed) {
-                continue;
-            }
-            addInverterOutput(adapter, step.position(), outputState, queue, visited);
+            addNodeOutputs(adapter, node, outputSignal, queue, visited);
         }
 
-        return new PropagationResult(cableSignals, inverterOutputs);
+        return new PropagationResult(nodeSignals);
     }
 
-    private static @Nonnull SignalState sideInputMode(
-            SignalAdapter adapter,
-            Vector3i inverter,
-            Map<Vector3i, SignalState> inverterOutputs
-    ) {
-        SignalState result = SignalState.OFF;
-        Vector3i back = adapter.inverterBack(inverter);
-        Vector3i front = adapter.inverterFront(inverter);
-        for (Vector3i neighbor : adapter.positionsAround(inverter)) {
-            if (neighbor.equals(inverter) || neighbor.equals(back) || neighbor.equals(front)) {
+    private static void seedSources(NodeAdapter adapter, ArrayDeque<SignalStep> queue, Set<SignalStep> visited) {
+        for (Vector3i targetPosition : adapter.nodePositions()) {
+            ConnectableNode target = adapter.nodeAt(targetPosition).orElse(null);
+            if (target == null) {
                 continue;
             }
-            SignalState cableSignal = adapter.isCable(neighbor)
-                    && adapter.areMutuallyConnected(neighbor, inverter)
-                    ? adapter.cableEffectiveSignal(neighbor)
-                    : SignalState.OFF;
-            if (isActive(cableSignal)) {
-                result = merge(result, cableSignal);
+            for (Vector3i sourcePosition : adapter.positionsAround(targetPosition)) {
+                if (sourcePosition.equals(targetPosition) || !adapter.hasActiveSourceSignalTo(sourcePosition, target)) {
+                    continue;
+                }
+                enqueue(queue, visited, targetPosition, SignalState.PUSH);
             }
-            SignalState inverterSignal = inverterOutputs.getOrDefault(neighbor, SignalState.OFF);
-            if (isActive(inverterSignal) && inverter.equals(adapter.inverterFront(neighbor))) {
-                result = merge(result, inverterSignal);
+        }
+    }
+
+    private static void addNodeOutputs(
+            NodeAdapter adapter,
+            ConnectableNode source,
+            SignalState signal,
+            ArrayDeque<SignalStep> queue,
+            Set<SignalStep> visited
+    ) {
+        for (Vector3i neighborPosition : adapter.positionsAround(source.position())) {
+            if (neighborPosition.equals(source.position())) {
+                continue;
             }
-            if (adapter.hasSourceFacingPosition(neighbor, inverter)) {
+            ConnectableNode target = adapter.nodeAt(neighborPosition).orElse(null);
+            if (target == null || !canPropagateSignal(source, target)) {
+                continue;
+            }
+            if (target.invertCapable() && source.passBehaviorCapable() && adapter.effectiveSignal(source) != signal) {
+                continue;
+            }
+            enqueue(queue, visited, target.position(), signal);
+        }
+    }
+
+    private static @Nonnull SignalState controlInputSignal(
+            NodeAdapter adapter,
+            ConnectableNode target,
+            Map<Vector3i, SignalState> propagatedSignals
+    ) {
+        SignalState result = SignalState.OFF;
+        for (Vector3i sourcePosition : adapter.positionsAround(target.position())) {
+            if (sourcePosition.equals(target.position())) {
+                continue;
+            }
+            if (adapter.hasActiveSourceControlTo(sourcePosition, target)) {
                 result = merge(result, SignalState.PUSH);
+            }
+
+            ConnectableNode source = adapter.nodeAt(sourcePosition).orElse(null);
+            if (source == null || !canPropagateControl(source, target)) {
+                continue;
+            }
+            SignalState signal = controlSignalFrom(source, propagatedSignals);
+            if (signal != SignalState.OFF) {
+                result = merge(result, signal);
             }
         }
         return result;
     }
 
-    private static void seedSources(SignalAdapter adapter, ArrayDeque<SignalStep> queue, Set<SignalStep> visited) {
-        for (Vector3i cable : adapter.cablePositions()) {
-            if (adapter.hasAdjacentSourceForCable(cable)) {
-                enqueue(queue, visited, cable, SignalState.PUSH);
-            }
+    private static @Nonnull SignalState controlSignalFrom(
+            ConnectableNode source,
+            Map<Vector3i, SignalState> propagatedSignals
+    ) {
+        if (source.passBehaviorCapable()) {
+            return signalForState(source.effectiveState());
         }
-        for (Vector3i inverter : adapter.inverterPositions()) {
-            if (adapter.hasSourceAtInverterBack(inverter)) {
-                enqueue(queue, visited, inverter, SignalState.PUSH);
-            }
-        }
+        return propagatedSignals.getOrDefault(source.position(), SignalState.OFF);
     }
 
-    private static void addCableOutputs(SignalAdapter adapter, SignalStep step, ArrayDeque<SignalStep> queue, Set<SignalStep> visited) {
-        for (Vector3i neighbor : adapter.positionsAround(step.position())) {
-            if (neighbor.equals(step.position())) {
-                continue;
-            }
-            if (adapter.isCable(neighbor) && adapter.areMutuallyConnected(step.position(), neighbor)) {
-                enqueue(queue, visited, neighbor, step.signalState());
-                continue;
-            }
-            if (adapter.isInverter(neighbor)
-                    && step.position().equals(adapter.inverterBack(neighbor))
-                    && adapter.areMutuallyConnected(step.position(), neighbor)
-                    && adapter.cableHasEffectiveSignal(step.position(), step.signalState())) {
-                enqueue(queue, visited, neighbor, step.signalState());
-            }
+    private static boolean canPropagateSignal(@Nonnull ConnectableNode source, @Nonnull ConnectableNode target) {
+        WorldSide sourceToTarget = ConnectableNeighborResolver.worldSideFromSourceToTarget(source.position(), target.position());
+        if (sourceToTarget == null) {
+            return false;
         }
+        int sourceLocalSide = ConnectableNeighborResolver.localSideForWorldSide(source.rotation(), sourceToTarget);
+        int targetLocalSide = ConnectableNeighborResolver.localSideForWorldSide(target.rotation(), sourceToTarget.opposite());
+        return source.canOutputSignalTo(sourceLocalSide) && target.canReceiveSignalFrom(targetLocalSide);
     }
 
-    private static void addInverterOutput(SignalAdapter adapter, Vector3i inverter, SignalState mode, ArrayDeque<SignalStep> queue, Set<SignalStep> visited) {
-        Vector3i front = adapter.inverterFront(inverter);
-        if (adapter.isCable(front) && adapter.areMutuallyConnected(inverter, front)) {
-            enqueue(queue, visited, front, mode);
-            return;
+    private static boolean canPropagateControl(@Nonnull ConnectableNode source, @Nonnull ConnectableNode target) {
+        WorldSide sourceToTarget = ConnectableNeighborResolver.worldSideFromSourceToTarget(source.position(), target.position());
+        if (sourceToTarget == null) {
+            return false;
         }
-        if (adapter.isInverter(front) && inverter.equals(adapter.inverterBack(front))) {
-            enqueue(queue, visited, front, mode);
+        int sourceLocalSide = ConnectableNeighborResolver.localSideForWorldSide(source.rotation(), sourceToTarget);
+        int targetLocalSide = ConnectableNeighborResolver.localSideForWorldSide(target.rotation(), sourceToTarget.opposite());
+        return source.canOutputSignalTo(sourceLocalSide) && target.canReceiveControlFrom(targetLocalSide);
+    }
+
+    private static boolean canReceiveControlFrom(@Nonnull ConnectableNode target, @Nonnull Vector3i sourcePosition) {
+        WorldSide sourceToTarget = ConnectableNeighborResolver.worldSideFromSourceToTarget(sourcePosition, target.position());
+        if (sourceToTarget == null) {
+            return false;
         }
+        int targetLocalSide = ConnectableNeighborResolver.localSideForWorldSide(target.rotation(), sourceToTarget.opposite());
+        return target.canReceiveControlFrom(targetLocalSide);
     }
 
     private static void enqueue(ArrayDeque<SignalStep> queue, Set<SignalStep> visited, Vector3i position, SignalState mode) {
@@ -214,11 +251,7 @@ public final class ConnectableSignalRecalculator {
         return invertEnabled ? signalState.inverted() : signalState;
     }
 
-    private static boolean isActive(@Nonnull SignalState mode) {
-        return mode != SignalState.OFF;
-    }
-
-    private static @Nonnull String stateForSignal(@Nonnull SignalState mode) {
+    static @Nonnull String stateForSignal(@Nonnull SignalState mode) {
         return switch (mode) {
             case PUSH -> GravityPowderSpecialStateStore.STATE_PUSH;
             case PULL -> GravityPowderSpecialStateStore.STATE_PULL;
@@ -226,166 +259,71 @@ public final class ConnectableSignalRecalculator {
         };
     }
 
-    public interface SignalAdapter {
-        @Nonnull Set<Vector3i> cablePositions();
+    static @Nonnull SignalState signalForState(@Nonnull String state) {
+        return switch (GravityPowderSpecialStateStore.normalizeState(state)) {
+            case GravityPowderSpecialStateStore.STATE_PUSH -> SignalState.PUSH;
+            case GravityPowderSpecialStateStore.STATE_PULL -> SignalState.PULL;
+            default -> SignalState.OFF;
+        };
+    }
 
-        @Nonnull Set<Vector3i> inverterPositions();
+    public interface NodeAdapter {
+        @Nonnull Set<Vector3i> nodePositions();
 
-        boolean isCable(@Nonnull Vector3i position);
-
-        boolean isInverter(@Nonnull Vector3i position);
-
-        boolean hasAdjacentSourceForCable(@Nonnull Vector3i cable);
-
-        boolean hasSourceAtInverterBack(@Nonnull Vector3i inverter);
-
-        boolean hasSourceFacingPosition(@Nonnull Vector3i sourcePosition, @Nonnull Vector3i targetPosition);
-
-        default boolean cableHasEffectiveSignal(@Nonnull Vector3i cable, @Nonnull SignalState state) {
-            return true;
-        }
-
-        default @Nonnull SignalState cableEffectiveSignal(@Nonnull Vector3i cable) {
-            return SignalState.OFF;
-        }
-
-        boolean isInvertEnabled(@Nonnull Vector3i inverter);
-
-        @Nonnull SignalState lastToggleInputMode(@Nonnull Vector3i inverter);
-
-        @Nonnull Vector3i inverterBack(@Nonnull Vector3i inverter);
-
-        @Nonnull Vector3i inverterFront(@Nonnull Vector3i inverter);
+        @Nonnull Optional<ConnectableNode> nodeAt(@Nonnull Vector3i position);
 
         @Nonnull List<Vector3i> positionsAround(@Nonnull Vector3i position);
 
-        default boolean areMutuallyConnected(@Nonnull Vector3i first, @Nonnull Vector3i second) {
-            return true;
+        boolean hasActiveSourceSignalTo(@Nonnull Vector3i sourcePosition, @Nonnull ConnectableNode target);
+
+        boolean hasActiveSourceControlTo(@Nonnull Vector3i sourcePosition, @Nonnull ConnectableNode target);
+
+        default @Nonnull SignalState effectiveSignal(@Nonnull ConnectableNode node) {
+            return signalForState(node.effectiveState());
         }
 
-        void setCableSignal(@Nonnull Vector3i position, @Nonnull SignalState mode);
+        @Nonnull SignalState readControlInputMemory(@Nonnull ConnectableNode node);
 
-        void setInverterState(@Nonnull Vector3i position, @Nonnull String mode, boolean invertEnabled, @Nonnull SignalState lastToggleInputMode);
+        void writeInstantState(@Nonnull ConnectableNode node, @Nonnull SignalState signal);
+
+        void writeInvertRuntime(@Nonnull ConnectableNode node, boolean invertEnabled, @Nonnull SignalState controlInputMemory);
     }
 
     private record SignalStep(@Nonnull Vector3i position, @Nonnull SignalState signalState) {
         private SignalStep {
-            Objects.requireNonNull(position, "position");
+            position = new Vector3i(Objects.requireNonNull(position, "position"));
             Objects.requireNonNull(signalState, "signalState");
         }
     }
 
-    private record PropagationResult(
-            @Nonnull Map<Vector3i, SignalState> cableSignals,
-            @Nonnull Map<Vector3i, SignalState> inverterOutputs
-    ) {
+    private record PropagationResult(@Nonnull Map<Vector3i, SignalState> nodeSignals) {
         private PropagationResult {
-            cableSignals = Map.copyOf(Objects.requireNonNull(cableSignals, "cableSignals"));
-            inverterOutputs = Map.copyOf(Objects.requireNonNull(inverterOutputs, "inverterOutputs"));
+            nodeSignals = Map.copyOf(Objects.requireNonNull(nodeSignals, "nodeSignals"));
         }
     }
 
-    private static final class WorldSignalAdapter implements SignalAdapter {
+    private static final class WorldNodeAdapter implements NodeAdapter {
         private final World world;
-        private final Set<Vector3i> cables;
-        private final Set<Vector3i> inverters;
+        private final Set<Vector3i> nodes;
 
-        private WorldSignalAdapter(World world) {
+        private WorldNodeAdapter(World world, Set<Vector3i> affectedPositions) {
             this.world = Objects.requireNonNull(world, "world");
-            this.cables = new LinkedHashSet<>(ConnectableRuntimeAccessor.carrierPositionsForWorld(world));
-            this.inverters = new LinkedHashSet<>(ConnectableRuntimeAccessor.inverterPositionsForWorld(world));
-        }
-
-        private WorldSignalAdapter(World world, Set<Vector3i> affectedPositions) {
-            this(world);
             Objects.requireNonNull(affectedPositions, "affectedPositions");
-            this.cables.retainAll(affectedPositions);
-            this.inverters.retainAll(affectedPositions);
+            this.nodes = new LinkedHashSet<>(ConnectableNodeProvider.connectableNodePositionsForWorld(world));
+            this.nodes.retainAll(affectedPositions);
         }
 
         @Override
-        public @Nonnull Set<Vector3i> cablePositions() {
-            return Set.copyOf(cables);
+        public @Nonnull Set<Vector3i> nodePositions() {
+            return Set.copyOf(nodes);
         }
 
         @Override
-        public @Nonnull Set<Vector3i> inverterPositions() {
-            return Set.copyOf(inverters);
-        }
-
-        @Override
-        public boolean isCable(@Nonnull Vector3i position) {
-            if (!cables.contains(position)) {
-                return false;
+        public @Nonnull Optional<ConnectableNode> nodeAt(@Nonnull Vector3i position) {
+            if (!nodes.contains(position)) {
+                return Optional.empty();
             }
-
-            BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
-            return blockType != null && ConnectableRegistry.isGravityPowderCarrierId(blockType.getId());
-        }
-
-        @Override
-        public boolean isInverter(@Nonnull Vector3i position) {
-            if (!inverters.contains(position)) {
-                return false;
-            }
-
-            BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
-            return blockType != null && ConnectableRegistry.isInverterId(blockType.getId());
-        }
-
-        @Override
-        public boolean hasAdjacentSourceForCable(@Nonnull Vector3i cable) {
-            for (Vector3i source : ConnectableNeighborResolver.sourceNeighbors(world, cable, null)) {
-                if (ConnectableNeighborResolver.hasConnectableSideFacing(world, cable, source)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        @Override
-        public boolean hasSourceAtInverterBack(@Nonnull Vector3i inverter) {
-            Vector3i back = inverterBack(inverter);
-            return hasSourceFacingPosition(back, inverter);
-        }
-
-        @Override
-        public boolean hasSourceFacingPosition(@Nonnull Vector3i sourcePosition, @Nonnull Vector3i targetPosition) {
-            return ConnectableNeighborResolver.isSourceNeighborOf(world, sourcePosition, targetPosition);
-        }
-
-        @Override
-        public boolean cableHasEffectiveSignal(@Nonnull Vector3i cable, @Nonnull SignalState state) {
-            return ConnectableRuntimeAccessor.effectiveState(world, cable).equals(stateForSignal(state));
-        }
-
-        @Override
-        public @Nonnull SignalState cableEffectiveSignal(@Nonnull Vector3i cable) {
-            return signalForState(ConnectableRuntimeAccessor.effectiveState(world, cable));
-        }
-
-        @Override
-        public boolean isInvertEnabled(@Nonnull Vector3i inverter) {
-            return ConnectableRuntimeAccessor.invertEnabled(world, inverter);
-        }
-
-        @Override
-        public @Nonnull SignalState lastToggleInputMode(@Nonnull Vector3i inverter) {
-            InverterData data = InverterSpecialStateStore.get(world, inverter);
-            if (data == null) {
-                return SignalState.OFF;
-            }
-            return signalForState(data.lastToggleInputMode());
-        }
-
-        @Override
-        public @Nonnull Vector3i inverterBack(@Nonnull Vector3i inverter) {
-            return ConnectableNeighborResolver.adjacentPositionForLocalSide(world, inverter, ConnectableRegistry.SIDE_BACK);
-        }
-
-        @Override
-        public @Nonnull Vector3i inverterFront(@Nonnull Vector3i inverter) {
-            return ConnectableNeighborResolver.adjacentPositionForLocalSide(world, inverter, ConnectableRegistry.SIDE_FRONT);
+            return ConnectableNodeProvider.nodeAt(world, position);
         }
 
         @Override
@@ -394,35 +332,69 @@ public final class ConnectableSignalRecalculator {
         }
 
         @Override
-        public boolean areMutuallyConnected(@Nonnull Vector3i first, @Nonnull Vector3i second) {
-            return ConnectableNeighborResolver.areMutuallyConnected(world, first, second);
+        public boolean hasActiveSourceSignalTo(@Nonnull Vector3i sourcePosition, @Nonnull ConnectableNode target) {
+            if (!ConnectableNeighborResolver.isSourceNeighborOf(world, sourcePosition, target.position())) {
+                return false;
+            }
+            return canReceiveSignalFromSource(target, sourcePosition);
         }
 
         @Override
-        public void setCableSignal(@Nonnull Vector3i position, @Nonnull SignalState mode) {
-            String previousInstantState = ConnectableRuntimeAccessor.instantState(world, position);
-            ConnectableRuntimeAccessor.setInstantState(world, position, stateForSignal(mode));
-            if (!ConnectableRuntimeAccessor.instantState(world, position).equals(previousInstantState)) {
-                ConnectableRuntimeAccessor.setDirty(world, position, true);
+        public boolean hasActiveSourceControlTo(@Nonnull Vector3i sourcePosition, @Nonnull ConnectableNode target) {
+            if (!ConnectableNeighborResolver.isSourceNeighborOf(world, sourcePosition, target.position())) {
+                return false;
+            }
+            return canReceiveControlFrom(target, sourcePosition);
+        }
+
+        private boolean canReceiveSignalFromSource(@Nonnull ConnectableNode target, @Nonnull Vector3i sourcePosition) {
+            WorldSide sourceToTarget = ConnectableNeighborResolver.worldSideFromSourceToTarget(sourcePosition, target.position());
+            if (sourceToTarget == null) {
+                return false;
+            }
+            int targetLocalSide = ConnectableNeighborResolver.localSideForWorldSide(target.rotation(), sourceToTarget.opposite());
+            return target.canReceiveSignalFrom(targetLocalSide);
+        }
+
+        @Override
+        public @Nonnull SignalState readControlInputMemory(@Nonnull ConnectableNode node) {
+            return readControlInputMemory(world, node.position());
+        }
+
+        @Override
+        public void writeInstantState(@Nonnull ConnectableNode node, @Nonnull SignalState signal) {
+            String previousInstantState = ConnectableRuntimeAccessor.instantState(world, node.position());
+            ConnectableRuntimeAccessor.setInstantState(world, node.position(), stateForSignal(signal));
+            if (!ConnectableRuntimeAccessor.instantState(world, node.position()).equals(previousInstantState)) {
+                ConnectableRuntimeAccessor.setDirty(world, node.position(), true);
             }
         }
 
         @Override
-        public void setInverterState(@Nonnull Vector3i position, @Nonnull String mode, boolean invertEnabled, @Nonnull SignalState lastToggleInputMode) {
-            String previousMode = ConnectableRuntimeAccessor.instantState(world, position);
-            String outputMode = mode;
-            ConnectableRuntimeAccessor.setInverterState(world, position, outputMode, outputMode, invertEnabled, stateForSignal(lastToggleInputMode));
-            if (!outputMode.equals(previousMode)) {
-                ConnectableRuntimeAccessor.setDirty(world, position, true);
+        public void writeInvertRuntime(@Nonnull ConnectableNode node, boolean invertEnabled, @Nonnull SignalState controlInputMemory) {
+            if (!node.invertCapable()) {
+                return;
+            }
+            String previousInstantState = ConnectableRuntimeAccessor.instantState(world, node.position());
+            ConnectableRuntimeAccessor.setInverterState(
+                    world,
+                    node.position(),
+                    node.instantState(),
+                    node.instantState(),
+                    invertEnabled,
+                    stateForSignal(controlInputMemory)
+            );
+            if (!ConnectableRuntimeAccessor.instantState(world, node.position()).equals(previousInstantState)) {
+                ConnectableRuntimeAccessor.setDirty(world, node.position(), true);
             }
         }
-    }
 
-    private static @Nonnull SignalState signalForState(@Nonnull String state) {
-        return switch (GravityPowderSpecialStateStore.normalizeState(state)) {
-            case GravityPowderSpecialStateStore.STATE_PUSH -> SignalState.PUSH;
-            case GravityPowderSpecialStateStore.STATE_PULL -> SignalState.PULL;
-            default -> SignalState.OFF;
-        };
+        private static @Nonnull SignalState readControlInputMemory(@Nonnull World world, @Nonnull Vector3i position) {
+            InverterData data = InverterSpecialStateStore.get(world, position);
+            if (data == null) {
+                return SignalState.OFF;
+            }
+            return signalForState(data.lastToggleInputMode());
+        }
     }
 }

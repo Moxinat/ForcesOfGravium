@@ -1,24 +1,19 @@
 package dev.moxinat.forcesofgravium.connectable.propagation;
 
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
-
-import dev.moxinat.forcesofgravium.connectable.network.ConnectableNetworkUpdateService;
-
-import dev.moxinat.forcesofgravium.connectable.network.ConnectableNetworkIndexer;
-
-import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
-import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore;
-import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore.InverterData;
 import dev.moxinat.forcesofgravium.block.gravity.CasedGravityPowderBlockRefresher;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderBlockRefresher;
+import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
 import dev.moxinat.forcesofgravium.block.inverter.InverterBlockRefresher;
-import dev.moxinat.forcesofgravium.block.inverter.InverterStateCalculator;
+import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.connectable.network.ConnectableNetworkIndexer;
+import dev.moxinat.forcesofgravium.connectable.network.ConnectableNetworkUpdateService;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver.WorldSide;
+import org.joml.Vector3i;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,7 +21,6 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 public final class ConnectablePropagationScheduler {
 
@@ -96,126 +90,30 @@ public final class ConnectablePropagationScheduler {
             Set<Vector3i> waveAdoptionTargets
     ) {
         Set<Vector3i> affectedPositions = affectedConnectablePositions(world, dirtyPositions);
-        LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
+        LinkedHashSet<Vector3i> changedEffectiveNodes = new LinkedHashSet<>();
         if (affectedPositions.isEmpty()) {
-            visibleChangedCables.addAll(processWaveAdoptions(world, waveAdoptionTargets));
-            for (Vector3i cable : visibleChangedCables) {
-                refreshCableAt(world, cable);
-            }
-            visibleChangedCables.addAll(updateInvertersWithBackIn(world, visibleChangedCables));
-            updateInvertersWithSideIn(world, visibleChangedCables);
-            visibleChangedCables.addAll(syncDirtyInverterFronts(world, ConnectableRuntimeAccessor.inverterPositionsForWorld(world)));
-            ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(dirtyPositions, visibleChangedCables));
+            changedEffectiveNodes.addAll(processWaveAdoptions(world, waveAdoptionTargets));
+            refreshVisuals(world, changedEffectiveNodes);
+            ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(dirtyPositions, changedEffectiveNodes));
             ConnectableNetworkIndexer.rebuildWorld(world);
             return;
         }
 
-        Map<Vector3i, String> previousInstantStates = snapshotInstantStates(world, retainKnownCables(world, affectedPositions));
-
+        Map<Vector3i, String> previousInstantStates = snapshotInstantStates(world, retainSignalRuntimeNodes(world, affectedPositions));
         ConnectableSignalRecalculator.recompute(world, affectedPositions);
-        Set<Vector3i> changedInstantCables = changedInstantStateCables(world, previousInstantStates);
-        clearPendingWaveAdoptions(world, changedInstantCables);
-        waveAdoptionTargets = without(waveAdoptionTargets, changedInstantCables);
-        Set<Vector3i> cables = ConnectableRuntimeAccessor.carrierPositionsForWorld(world);
-        Set<Vector3i> inverters = ConnectableRuntimeAccessor.inverterPositionsForWorld(world);
-        visibleChangedCables.addAll(syncSourceTargets(world, placedTargets, cables));
-        visibleChangedCables.addAll(syncSourceTargets(world, brokenTargets, cables));
-        visibleChangedCables.addAll(syncPlacedTargets(world, placedTargets, cables, inverters));
-        visibleChangedCables.addAll(syncNeighborsOfBrokenTargets(world, brokenTargets, cables, inverters));
-        visibleChangedCables.addAll(processWaveAdoptions(world, waveAdoptionTargets));
-        LinkedHashSet<Vector3i> refreshCables = new LinkedHashSet<>(affectedPositions);
-        refreshCables.addAll(visibleChangedCables);
-        for (Vector3i cable : refreshCables) {
-            if (!cables.contains(cable)) {
-                continue;
-            }
-            refreshCableAt(world, cable);
-        }
-        for (Vector3i inverter : affectedPositions) {
-            if (!inverters.contains(inverter)) {
-                continue;
-            }
-            InverterBlockRefresher.refreshAt(world, inverter);
-        }
-        updateInvertersWithSideIn(world, visibleChangedCables);
-        visibleChangedCables.addAll(syncDirtyInverterFronts(world, inverters));
-        visibleChangedCables.addAll(updateInvertersWithBackIn(world, visibleChangedCables));
-        updateInvertersWithSideIn(world, visibleChangedCables);
-        visibleChangedCables.addAll(syncDirtyInverterFronts(world, inverters));
-        ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(merge(dirtyPositions, affectedPositions), visibleChangedCables));
+        Set<Vector3i> changedInstantNodes = changedInstantStateNodes(world, previousInstantStates);
+        clearPendingWaveAdoptions(world, changedInstantNodes);
+        waveAdoptionTargets = without(waveAdoptionTargets, changedInstantNodes);
+
+        changedEffectiveNodes.addAll(syncSourceTargets(world, placedTargets));
+        changedEffectiveNodes.addAll(syncSourceTargets(world, brokenTargets));
+        changedEffectiveNodes.addAll(syncPlacedTargets(world, placedTargets));
+        changedEffectiveNodes.addAll(syncNeighborsOfBrokenTargets(world, brokenTargets));
+        changedEffectiveNodes.addAll(processWaveAdoptions(world, waveAdoptionTargets));
+
+        refreshVisuals(world, merge(affectedPositions, changedEffectiveNodes));
+        ConnectableNetworkUpdateService.updateSiphonsNear(world, merge(merge(dirtyPositions, affectedPositions), changedEffectiveNodes));
         ConnectableNetworkIndexer.rebuildWorld(world);
-    }
-
-    private static Set<Vector3i> updateInvertersWithBackIn(World world, Set<Vector3i> cablePositions) {
-        LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
-        Set<Vector3i> inverters = ConnectableRuntimeAccessor.inverterPositionsForWorld(world);
-        for (Vector3i inverter : inverters) {
-            Vector3i back = ConnectableNeighborResolver.adjacentPositionForLocalSide(world, inverter, ConnectableRegistry.SIDE_BACK);
-            if (!cablePositions.contains(back)) {
-                continue;
-            }
-
-            InverterData previous = InverterSpecialStateStore.get(world, inverter);
-            boolean invertEnabled = ConnectableRuntimeAccessor.invertEnabled(world, inverter);
-            String lastToggleInputMode = previous == null
-                    ? GravityPowderSpecialStateStore.STATE_OFF
-                    : previous.lastToggleInputMode();
-            String inputMode = InverterStateCalculator.computeInputMode(world, inverter);
-            String outputMode = invertEnabled ? InverterStateCalculator.invertMode(inputMode) : inputMode;
-            String previousMode = ConnectableRuntimeAccessor.instantState(world, inverter);
-
-            ConnectableRuntimeAccessor.setInverterState(world, inverter, outputMode, outputMode, invertEnabled, lastToggleInputMode);
-            InverterBlockRefresher.refreshAt(world, inverter);
-            if (outputMode.equals(previousMode)) {
-                continue;
-            }
-
-            ConnectableRuntimeAccessor.setDirty(world, inverter, true);
-        }
-        return Set.copyOf(visibleChangedCables);
-    }
-
-    private static void updateInvertersWithSideIn(World world, Set<Vector3i> cablePositions) {
-        Set<Vector3i> inverters = ConnectableRuntimeAccessor.inverterPositionsForWorld(world);
-        Set<Vector3i> sideInputInverters = sideInputInvertersForChangedCables(
-                cablePositions,
-                inverters,
-                inverter -> ConnectableNeighborResolver.adjacentPositionForLocalSide(world, inverter, ConnectableRegistry.SIDE_BACK),
-                inverter -> ConnectableNeighborResolver.adjacentPositionForLocalSide(world, inverter, ConnectableRegistry.SIDE_FRONT)
-        );
-        if (sideInputInverters.isEmpty()) {
-            return;
-        }
-
-        Set<Vector3i> affectedPositions = affectedConnectablePositions(world, sideInputInverters);
-        Map<Vector3i, String> previousInstantStates = snapshotInstantStates(world, retainKnownCables(world, affectedPositions));
-        ConnectableSignalRecalculator.recompute(world, affectedPositions);
-        clearPendingWaveAdoptions(world, changedInstantStateCables(world, previousInstantStates));
-        for (Vector3i inverter : sideInputInverters) {
-            InverterBlockRefresher.refreshAt(world, inverter);
-        }
-    }
-
-    private static Set<Vector3i> syncDirtyInverterFronts(World world, Set<Vector3i> inverters) {
-        LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
-        for (Vector3i inverter : inverters) {
-            if (!ConnectableRuntimeAccessor.isDirty(world, inverter)) {
-                continue;
-            }
-
-            Vector3i front = ConnectableNeighborResolver.adjacentPositionForLocalSide(world, inverter, ConnectableRegistry.SIDE_FRONT);
-            Set<Vector3i> affectedPositions = affectedConnectablePositions(world, Set.of(inverter));
-            Map<Vector3i, String> previousInstantStates = snapshotInstantStates(world, retainKnownCables(world, affectedPositions));
-            ConnectableSignalRecalculator.recompute(world, affectedPositions);
-            clearPendingWaveAdoptions(world, changedInstantStateCables(world, previousInstantStates));
-            if (ConnectableNeighborResolver.areMutuallyConnected(world, inverter, front)
-                    && adoptInstantStateAndScheduleNeighbors(world, front)) {
-                refreshCableAt(world, front);
-                visibleChangedCables.add(front);
-            }
-            ConnectableRuntimeAccessor.setDirty(world, inverter, false);
-        }
-        return Set.copyOf(visibleChangedCables);
     }
 
     private static Set<Vector3i> merge(Set<Vector3i> first, Set<Vector3i> second) {
@@ -225,19 +123,30 @@ public final class ConnectablePropagationScheduler {
         return Set.copyOf(result);
     }
 
-    private static void refreshCableAt(World world, Vector3i cable) {
-        BlockType blockType = world.getBlockType(cable.x(), cable.y(), cable.z());
+    private static void refreshVisuals(World world, Set<Vector3i> positions) {
+        for (Vector3i position : positions) {
+            refreshVisualAt(world, position);
+        }
+    }
+
+    private static void refreshVisualAt(World world, Vector3i position) {
+        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
         if (blockType == null) {
             return;
         }
 
         if (ConnectableRegistry.isCasedGravityPowderId(blockType.getId())) {
-            CasedGravityPowderBlockRefresher.refreshAt(world, cable);
+            CasedGravityPowderBlockRefresher.refreshAt(world, position);
             return;
         }
 
         if (ConnectableRegistry.isGravityPowderId(blockType.getId())) {
-            GravityPowderBlockRefresher.refreshAt(world, cable);
+            GravityPowderBlockRefresher.refreshAt(world, position);
+            return;
+        }
+
+        if (ConnectableRegistry.isInverterId(blockType.getId())) {
+            InverterBlockRefresher.refreshAt(world, position);
         }
     }
 
@@ -270,22 +179,25 @@ public final class ConnectablePropagationScheduler {
         return Set.copyOf(result);
     }
 
-    private static Set<Vector3i> retainKnownCables(World world, Set<Vector3i> positions) {
-        Set<Vector3i> cables = ConnectableRuntimeAccessor.carrierPositionsForWorld(world);
-        LinkedHashSet<Vector3i> result = new LinkedHashSet<>(positions);
-        result.retainAll(cables);
+    private static Set<Vector3i> retainSignalRuntimeNodes(World world, Set<Vector3i> positions) {
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+        for (Vector3i position : positions) {
+            ConnectableNodeProvider.nodeAt(world, position)
+                    .filter(ConnectableNode::isSignalRuntimeNode)
+                    .ifPresent(ignored -> result.add(position));
+        }
         return Set.copyOf(result);
     }
 
-    private static Map<Vector3i, String> snapshotInstantStates(World world, Set<Vector3i> cables) {
+    private static Map<Vector3i, String> snapshotInstantStates(World world, Set<Vector3i> positions) {
         Map<Vector3i, String> result = new HashMap<>();
-        for (Vector3i cable : cables) {
-            result.put(cable, ConnectableRuntimeAccessor.instantState(world, cable));
+        for (Vector3i position : positions) {
+            result.put(position, ConnectableRuntimeAccessor.instantState(world, position));
         }
         return Map.copyOf(result);
     }
 
-    private static Set<Vector3i> changedInstantStateCables(World world, Map<Vector3i, String> previousInstantStates) {
+    private static Set<Vector3i> changedInstantStateNodes(World world, Map<Vector3i, String> previousInstantStates) {
         LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
         for (Map.Entry<Vector3i, String> entry : previousInstantStates.entrySet()) {
             if (!ConnectableRuntimeAccessor.instantState(world, entry.getKey()).equals(entry.getValue())) {
@@ -338,11 +250,7 @@ public final class ConnectablePropagationScheduler {
     }
 
     private static Set<Vector3i> affectedConnectablePositions(World world, Set<Vector3i> dirtyPositions) {
-        Set<Vector3i> cables = ConnectableRuntimeAccessor.carrierPositionsForWorld(world);
-        Set<Vector3i> inverters = ConnectableRuntimeAccessor.inverterPositionsForWorld(world);
-        Set<Vector3i> connectables = new HashSet<>();
-        connectables.addAll(cables);
-        connectables.addAll(inverters);
+        Set<Vector3i> connectables = ConnectableNodeProvider.connectableNodePositionsForWorld(world);
         if (connectables.isEmpty()) {
             return Set.of();
         }
@@ -399,15 +307,11 @@ public final class ConnectablePropagationScheduler {
     }
 
     private static boolean isKnownConnectable(World world, Vector3i position) {
-        BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
-        return blockType != null && !ConnectableRegistry.isNotConnectable(blockType.getId());
+        return ConnectableNodeProvider.nodeAt(world, position).isPresent();
     }
 
-    static Set<Vector3i> affectedConnectablePositions(Set<Vector3i> dirtyPositions, Set<Vector3i> cables, Set<Vector3i> inverters) {
-        Set<Vector3i> connectables = new HashSet<>();
-        connectables.addAll(cables);
-        connectables.addAll(inverters);
-        if (connectables.isEmpty()) {
+    static Set<Vector3i> affectedConnectablePositions(Set<Vector3i> dirtyPositions, Set<Vector3i> signalNodes) {
+        if (signalNodes.isEmpty()) {
             return Set.of();
         }
 
@@ -415,7 +319,7 @@ public final class ConnectablePropagationScheduler {
         LinkedHashSet<Vector3i> queue = new LinkedHashSet<>();
         for (Vector3i dirtyPosition : dirtyPositions) {
             for (Vector3i candidate : ConnectableNeighborResolver.positionsAround(dirtyPosition)) {
-                if (connectables.contains(candidate) && affected.add(candidate)) {
+                if (signalNodes.contains(candidate) && affected.add(candidate)) {
                     queue.add(candidate);
                 }
             }
@@ -424,7 +328,7 @@ public final class ConnectablePropagationScheduler {
         while (!queue.isEmpty()) {
             Vector3i current = queue.removeFirst();
             for (Vector3i neighbor : ConnectableNeighborResolver.positionsAround(current)) {
-                if (neighbor.equals(current) || !connectables.contains(neighbor)) {
+                if (neighbor.equals(current) || !signalNodes.contains(neighbor)) {
                     continue;
                 }
                 if (affected.add(neighbor)) {
@@ -436,14 +340,14 @@ public final class ConnectablePropagationScheduler {
         return Set.copyOf(affected);
     }
 
-    static Set<Vector3i> mismatchedCableNeighbors(
-            Vector3i cable,
+    static Set<Vector3i> mismatchedWaveNeighbors(
+            Vector3i node,
             Iterable<Vector3i> neighbors,
             java.util.function.Function<Vector3i, GravityPowderSpecialStateStore.GravityPowderBlockData> dataProvider
     ) {
         LinkedHashSet<Vector3i> mismatched = new LinkedHashSet<>();
         for (Vector3i neighbor : neighbors) {
-            if (neighbor.equals(cable)) {
+            if (neighbor.equals(node)) {
                 continue;
             }
             GravityPowderSpecialStateStore.GravityPowderBlockData neighborData = dataProvider.apply(neighbor);
@@ -454,117 +358,83 @@ public final class ConnectablePropagationScheduler {
         return Set.copyOf(mismatched);
     }
 
-    static Set<Vector3i> sideInputInvertersForChangedCables(
-            Set<Vector3i> cablePositions,
-            Set<Vector3i> inverters,
-            Function<Vector3i, Vector3i> backResolver,
-            Function<Vector3i, Vector3i> frontResolver
-    ) {
-        if (cablePositions.isEmpty() || inverters.isEmpty()) {
-            return Set.of();
-        }
-
-        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
-        for (Vector3i inverter : inverters) {
-            Vector3i back = backResolver.apply(inverter);
-            Vector3i front = frontResolver.apply(inverter);
-            for (Vector3i cable : cablePositions) {
-                if (!ConnectableNeighborResolver.positionsAround(inverter).contains(cable)) {
-                    continue;
-                }
-                if (!cable.equals(back) && !cable.equals(front)) {
-                    result.add(inverter);
-                    break;
-                }
-            }
-        }
-        return Set.copyOf(result);
-    }
-
-    private static Set<Vector3i> syncSourceTargets(World world, Set<Vector3i> sourceTargets, Set<Vector3i> cables) {
-        LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
+    private static Set<Vector3i> syncSourceTargets(World world, Set<Vector3i> sourceTargets) {
+        LinkedHashSet<Vector3i> changedEffectiveNodes = new LinkedHashSet<>();
         for (Vector3i sourceTarget : sourceTargets) {
             BlockType blockType = world.getBlockType(sourceTarget.x, sourceTarget.y, sourceTarget.z);
             if (blockType == null || !ConnectableBlockRoles.isSource(blockType.getId())) {
                 continue;
             }
             for (Vector3i neighbor : ConnectableNeighborResolver.positionsAround(sourceTarget)) {
-                if (!cables.contains(neighbor)) {
+                ConnectableNode target = ConnectableNodeProvider.nodeAt(world, neighbor).orElse(null);
+                if (target == null || !target.isSignalRuntimeNode()) {
                     continue;
                 }
                 if (!ConnectableNeighborResolver.isSourceNeighborOf(world, sourceTarget, neighbor)
-                        || !ConnectableNeighborResolver.hasConnectableSideFacing(world, neighbor, sourceTarget)) {
+                        || !canReceiveSignalFromSource(target, sourceTarget)) {
                     continue;
                 }
-                boolean dirty = ConnectableRuntimeAccessor.isDirty(world, neighbor);
-                if (dirty && adoptInstantStateAndScheduleNeighbors(world, neighbor)) {
-                    visibleChangedCables.add(neighbor);
+                if (ConnectableRuntimeAccessor.isDirty(world, neighbor) && adoptInstantStateAndScheduleNeighbors(world, neighbor)) {
+                    changedEffectiveNodes.add(neighbor);
                 }
             }
         }
-        return Set.copyOf(visibleChangedCables);
+        return Set.copyOf(changedEffectiveNodes);
     }
 
-    private static Set<Vector3i> syncPlacedTargets(World world, Set<Vector3i> placedTargets, Set<Vector3i> cables, Set<Vector3i> inverters) {
-        LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
+    private static boolean canReceiveSignalFromSource(ConnectableNode target, Vector3i sourcePosition) {
+        WorldSide sourceToTarget = ConnectableNeighborResolver.worldSideFromSourceToTarget(sourcePosition, target.position());
+        if (sourceToTarget == null) {
+            return false;
+        }
+        int targetLocalSide = ConnectableNeighborResolver.localSideForWorldSide(target.rotation(), sourceToTarget.opposite());
+        return target.canReceiveSignalFrom(targetLocalSide);
+    }
+
+    private static Set<Vector3i> syncPlacedTargets(World world, Set<Vector3i> placedTargets) {
+        LinkedHashSet<Vector3i> changedEffectiveNodes = new LinkedHashSet<>();
         for (Vector3i target : placedTargets) {
-            if (cables.contains(target)) {
-                if (adoptInstantStateAndScheduleNeighbors(world, target)) {
-                    visibleChangedCables.add(target);
-                }
+            ConnectableNode node = ConnectableNodeProvider.nodeAt(world, target).orElse(null);
+            if (node == null || !node.isSignalRuntimeNode()) {
+                continue;
             }
-            if (inverters.contains(target)) {
-                InverterData data = InverterSpecialStateStore.get(world, target);
-                if (shouldAdoptPlacedInverter(data)) {
-                    ConnectableRuntimeAccessor.adoptInstantState(world, target);
-                }
+            if (adoptInstantStateAndScheduleNeighbors(world, target)) {
+                changedEffectiveNodes.add(target);
             }
         }
-        return Set.copyOf(visibleChangedCables);
+        return Set.copyOf(changedEffectiveNodes);
     }
 
-    static boolean shouldAdoptPlacedInverter(InverterData data) {
-        return data == null || !data.dirty();
-    }
-
-    private static Set<Vector3i> syncNeighborsOfBrokenTargets(World world, Set<Vector3i> brokenTargets, Set<Vector3i> cables, Set<Vector3i> inverters) {
-        LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
+    private static Set<Vector3i> syncNeighborsOfBrokenTargets(World world, Set<Vector3i> brokenTargets) {
+        LinkedHashSet<Vector3i> changedEffectiveNodes = new LinkedHashSet<>();
         for (Vector3i target : brokenTargets) {
             for (Vector3i neighbor : ConnectableNeighborResolver.positionsAround(target)) {
                 if (neighbor.equals(target)) {
                     continue;
                 }
-                if (cables.contains(neighbor)) {
-                    if (!ConnectableNeighborResolver.hasConnectableSideFacing(world, neighbor, target)) {
-                        continue;
-                    }
-                    if (adoptInstantStateAndScheduleNeighbors(world, neighbor)) {
-                        visibleChangedCables.add(neighbor);
-                    }
+                ConnectableNode node = ConnectableNodeProvider.nodeAt(world, neighbor).orElse(null);
+                if (node == null || !node.isSignalRuntimeNode()) {
+                    continue;
                 }
-                if (inverters.contains(neighbor)) {
-                    InverterData data = InverterSpecialStateStore.get(world, neighbor);
-                    if (shouldAdoptBrokenNeighborInverter(data)) {
-                        ConnectableRuntimeAccessor.adoptInstantState(world, neighbor);
-                    }
+                if (!ConnectableNeighborResolver.hasConnectableSideFacing(world, neighbor, target)) {
+                    continue;
+                }
+                if (adoptInstantStateAndScheduleNeighbors(world, neighbor)) {
+                    changedEffectiveNodes.add(neighbor);
                 }
             }
         }
-        return Set.copyOf(visibleChangedCables);
-    }
-
-    static boolean shouldAdoptBrokenNeighborInverter(InverterData data) {
-        return data == null || !data.dirty();
+        return Set.copyOf(changedEffectiveNodes);
     }
 
     private static Set<Vector3i> processWaveAdoptions(World world, Set<Vector3i> waveAdoptionTargets) {
-        LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
+        LinkedHashSet<Vector3i> changedEffectiveNodes = new LinkedHashSet<>();
         for (Vector3i target : waveAdoptionTargets) {
             if (adoptInstantStateAndScheduleNeighbors(world, target)) {
-                visibleChangedCables.add(target);
+                changedEffectiveNodes.add(target);
             }
         }
-        return Set.copyOf(visibleChangedCables);
+        return Set.copyOf(changedEffectiveNodes);
     }
 
     private static boolean adoptInstantStateAndScheduleNeighbors(World world, Vector3i target) {
