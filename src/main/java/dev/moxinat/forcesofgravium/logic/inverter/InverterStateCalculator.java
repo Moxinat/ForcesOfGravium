@@ -4,7 +4,6 @@ import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
@@ -46,9 +45,7 @@ public final class InverterStateCalculator {
             if (!ConnectableNeighborResolver.areMutuallyConnected(world, backNeighborPosition, position)) {
                 return GravityPowderBlockDataStore.STATE_OFF;
             }
-            return ConnectableRuntimeAccessor.getRuntimeData(world, backNeighborPosition)
-                    .map(ConnectableRuntimeData::effectiveState)
-                    .orElse(GravityPowderBlockDataStore.STATE_OFF);
+            return ConnectableRuntimeAccessor.effectiveState(world, backNeighborPosition);
         }
 
         if (!ConnectableRegistry.isInverterId(backNeighborType.getId())) {
@@ -64,9 +61,7 @@ public final class InverterStateCalculator {
             return GravityPowderBlockDataStore.STATE_OFF;
         }
 
-        return ConnectableRuntimeAccessor.getRuntimeData(world, backNeighborPosition)
-                .map(ConnectableRuntimeData::instantState)
-                .orElse(GravityPowderBlockDataStore.STATE_OFF);
+        return ConnectableRuntimeAccessor.instantState(world, backNeighborPosition);
     }
 
     static String directSourceInputMode(World world, Vector3i position, String blockId) {

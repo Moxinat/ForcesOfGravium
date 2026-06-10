@@ -9,6 +9,7 @@ import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowde
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
 import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
+import dev.moxinat.forcesofgravium.data.StateTimeline;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import org.joml.Vector3i;
@@ -49,14 +50,30 @@ public final class ConnectableRuntimeAccessor {
     }
 
     public static @Nonnull ConnectableRuntimeData get(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String blockId) {
-        RotationTuple rotation = getRotation(world, position);
         ConnectableRuntimeData mirror = ConnectableDataStore.get(world, position);
-        long networkId = mirror == null ? ConnectableRuntimeData.NO_NETWORK : mirror.networkId();
+        if (mirror != null) {
+            if (ConnectableRegistry.isInverterId(blockId) && isGenericDefaultRuntime(mirror)) {
+                InverterData inverterData = InverterDataStore.get(world, position);
+                ConnectableRuntimeData repaired = inverterData == null
+                        ? defaultInverterRuntimeData(mirror.rotation(), mirror.networkId())
+                        : fromInverter(world, position, mirror.rotation(), mirror.networkId());
+                ConnectableDataStore.put(world, position, repaired);
+                if (inverterData == null) {
+                    writeInverter(world, position, repaired);
+                }
+                return repaired;
+            }
+            if (ConnectableBlockRoles.isSource(blockId) && shouldRepairSourceRuntime(world, position, blockId, mirror)) {
+                ConnectableRuntimeData repaired = fromSource(world, position, blockId, mirror.rotation(), mirror.networkId());
+                ConnectableDataStore.put(world, position, repaired);
+                syncCompatibilityStore(world, position, blockId, repaired);
+                return repaired;
+            }
+            return mirror;
+        }
 
-        ConnectableRuntimeData data = ConnectableBlockRoles.isSource(blockId) && mirror != null
-                ? fromSource(world, position, rotation, mirror.energyDelta(), networkId)
-                : fromOldStores(world, position, blockId, rotation, networkId);
-        data = withMirrorRuntimeOnlyFields(data, mirror);
+        RotationTuple rotation = ConnectableRotationStore.getOrDefault(world, position, RotationTuple.NONE);
+        ConnectableRuntimeData data = fromOldStores(world, position, blockId, rotation, ConnectableRuntimeData.NO_NETWORK);
         ConnectableDataStore.put(world, position, data);
         return data;
     }
@@ -68,21 +85,8 @@ public final class ConnectableRuntimeAccessor {
         }
 
         ConnectableDataStore.put(world, position, data);
-        setRotation(world, position, data.rotation());
-        setNetworkId(world, position, data.networkId());
-        setPassing(world, position, data.passing());
-        setEnergyDelta(world, position, data.energyDelta());
-        if (ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())) {
-            writeGravityPowder(world, position, data);
-            return;
-        }
-        if (ConnectableRegistry.isInverterId(blockType.getId())) {
-            writeInverter(world, position, data);
-            return;
-        }
-        if (ConnectableBlockRoles.isSource(blockType.getId())) {
-            setEnergyDelta(world, position, data.energyDelta());
-        }
+        ConnectableRotationStore.put(world, position, data.rotation());
+        syncCompatibilityStore(world, position, blockType.getId(), data);
     }
 
     public static void adoptInstantState(@Nonnull World world, @Nonnull Vector3i position) {
@@ -90,16 +94,21 @@ public final class ConnectableRuntimeAccessor {
         if (blockType == null) {
             return;
         }
-        // Delegates to the existing wave adoption behavior; no dirty-versioning or timing semantics change here.
-        if (ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())) {
-            GravityPowderBlockDataStore.adoptInstantState(world, position);
-            mirrorFromOldStores(world, position, blockType.getId());
-            return;
-        }
-        if (ConnectableRegistry.isInverterId(blockType.getId())) {
-            InverterDataStore.adoptCurrentMode(world, position);
-            mirrorFromOldStores(world, position, blockType.getId());
-        }
+        ConnectableRuntimeData current = currentOrDefault(world, position);
+        ConnectableRuntimeData updated = new ConnectableRuntimeData(
+                current.rotation(),
+                current.previousInstantState(),
+                current.instantState(),
+                current.effectiveState(),
+                current.instantState(),
+                false,
+                current.invertEnabled(),
+                current.passing(),
+                current.energyDelta(),
+                current.networkId()
+        );
+        mirrorRuntimeData(world, position, updated);
+        syncCompatibilityStore(world, position, blockType.getId(), updated);
     }
 
     public static @Nonnull RotationTuple rotation(@Nonnull World world, @Nonnull Vector3i position) {
@@ -144,7 +153,7 @@ public final class ConnectableRuntimeAccessor {
 
     public static void setRotation(@Nonnull World world, @Nonnull Vector3i position, @Nonnull RotationTuple rotation) {
         ConnectableRuntimeData data = get(world, position)
-                .orElseGet(() -> ConnectableRuntimeData.defaultData().withRotation(rotation));
+                .orElseGet(() -> dataForRotationOnlyWrite(world, position, rotation));
         ConnectableDataStore.put(world, position, data.withRotation(rotation));
         ConnectableRotationStore.put(world, position, rotation);
     }
@@ -159,24 +168,9 @@ public final class ConnectableRuntimeAccessor {
         if (blockType == null) {
             return;
         }
-        // Delegates to the old physical stores. The unified runtime layer does not own timeline data yet.
-        if (ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())) {
-            GravityPowderBlockDataStore.setInstantState(world, position, instantState);
-            mirrorFromOldStores(world, position, blockType.getId());
-            return;
-        }
-        if (ConnectableRegistry.isInverterId(blockType.getId())) {
-            InverterData existing = InverterDataStore.getOrCreate(world, position);
-            InverterDataStore.setState(
-                    world,
-                    position,
-                    instantState,
-                    existing.nextMode(),
-                    existing.invertEnabled(),
-                    existing.lastToggleInputMode()
-            );
-            mirrorFromOldStores(world, position, blockType.getId());
-        }
+        ConnectableRuntimeData updated = currentOrDefault(world, position).withInstantState(instantState);
+        mirrorRuntimeData(world, position, updated);
+        syncCompatibilityStore(world, position, blockType.getId(), updated);
     }
 
     public static void setDirty(@Nonnull World world, @Nonnull Vector3i position, boolean dirty) {
@@ -184,36 +178,56 @@ public final class ConnectableRuntimeAccessor {
         if (blockType == null) {
             return;
         }
-        if (ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())) {
-            if (dirty) {
-                GravityPowderBlockDataStore.markWaveDirty(world, position);
-            } else {
-                GravityPowderBlockDataStore.clearWaveDirty(world, position);
-            }
-            mirrorFromOldStores(world, position, blockType.getId());
-            return;
-        }
-        if (ConnectableRegistry.isInverterId(blockType.getId())) {
-            if (dirty) {
-                InverterDataStore.markWaveDirty(world, position);
-            } else {
-                InverterDataStore.clearWaveDirty(world, position);
-            }
-            mirrorFromOldStores(world, position, blockType.getId());
-        }
+        ConnectableRuntimeData updated = currentOrDefault(world, position).withDirty(dirty);
+        mirrorRuntimeData(world, position, updated);
+        syncCompatibilityStore(world, position, blockType.getId(), updated);
     }
 
     public static void setInvertEnabled(@Nonnull World world, @Nonnull Vector3i position, boolean invertEnabled) {
-        InverterData existing = InverterDataStore.getOrCreate(world, position);
-        InverterDataStore.setState(
-                world,
-                position,
-                existing.currentMode(),
-                existing.nextMode(),
+        ConnectableRuntimeData updated = currentOrDefault(world, position).withInvertEnabled(invertEnabled);
+        mirrorRuntimeData(world, position, updated);
+        syncCompatibilityStore(world, position, ConnectableRegistry.INVERTER_BLOCK_ID, updated);
+    }
+
+    public static @Nonnull String instantState(@Nonnull World world, @Nonnull Vector3i position) {
+        return currentOrDefault(world, position).instantState();
+    }
+
+    public static @Nonnull String effectiveState(@Nonnull World world, @Nonnull Vector3i position) {
+        return currentOrDefault(world, position).effectiveState();
+    }
+
+    public static boolean isDirty(@Nonnull World world, @Nonnull Vector3i position) {
+        return currentOrDefault(world, position).dirty();
+    }
+
+    public static boolean invertEnabled(@Nonnull World world, @Nonnull Vector3i position) {
+        return currentOrDefault(world, position).invertEnabled();
+    }
+
+    public static void setInverterState(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull String instantState,
+            @Nonnull String nextMode,
+            boolean invertEnabled,
+            @Nonnull String lastToggleInputMode
+    ) {
+        ConnectableRuntimeData current = currentOrDefault(world, position);
+        ConnectableRuntimeData updated = new ConnectableRuntimeData(
+                current.rotation(),
+                current.instantState(),
+                instantState,
+                current.previousEffectiveState(),
+                current.effectiveState(),
+                current.dirty(),
                 invertEnabled,
-                existing.lastToggleInputMode()
+                current.passing(),
+                current.energyDelta(),
+                current.networkId()
         );
-        mirrorFromOldStores(world, position, ConnectableRegistry.INVERTER_BLOCK_ID);
+        mirrorRuntimeData(world, position, updated);
+        writeInverter(world, position, updated, nextMode, lastToggleInputMode);
     }
 
     public static void setPassing(@Nonnull World world, @Nonnull Vector3i position, boolean passing) {
@@ -356,7 +370,12 @@ public final class ConnectableRuntimeAccessor {
             @Nonnull RotationTuple rotation,
             long networkId
     ) {
-        InverterData data = InverterDataStore.getOrCreate(world, position);
+        InverterData data = InverterDataStore.get(world, position);
+        if (data == null) {
+            ConnectableRuntimeData defaultData = defaultInverterRuntimeData(rotation, networkId);
+            writeInverter(world, position, defaultData);
+            return defaultData;
+        }
         // previousInstantState has no exact old-store field yet, so it mirrors the current output mode.
         return new ConnectableRuntimeData(
                 rotation,
@@ -374,6 +393,21 @@ public final class ConnectableRuntimeAccessor {
         );
     }
 
+    private static @Nonnull ConnectableRuntimeData defaultInverterRuntimeData(@Nonnull RotationTuple rotation, long networkId) {
+        return new ConnectableRuntimeData(
+                rotation,
+                GravityPowderBlockDataStore.STATE_OFF,
+                GravityPowderBlockDataStore.STATE_OFF,
+                GravityPowderBlockDataStore.STATE_OFF,
+                GravityPowderBlockDataStore.STATE_OFF,
+                false,
+                true,
+                true,
+                0,
+                networkId
+        );
+    }
+
     private static @Nonnull ConnectableRuntimeData fromSource(
             @Nonnull World world,
             @Nonnull Vector3i position,
@@ -381,7 +415,12 @@ public final class ConnectableRuntimeAccessor {
             @Nonnull RotationTuple rotation,
             long networkId
     ) {
-        return fromSource(world, position, rotation, defaultEnergyDelta(world, position, blockId), networkId);
+        int energyDelta = defaultEnergyDelta(world, position, blockId);
+        ConnectableRuntimeData data = fromSource(world, position, rotation, energyDelta, networkId);
+        if (SourceBlockDataStore.get(world, position) == null) {
+            SourceBlockDataStore.setActive(world, position, energyDelta > 0);
+        }
+        return data;
     }
 
     private static @Nonnull ConnectableRuntimeData fromSource(
@@ -428,6 +467,41 @@ public final class ConnectableRuntimeAccessor {
                 .withNetworkId(networkId);
     }
 
+    private static @Nonnull ConnectableRuntimeData dataForRotationOnlyWrite(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull RotationTuple rotation
+    ) {
+        InverterData inverterData = InverterDataStore.get(world, position);
+        if (inverterData != null) {
+            return fromInverter(world, position, rotation, ConnectableRuntimeData.NO_NETWORK);
+        }
+        return ConnectableRuntimeData.defaultData().withRotation(rotation);
+    }
+
+    private static boolean isGenericDefaultRuntime(@Nonnull ConnectableRuntimeData data) {
+        return GravityPowderBlockDataStore.STATE_OFF.equals(data.previousInstantState())
+                && GravityPowderBlockDataStore.STATE_OFF.equals(data.instantState())
+                && GravityPowderBlockDataStore.STATE_OFF.equals(data.previousEffectiveState())
+                && GravityPowderBlockDataStore.STATE_OFF.equals(data.effectiveState())
+                && !data.dirty()
+                && !data.invertEnabled()
+                && !data.passing()
+                && data.energyDelta() == 0;
+    }
+
+    private static boolean shouldRepairSourceRuntime(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nullable String blockId,
+            @Nonnull ConnectableRuntimeData data
+    ) {
+        int defaultEnergyDelta = defaultEnergyDelta(world, position, blockId);
+        return data.energyDelta() != defaultEnergyDelta
+                && GravityPowderBlockDataStore.STATE_OFF.equals(data.instantState())
+                && GravityPowderBlockDataStore.STATE_OFF.equals(data.effectiveState());
+    }
+
     private static void writeGravityPowder(
             @Nonnull World world,
             @Nonnull Vector3i position,
@@ -439,7 +513,7 @@ public final class ConnectableRuntimeAccessor {
                 position,
                 new GravityPowderBlockData(
                         existing.connectionsMask(),
-                        existing.stateTimeline().withInstantState(data.instantState()),
+                        timelineForRuntime(data),
                         data.dirty()
                 )
         );
@@ -451,15 +525,28 @@ public final class ConnectableRuntimeAccessor {
             @Nonnull ConnectableRuntimeData data
     ) {
         InverterData existing = InverterDataStore.getOrCreate(world, position);
-        InverterDataStore.setState(
+        writeInverter(world, position, data, existing.nextMode(), existing.lastToggleInputMode());
+    }
+
+    private static void writeInverter(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull ConnectableRuntimeData data,
+            @Nonnull String nextMode,
+            @Nonnull String lastToggleInputMode
+    ) {
+        InverterDataStore.put(
                 world,
                 position,
-                data.instantState(),
-                existing.nextMode(),
-                data.invertEnabled(),
-                existing.lastToggleInputMode()
+                new InverterData(
+                        data.instantState(),
+                        nextMode,
+                        data.invertEnabled(),
+                        lastToggleInputMode,
+                        timelineForRuntime(data),
+                        data.dirty()
+                )
         );
-        setDirty(world, position, data.dirty());
     }
 
     private static @Nonnull ConnectableRuntimeData currentOrDefault(@Nonnull World world, @Nonnull Vector3i position) {
@@ -470,21 +557,32 @@ public final class ConnectableRuntimeAccessor {
         ConnectableDataStore.put(world, position, data);
     }
 
-    private static void mirrorFromOldStores(@Nonnull World world, @Nonnull Vector3i position, @Nonnull String blockId) {
-        get(world, position, blockId);
+    private static void syncCompatibilityStore(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull String blockId,
+            @Nonnull ConnectableRuntimeData data
+    ) {
+        if (ConnectableRegistry.isGravityPowderCarrierId(blockId)) {
+            writeGravityPowder(world, position, data);
+            return;
+        }
+        if (ConnectableRegistry.isInverterId(blockId)) {
+            writeInverter(world, position, data);
+            return;
+        }
+        if (ConnectableBlockRoles.isSource(blockId)) {
+            SourceBlockDataStore.setActive(world, position, data.energyDelta() > 0);
+        }
     }
 
-    private static @Nonnull ConnectableRuntimeData withMirrorRuntimeOnlyFields(
-            @Nonnull ConnectableRuntimeData oldStoreData,
-            @Nullable ConnectableRuntimeData mirror
-    ) {
-        if (mirror == null) {
-            return oldStoreData;
-        }
-        return oldStoreData
-                .withPassing(mirror.passing())
-                .withEnergyDelta(mirror.energyDelta())
-                .withNetworkId(mirror.networkId());
+    private static @Nonnull StateTimeline timelineForRuntime(@Nonnull ConnectableRuntimeData data) {
+        boolean effectiveMatchesInstant = data.effectiveState().equals(data.instantState());
+        return new StateTimeline(
+                data.instantState(),
+                effectiveMatchesInstant ? data.instantState() : data.effectiveState(),
+                effectiveMatchesInstant ? data.previousEffectiveState() : data.effectiveState()
+        );
     }
 
     private static int defaultEnergyDelta(@Nonnull World world, @Nonnull Vector3i position) {
@@ -499,6 +597,16 @@ public final class ConnectableRuntimeAccessor {
         if (!ConnectableBlockRoles.isSource(blockId)) {
             return 0;
         }
-        return SourceBlockDataStore.isActive(world, position, blockId) ? 1 : 0;
+        SourceBlockDataStore.SourceBlockData savedData = SourceBlockDataStore.get(world, position);
+        if (savedData != null) {
+            return savedData.active() ? 1 : 0;
+        }
+        if (ConnectableRegistry.WIND_GENERATOR_BLOCK_ID.equals(blockId)) {
+            return 1;
+        }
+        if (ConnectableRegistry.isWoodenButtonId(blockId)) {
+            return 0;
+        }
+        return 0;
     }
 }

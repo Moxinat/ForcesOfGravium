@@ -3,6 +3,7 @@ package dev.moxinat.forcesofgravium.logic.network;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
 import dev.moxinat.forcesofgravium.logic.siphon.GraviumSiphonBlockRefresher;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -81,7 +82,7 @@ public final class ConnectableNetworkUpdateService {
     }
 
     private static void addControlNeighborIfSignalInput(@Nonnull World world, @Nonnull Set<Vector3i> result, @Nonnull Vector3i siphon, int localSide) {
-        if (ConnectableRegistry.canReceiveSignalFrom(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, localSide)) {
+        if (ConnectableRuntimeAccessor.canReceiveSignalFrom(ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID, localSide)) {
             addControlNeighbor(world, result, siphon, localSide);
         }
     }

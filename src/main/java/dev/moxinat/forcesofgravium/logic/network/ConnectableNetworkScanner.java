@@ -4,7 +4,6 @@ import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
@@ -167,9 +166,7 @@ public final class ConnectableNetworkScanner {
 
         @Override
         public boolean cableHasSignal(@Nonnull Vector3i position, @Nonnull SignalState mode) {
-            String effectiveState = ConnectableRuntimeAccessor.getRuntimeData(world, position)
-                    .map(ConnectableRuntimeData::effectiveState)
-                    .orElse(GravityPowderBlockDataStore.STATE_OFF);
+            String effectiveState = ConnectableRuntimeAccessor.effectiveState(world, position);
             return switch (mode) {
                 case PUSH -> GravityPowderBlockDataStore.STATE_PUSH.equals(effectiveState);
                 case PULL -> GravityPowderBlockDataStore.STATE_PULL.equals(effectiveState);
@@ -185,9 +182,7 @@ public final class ConnectableNetworkScanner {
 
         @Override
         public boolean isInvertEnabled(@Nonnull Vector3i inverter) {
-            return ConnectableRuntimeAccessor.getRuntimeData(world, inverter)
-                    .map(ConnectableRuntimeData::invertEnabled)
-                    .orElse(true);
+            return ConnectableRuntimeAccessor.invertEnabled(world, inverter);
         }
 
         @Override

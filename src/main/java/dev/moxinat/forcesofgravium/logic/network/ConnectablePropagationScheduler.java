@@ -4,7 +4,6 @@ import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
@@ -151,15 +150,15 @@ public final class ConnectablePropagationScheduler {
             }
 
             InverterData previous = InverterDataStore.get(world, inverter);
-            boolean invertEnabled = previous == null || previous.invertEnabled();
+            boolean invertEnabled = ConnectableRuntimeAccessor.invertEnabled(world, inverter);
             String lastToggleInputMode = previous == null
                     ? GravityPowderBlockDataStore.STATE_OFF
                     : previous.lastToggleInputMode();
             String inputMode = InverterStateCalculator.computeInputMode(world, inverter);
             String outputMode = invertEnabled ? InverterStateCalculator.invertMode(inputMode) : inputMode;
-            String previousMode = previous == null ? GravityPowderBlockDataStore.STATE_OFF : previous.currentMode();
+            String previousMode = ConnectableRuntimeAccessor.instantState(world, inverter);
 
-            InverterDataStore.setState(world, inverter, outputMode, outputMode, invertEnabled, lastToggleInputMode);
+            ConnectableRuntimeAccessor.setInverterState(world, inverter, outputMode, outputMode, invertEnabled, lastToggleInputMode);
             InverterBlockRefresher.refreshAt(world, inverter);
             if (outputMode.equals(previousMode)) {
                 continue;
@@ -194,9 +193,7 @@ public final class ConnectablePropagationScheduler {
     private static Set<Vector3i> syncDirtyInverterFronts(World world, Set<Vector3i> inverters) {
         LinkedHashSet<Vector3i> visibleChangedCables = new LinkedHashSet<>();
         for (Vector3i inverter : inverters) {
-            if (!ConnectableRuntimeAccessor.getRuntimeData(world, inverter)
-                    .map(ConnectableRuntimeData::dirty)
-                    .orElse(false)) {
+            if (!ConnectableRuntimeAccessor.isDirty(world, inverter)) {
                 continue;
             }
 
@@ -277,8 +274,7 @@ public final class ConnectablePropagationScheduler {
     private static Map<Vector3i, String> snapshotInstantStates(World world, Set<Vector3i> cables) {
         Map<Vector3i, String> result = new HashMap<>();
         for (Vector3i cable : cables) {
-            ConnectableRuntimeAccessor.getRuntimeData(world, cable)
-                    .ifPresent(data -> result.put(cable, data.instantState()));
+            result.put(cable, ConnectableRuntimeAccessor.instantState(world, cable));
         }
         return Map.copyOf(result);
     }
@@ -286,8 +282,7 @@ public final class ConnectablePropagationScheduler {
     private static Set<Vector3i> changedInstantStateCables(World world, Map<Vector3i, String> previousInstantStates) {
         LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
         for (Map.Entry<Vector3i, String> entry : previousInstantStates.entrySet()) {
-            java.util.Optional<ConnectableRuntimeData> data = ConnectableRuntimeAccessor.getRuntimeData(world, entry.getKey());
-            if (data.isPresent() && !data.get().instantState().equals(entry.getValue())) {
+            if (!ConnectableRuntimeAccessor.instantState(world, entry.getKey()).equals(entry.getValue())) {
                 result.add(entry.getKey());
             }
         }
@@ -495,9 +490,7 @@ public final class ConnectablePropagationScheduler {
                         || !ConnectableNeighborResolver.hasConnectableSideFacing(world, neighbor, sourceTarget)) {
                     continue;
                 }
-                boolean dirty = ConnectableRuntimeAccessor.getRuntimeData(world, neighbor)
-                        .map(ConnectableRuntimeData::dirty)
-                        .orElse(false);
+                boolean dirty = ConnectableRuntimeAccessor.isDirty(world, neighbor);
                 if (dirty && adoptInstantStateAndScheduleNeighbors(world, neighbor)) {
                     visibleChangedCables.add(neighbor);
                 }
@@ -569,26 +562,19 @@ public final class ConnectablePropagationScheduler {
     }
 
     private static boolean adoptInstantStateAndScheduleNeighbors(World world, Vector3i target) {
-        java.util.Optional<ConnectableRuntimeData> previous = ConnectableRuntimeAccessor.getRuntimeData(world, target);
-        if (previous.isEmpty() || !previous.get().dirty()) {
+        if (!ConnectableRuntimeAccessor.isDirty(world, target)) {
             return false;
         }
 
-        String previousEffectiveState = previous.get().effectiveState();
+        String previousEffectiveState = ConnectableRuntimeAccessor.effectiveState(world, target);
         ConnectableRuntimeAccessor.adoptInstantState(world, target);
-        java.util.Optional<ConnectableRuntimeData> updated = ConnectableRuntimeAccessor.getRuntimeData(world, target);
-        if (updated.isEmpty()) {
-            return false;
-        }
 
         for (Vector3i neighbor : ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, target)) {
-            boolean neighborDirty = ConnectableRuntimeAccessor.getRuntimeData(world, neighbor)
-                    .map(ConnectableRuntimeData::dirty)
-                    .orElse(false);
+            boolean neighborDirty = ConnectableRuntimeAccessor.isDirty(world, neighbor);
             if (neighborDirty) {
                 enqueueWaveAdoption(world, neighbor);
             }
         }
-        return !updated.get().effectiveState().equals(previousEffectiveState);
+        return !ConnectableRuntimeAccessor.effectiveState(world, target).equals(previousEffectiveState);
     }
 }

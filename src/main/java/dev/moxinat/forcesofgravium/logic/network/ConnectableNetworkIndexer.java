@@ -129,9 +129,7 @@ public final class ConnectableNetworkIndexer {
     }
 
     private static @Nonnull SignalState effectiveSignalState(@Nonnull World world, @Nonnull Vector3i position) {
-        return ConnectableRuntimeAccessor.getRuntimeData(world, position)
-                .map(data -> signalForState(data.effectiveState()))
-                .orElse(SignalState.OFF);
+        return signalForState(ConnectableRuntimeAccessor.effectiveState(world, position));
     }
 
     private static @Nonnull SignalState signalForState(@Nonnull String state) {

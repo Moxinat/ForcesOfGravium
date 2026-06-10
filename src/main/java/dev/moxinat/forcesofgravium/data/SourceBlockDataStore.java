@@ -34,6 +34,11 @@ public final class SourceBlockDataStore {
         return data == null ? defaultActiveForBlockId(blockId) : data.active();
     }
 
+    public static @Nullable SourceBlockData get(@Nonnull World world, @Nonnull Vector3i position) {
+        WorldSaveFileService.ensureLoaded(world);
+        return DATA.get(BlockKey.from(world, position));
+    }
+
     public static void setActive(@Nonnull World world, @Nonnull Vector3i position, boolean active) {
         WorldSaveFileService.ensureLoaded(world);
         DATA.put(BlockKey.from(world, position), new SourceBlockData(active));

@@ -221,7 +221,7 @@ public final class ConnectableNeighborResolver {
     }
 
     private static boolean isLocalSignalOutputSideFacingWorldSide(String blockId, RotationTuple rotation, int localSideMask, WorldSide requiredWorldSide) {
-        return ConnectableRegistry.canOutputSignalTo(blockId, localSideMask)
+        return ConnectableRuntimeAccessor.canOutputSignalTo(blockId, localSideMask)
                 && worldSideForLocalSide(rotation, localSideMask) == requiredWorldSide;
     }
 

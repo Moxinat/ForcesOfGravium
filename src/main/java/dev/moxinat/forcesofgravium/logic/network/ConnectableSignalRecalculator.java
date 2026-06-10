@@ -4,11 +4,9 @@ import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore;
 import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
-import dev.moxinat.forcesofgravium.logic.inverter.InverterStateCalculator;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
@@ -351,23 +349,17 @@ public final class ConnectableSignalRecalculator {
 
         @Override
         public boolean cableHasEffectiveSignal(@Nonnull Vector3i cable, @Nonnull SignalState state) {
-            return ConnectableRuntimeAccessor.getRuntimeData(world, cable)
-                    .map(data -> data.effectiveState().equals(stateForSignal(state)))
-                    .orElse(false);
+            return ConnectableRuntimeAccessor.effectiveState(world, cable).equals(stateForSignal(state));
         }
 
         @Override
         public @Nonnull SignalState cableEffectiveSignal(@Nonnull Vector3i cable) {
-            return ConnectableRuntimeAccessor.getRuntimeData(world, cable)
-                    .map(data -> signalForState(data.effectiveState()))
-                    .orElse(SignalState.OFF);
+            return signalForState(ConnectableRuntimeAccessor.effectiveState(world, cable));
         }
 
         @Override
         public boolean isInvertEnabled(@Nonnull Vector3i inverter) {
-            return ConnectableRuntimeAccessor.getRuntimeData(world, inverter)
-                    .map(ConnectableRuntimeData::invertEnabled)
-                    .orElse(true);
+            return ConnectableRuntimeAccessor.invertEnabled(world, inverter);
         }
 
         @Override
@@ -401,25 +393,19 @@ public final class ConnectableSignalRecalculator {
 
         @Override
         public void setCableSignal(@Nonnull Vector3i position, @Nonnull SignalState mode) {
-            String previousInstantState = ConnectableRuntimeAccessor.getRuntimeData(world, position)
-                    .map(ConnectableRuntimeData::instantState)
-                    .orElse(GravityPowderBlockDataStore.STATE_OFF);
+            String previousInstantState = ConnectableRuntimeAccessor.instantState(world, position);
             ConnectableRuntimeAccessor.setInstantState(world, position, stateForSignal(mode));
-            java.util.Optional<ConnectableRuntimeData> updated = ConnectableRuntimeAccessor.getRuntimeData(world, position);
-            if (updated.isPresent() && !updated.get().instantState().equals(previousInstantState)) {
+            if (!ConnectableRuntimeAccessor.instantState(world, position).equals(previousInstantState)) {
                 ConnectableRuntimeAccessor.setDirty(world, position, true);
             }
         }
 
         @Override
         public void setInverterState(@Nonnull Vector3i position, @Nonnull String mode, boolean invertEnabled, @Nonnull SignalState lastToggleInputMode) {
-            InverterData previous = InverterDataStore.get(world, position);
-            String inputMode = InverterStateCalculator.computeInputMode(world, position);
-            String outputMode = invertEnabled ? InverterStateCalculator.invertMode(inputMode) : inputMode;
-            InverterDataStore.setState(world, position, outputMode, outputMode, invertEnabled, stateForSignal(lastToggleInputMode));
-            InverterData updated = InverterDataStore.get(world, position);
-            String previousMode = previous == null ? GravityPowderBlockDataStore.STATE_OFF : previous.currentMode();
-            if (updated != null && !updated.currentMode().equals(previousMode)) {
+            String previousMode = ConnectableRuntimeAccessor.instantState(world, position);
+            String outputMode = mode;
+            ConnectableRuntimeAccessor.setInverterState(world, position, outputMode, outputMode, invertEnabled, stateForSignal(lastToggleInputMode));
+            if (!outputMode.equals(previousMode)) {
                 ConnectableRuntimeAccessor.setDirty(world, position, true);
             }
         }
