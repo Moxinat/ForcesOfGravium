@@ -1,5 +1,8 @@
 package dev.moxinat.forcesofgravium.persistence;
 
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
+import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
 import dev.moxinat.forcesofgravium.data.StateTimeline;
@@ -105,6 +108,35 @@ class WorldSaveFileServiceTest {
         assertEquals(GravityPowderBlockDataStore.STATE_PUSH, data.waveState());
     }
 
+    @Test
+    void connectableRuntimeLoadPreservesSharedFieldsButNotNetworkId() throws Exception {
+        BsonDocument entry = baseEntry();
+        entry.put("previousInstantState", new BsonString(GravityPowderBlockDataStore.STATE_OFF));
+        entry.put("instantState", new BsonString(GravityPowderBlockDataStore.STATE_PUSH));
+        entry.put("previousEffectiveState", new BsonString(GravityPowderBlockDataStore.STATE_OFF));
+        entry.put("effectiveState", new BsonString(GravityPowderBlockDataStore.STATE_OFF));
+        entry.put("dirty", BsonBoolean.TRUE);
+        entry.put("invertEnabled", BsonBoolean.TRUE);
+        entry.put("passing", BsonBoolean.TRUE);
+        entry.put("energyDelta", new BsonInt32(1));
+        entry.put("networkId", new BsonInt32(99));
+
+        ConnectableRuntimeData data = readConnectableRuntimeData(
+                entry,
+                RotationTuple.of(Rotation.Ninety, Rotation.None, Rotation.OneEighty)
+        );
+
+        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, data.instantState());
+        assertEquals(GravityPowderBlockDataStore.STATE_OFF, data.effectiveState());
+        assertTrue(data.dirty());
+        assertTrue(data.invertEnabled());
+        assertTrue(data.passing());
+        assertEquals(1, data.energyDelta());
+        assertEquals(ConnectableRuntimeData.NO_NETWORK, data.networkId());
+        assertEquals(Rotation.Ninety, data.rotation().yaw());
+        assertEquals(Rotation.OneEighty, data.rotation().roll());
+    }
+
     private static BsonDocument currentGravityPowderEntry(BsonBoolean dirty) {
         BsonDocument entry = baseEntry();
         entry.put("instantState", new BsonString(GravityPowderBlockDataStore.STATE_PUSH));
@@ -145,5 +177,15 @@ class WorldSaveFileServiceTest {
         Method method = WorldSaveFileService.class.getDeclaredMethod("readGravityPowderData", BsonDocument.class);
         method.setAccessible(true);
         return (GravityPowderBlockData) method.invoke(null, entry);
+    }
+
+    private static ConnectableRuntimeData readConnectableRuntimeData(BsonDocument entry, RotationTuple rotation) throws Exception {
+        Method method = WorldSaveFileService.class.getDeclaredMethod(
+                "readConnectableRuntimeData",
+                BsonDocument.class,
+                RotationTuple.class
+        );
+        method.setAccessible(true);
+        return (ConnectableRuntimeData) method.invoke(null, entry, rotation);
     }
 }
