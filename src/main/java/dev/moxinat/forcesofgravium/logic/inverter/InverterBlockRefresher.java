@@ -7,8 +7,6 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 public final class InverterBlockRefresher {
@@ -40,23 +38,17 @@ public final class InverterBlockRefresher {
             return;
         }
 
-        RotationTuple rotation = ConnectableRuntimeAccessor.getRotation(world, position);
+        RotationTuple rotation = ConnectableRuntimeAccessor.rotation(world, position);
         chunk.placeBlock(x, y, z, blockKey, rotation, 0, false);
     }
 
     private static String stateName(World world, Vector3i position) {
-        boolean invertEnabled = ConnectableRuntimeAccessor.getRuntimeData(world, position)
-                .map(ConnectableRuntimeData::invertEnabled)
-                .orElse(true);
+        boolean invertEnabled = ConnectableRuntimeAccessor.invertEnabled(world, position);
 
         return modeStatePrefix(InverterStateCalculator.computeInputMode(world, position)) + (invertEnabled ? "Off" : "On");
     }
 
     private static String modeStatePrefix(String mode) {
-        return switch (mode) {
-            case GravityPowderBlockDataStore.STATE_PUSH -> "Push";
-            case GravityPowderBlockDataStore.STATE_PULL -> "Pull";
-            default -> "Off";
-        };
+        return ConnectableRuntimeAccessor.stateNameForSignalState(mode);
     }
 }

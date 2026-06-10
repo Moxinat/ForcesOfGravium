@@ -280,6 +280,33 @@ public final class ConnectableRuntimeAccessor {
                 : GravityPowderBlockDataStore.STATE_OFF;
     }
 
+    public static @Nonnull String stateSuffixForSignalState(@Nullable String state) {
+        return switch (GravityPowderBlockDataStore.normalizeState(state)) {
+            case GravityPowderBlockDataStore.STATE_PUSH -> "Push";
+            case GravityPowderBlockDataStore.STATE_PULL -> "Pull";
+            default -> "";
+        };
+    }
+
+    public static @Nonnull String stateNameForSignalState(@Nullable String state) {
+        String suffix = stateSuffixForSignalState(state);
+        return suffix.isEmpty() ? "Off" : suffix;
+    }
+
+    public static @Nonnull String stateIdForEffectiveState(@Nonnull String statePrefix, @Nullable String effectiveState) {
+        return statePrefix + stateNameForSignalState(effectiveState);
+    }
+
+    public static @Nonnull String stateIdForRuntimeEffectiveState(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull String blockId
+    ) {
+        return definitionFor(blockId)
+                .map(definition -> stateIdForEffectiveState(definition.statePrefix(), effectiveState(world, position)))
+                .orElse("");
+    }
+
     public static long networkId(@Nonnull World world, @Nonnull Vector3i position) {
         return getNetworkId(world, position);
     }

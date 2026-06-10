@@ -47,7 +47,7 @@ public final class GraviumSiphonBlockRefresher {
             return;
         }
 
-        RotationTuple rotation = ConnectableRuntimeAccessor.getRotation(world, position);
+        RotationTuple rotation = ConnectableRuntimeAccessor.rotation(world, position);
         chunk.placeBlock(x, y, z, blockKey, rotation, 0, false);
     }
 

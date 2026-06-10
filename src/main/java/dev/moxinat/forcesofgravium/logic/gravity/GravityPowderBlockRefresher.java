@@ -8,7 +8,6 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeData;
 import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
 import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver.WorldSide;
@@ -363,14 +362,9 @@ public final class GravityPowderBlockRefresher {
     }
 
     private static String modeStateSuffix(World world, int x, int y, int z) {
-        String displayMode = ConnectableRuntimeAccessor.getRuntimeData(world, new Vector3i(x, y, z))
-                .map(ConnectableRuntimeData::effectiveState)
-                .orElse(GravityPowderBlockDataStore.STATE_OFF);
-        return switch (displayMode) {
-            case GravityPowderBlockDataStore.STATE_PUSH -> "Push";
-            case GravityPowderBlockDataStore.STATE_PULL -> "Pull";
-            default -> "";
-        };
+        return ConnectableRuntimeAccessor.stateSuffixForSignalState(
+                ConnectableRuntimeAccessor.effectiveState(world, new Vector3i(x, y, z))
+        );
     }
 
     private static String stateBlockKey(BlockType baseType, String baseState, String modeSuffix) {
