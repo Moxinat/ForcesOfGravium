@@ -16,10 +16,10 @@ import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.logic.network.ConnectableNeighborResolver;
-import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
-import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
+import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;

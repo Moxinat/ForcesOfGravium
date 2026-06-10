@@ -14,16 +14,16 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.data.ConnectableRotationStore;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
-import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
-import dev.moxinat.forcesofgravium.logic.siphon.GraviumSiphonBlockRefresher;
-import dev.moxinat.forcesofgravium.data.InverterDataStore;
-import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
-import dev.moxinat.forcesofgravium.logic.siphon.GraviumSiphonLogic;
+import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
+import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore.GravityPowderBlockData;
+import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonStore;
+import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonBlockRefresher;
+import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore;
+import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore.InverterData;
+import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
-import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -252,7 +252,9 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
 
     private void sendRotationDebug(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Vector3i position) {
         BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
-        RotationTuple storedRotation = ConnectableRotationStore.get(world, position);
+        RotationTuple storedRotation = ConnectableRuntimeAccessor.getRuntimeData(world, position)
+                .map(data -> data.rotation())
+                .orElse(null);
         RotationTuple worldRotation = getWorldRotation(world, position);
 
         context.sendMessage(Message.raw("Rotation debug at " + formatPosition(position)));
@@ -401,7 +403,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
     }
 
     private void sendAllGravityPowderDistances(@Nonnull CommandContext context, @Nonnull World world) {
-        Map<Vector3i, GravityPowderBlockData> snapshot = GravityPowderBlockDataStore.snapshotForWorld(world);
+        Map<Vector3i, GravityPowderBlockData> snapshot = GravityPowderSpecialStateStore.snapshotForWorld(world);
         if (snapshot.isEmpty()) {
             context.sendMessage(Message.raw("No gravity powder data found in world '" + world.getName() + "'."));
             return;
@@ -421,7 +423,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
     }
 
     private void sendSingleGravityPowderDistance(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Vector3i position) {
-        GravityPowderBlockData data = GravityPowderBlockDataStore.get(world, position);
+        GravityPowderBlockData data = GravityPowderSpecialStateStore.get(world, position);
         if (data == null) {
             context.sendMessage(Message.raw("No gravity powder data at " + formatPosition(position) + "."));
             return;
@@ -431,7 +433,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
     }
 
     private void sendAllInverterDistances(@Nonnull CommandContext context, @Nonnull World world) {
-        Map<Vector3i, InverterData> snapshot = InverterDataStore.snapshotForWorld(world);
+        Map<Vector3i, InverterData> snapshot = InverterSpecialStateStore.snapshotForWorld(world);
         if (snapshot.isEmpty()) {
             context.sendMessage(Message.raw("No inverter data found in world '" + world.getName() + "'."));
             return;
@@ -451,7 +453,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
     }
 
     private void sendSingleInverterDistance(@Nonnull CommandContext context, @Nonnull World world, @Nonnull Vector3i position) {
-        InverterData data = InverterDataStore.get(world, position);
+        InverterData data = InverterSpecialStateStore.get(world, position);
         if (data == null) {
             context.sendMessage(Message.raw("No inverter data at " + formatPosition(position) + "."));
             return;

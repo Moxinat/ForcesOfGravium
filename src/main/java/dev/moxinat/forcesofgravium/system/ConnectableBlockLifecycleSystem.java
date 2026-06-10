@@ -14,14 +14,12 @@ import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.connectable.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.data.GraviumSiphonStore;
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore;
-import dev.moxinat.forcesofgravium.data.InverterDataStore;
-import dev.moxinat.forcesofgravium.data.SourceBlockDataStore;
-import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
-import dev.moxinat.forcesofgravium.registry.ConnectableBlockRoles;
-import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonStore;
+import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
+import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore;
+import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
+import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
 
@@ -57,16 +55,13 @@ public final class ConnectableBlockLifecycleSystem {
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
             if (ConnectableRegistry.isGravityPowderCarrierId(itemInHand.getItemId())) {
-                GravityPowderBlockDataStore.putDefault(world, target);
+                GravityPowderSpecialStateStore.putDefault(world, target);
             }
             if (ConnectableRegistry.isInverterId(itemInHand.getItemId())) {
-                InverterDataStore.putDefault(world, target);
+                InverterSpecialStateStore.putDefault(world, target);
             }
             if (ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID.equals(itemInHand.getItemId())) {
                 GraviumSiphonStore.add(world, target);
-            }
-            if (ConnectableBlockRoles.isSource(itemInHand.getItemId())) {
-                SourceBlockDataStore.putDefault(world, target, itemInHand.getItemId());
             }
             ConnectableRuntimeAccessor.setRotation(world, target, event.getRotation());
             ConnectablePropagationScheduler.onConnectablePlaced(world, target);
@@ -101,16 +96,13 @@ public final class ConnectableBlockLifecycleSystem {
             Vector3i target = new Vector3i(event.getTargetBlock());
             ConnectableRuntimeAccessor.remove(world, target);
             if (ConnectableRegistry.isGravityPowderCarrierId(brokenType.getId())) {
-                GravityPowderBlockDataStore.remove(world, target);
+                GravityPowderSpecialStateStore.remove(world, target);
             }
             if (ConnectableRegistry.isInverterId(brokenType.getId())) {
-                InverterDataStore.remove(world, target);
+                InverterSpecialStateStore.remove(world, target);
             }
             if (ConnectableRegistry.isGraviumSiphonId(brokenType.getId())) {
                 GraviumSiphonStore.remove(world, target);
-            }
-            if (ConnectableBlockRoles.isSource(brokenType.getId())) {
-                SourceBlockDataStore.remove(world, target);
             }
             ConnectablePropagationScheduler.onConnectableBroken(world, target);
         }

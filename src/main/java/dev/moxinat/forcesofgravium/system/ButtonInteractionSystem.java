@@ -12,8 +12,8 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.logic.source.SourceActivationScheduler;
-import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.block.source.SourceActivationScheduler;
+import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
 

@@ -7,9 +7,9 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.logic.network.ConnectablePropagationScheduler;
-import dev.moxinat.forcesofgravium.logic.siphon.GraviumSiphonLogic;
-import dev.moxinat.forcesofgravium.logic.source.SourceActivationScheduler;
+import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
+import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
+import dev.moxinat.forcesofgravium.block.source.SourceActivationScheduler;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
 import javax.annotation.Nonnull;

@@ -83,7 +83,7 @@ Reads the inverter data entry at an exact coordinate.
 - These commands are currently focused on debugging gravity powder logic.
 - `gpdist here` requires a player sender.
 - `invdist here` also requires a player sender.
-- `gpdist` reads from the internal `GravityPowderBlockDataStore`.
-- `invdist` reads from the internal `InverterDataStore`.
+- `gpdist` reads from the internal `GravityPowderSpecialStateStore`.
+- `invdist` reads from the internal `InverterSpecialStateStore`.
 - `effectiveState` reflects the live cable behavior used by visuals and propagation consumers.
 - If a block has no stored gravity powder debug data, the command reports that no entry exists instead of returning a fallback value.

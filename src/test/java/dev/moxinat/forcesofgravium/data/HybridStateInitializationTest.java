@@ -1,7 +1,11 @@
 package dev.moxinat.forcesofgravium.data;
 
-import dev.moxinat.forcesofgravium.data.GravityPowderBlockDataStore.GravityPowderBlockData;
-import dev.moxinat.forcesofgravium.data.InverterDataStore.InverterData;
+import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore;
+
+import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
+
+import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore.GravityPowderBlockData;
+import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore.InverterData;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,49 +18,49 @@ class HybridStateInitializationTest {
     void gravityPowderDefaultInitializesAllStatesFromInstantState() {
         GravityPowderBlockData data = GravityPowderBlockData.defaultData();
 
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, data.instantState());
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, data.waveState());
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, data.effectiveState());
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, data.previousState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, data.instantState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, data.waveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, data.effectiveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, data.previousState());
     }
 
     @Test
     void gravityPowderStateFactoryInitializesAllStatesFromInstantState() {
-        GravityPowderBlockData data = GravityPowderBlockDataStore.fromState(7, GravityPowderBlockDataStore.STATE_PULL);
+        GravityPowderBlockData data = GravityPowderSpecialStateStore.fromState(7, GravityPowderSpecialStateStore.STATE_PULL);
 
-        assertEquals(GravityPowderBlockDataStore.STATE_PULL, data.instantState());
-        assertEquals(GravityPowderBlockDataStore.STATE_PULL, data.waveState());
-        assertEquals(GravityPowderBlockDataStore.STATE_PULL, data.effectiveState());
-        assertEquals(GravityPowderBlockDataStore.STATE_PULL, data.previousState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_PULL, data.instantState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_PULL, data.waveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_PULL, data.effectiveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_PULL, data.previousState());
     }
 
     @Test
     void gravityPowderInstantStateTransitionUpdatesPreviousWaveAndEffectiveStates() {
-        GravityPowderBlockData push = GravityPowderBlockData.defaultData().withInstantState(GravityPowderBlockDataStore.STATE_PUSH);
-        GravityPowderBlockData pull = push.withInstantState(GravityPowderBlockDataStore.STATE_PULL);
+        GravityPowderBlockData push = GravityPowderBlockData.defaultData().withInstantState(GravityPowderSpecialStateStore.STATE_PUSH);
+        GravityPowderBlockData pull = push.withInstantState(GravityPowderSpecialStateStore.STATE_PULL);
 
-        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, push.instantState());
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, push.waveState());
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, push.effectiveState());
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, push.previousState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_PUSH, push.instantState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, push.waveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, push.effectiveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, push.previousState());
         assertTrue(push.hasWaveMismatch());
 
-        assertEquals(GravityPowderBlockDataStore.STATE_PULL, pull.instantState());
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, pull.waveState());
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, pull.effectiveState());
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, pull.previousState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_PULL, pull.instantState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, pull.waveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, pull.effectiveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, pull.previousState());
         assertTrue(pull.hasWaveMismatch());
     }
 
     @Test
     void gravityPowderCanAdoptInstantStateIntoWaveState() {
-        GravityPowderBlockData transitioned = GravityPowderBlockData.defaultData().withInstantState(GravityPowderBlockDataStore.STATE_PUSH);
+        GravityPowderBlockData transitioned = GravityPowderBlockData.defaultData().withInstantState(GravityPowderSpecialStateStore.STATE_PUSH);
         GravityPowderBlockData adopted = transitioned.withWaveStateFromInstantState();
 
-        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adopted.instantState());
-        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adopted.waveState());
-        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adopted.effectiveState());
-        assertEquals(GravityPowderBlockDataStore.STATE_PUSH, adopted.previousState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_PUSH, adopted.instantState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_PUSH, adopted.waveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_PUSH, adopted.effectiveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_PUSH, adopted.previousState());
         assertFalse(adopted.hasWaveMismatch());
     }
 
@@ -65,18 +69,18 @@ class HybridStateInitializationTest {
         GravityPowderBlockData data = new GravityPowderBlockData(
                 0,
                 new StateTimeline(
-                        GravityPowderBlockDataStore.STATE_PUSH,
-                        GravityPowderBlockDataStore.STATE_OFF,
-                        GravityPowderBlockDataStore.STATE_OFF
+                        GravityPowderSpecialStateStore.STATE_PUSH,
+                        GravityPowderSpecialStateStore.STATE_OFF,
+                        GravityPowderSpecialStateStore.STATE_OFF
                 )
         );
 
-        assertEquals(GravityPowderBlockDataStore.STATE_OFF, data.effectiveState());
+        assertEquals(GravityPowderSpecialStateStore.STATE_OFF, data.effectiveState());
     }
 
     @Test
     void inverterDefaultInitializesAllStatesFromCurrentMode() {
-        InverterData data = InverterDataStore.InverterData.defaultData();
+        InverterData data = InverterSpecialStateStore.InverterData.defaultData();
 
         assertEquals("off", data.currentMode());
         assertEquals("off", data.waveState());
