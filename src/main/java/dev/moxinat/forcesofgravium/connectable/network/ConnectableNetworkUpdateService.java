@@ -6,10 +6,12 @@ import dev.moxinat.forcesofgravium.connectable.propagation.SignalState;
 
 import dev.moxinat.forcesofgravium.connectable.propagation.NetworkStep;
 
-import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableNode;
+import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableNodeProvider;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonStore;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonBlockRefresher;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
@@ -95,9 +97,9 @@ public final class ConnectableNetworkUpdateService {
 
     private static void addControlNeighbor(@Nonnull World world, @Nonnull Set<Vector3i> result, @Nonnull Vector3i siphon, int localSide) {
         Vector3i neighbor = ConnectableNeighborResolver.adjacentPositionForLocalSide(world, siphon, localSide);
-        BlockType blockType = world.getBlockType(neighbor.x(), neighbor.y(), neighbor.z());
-        if (blockType != null
-                && ConnectableRegistry.isGravityPowderCarrierId(blockType.getId())
+        ConnectableNode node = ConnectableNodeProvider.nodeAt(world, neighbor).orElse(null);
+        if (node != null
+                && node.isSignalRuntimeNode()
                 && ConnectableNeighborResolver.areMutuallyConnected(world, siphon, neighbor)) {
             result.add(neighbor);
         }
@@ -123,8 +125,8 @@ public final class ConnectableNetworkUpdateService {
 
             NetworkScanResult result = ConnectableNetworkScanner.scanFrom(world, start, mode);
             resultsByCarrierStep.put(key, result);
-            for (Vector3i carrier : result.carriers()) {
-                resultsByCarrierStep.put(new NetworkStep(carrier, mode), result);
+            for (Vector3i node : result.nodes()) {
+                resultsByCarrierStep.put(new NetworkStep(node, mode), result);
             }
             return result;
         }

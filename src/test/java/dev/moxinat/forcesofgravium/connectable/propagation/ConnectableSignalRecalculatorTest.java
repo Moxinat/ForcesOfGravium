@@ -107,6 +107,31 @@ class ConnectableSignalRecalculatorTest {
     }
 
     @Test
+    void newlyPlacedBackInputActivatesInverterFrontOnNextRecompute() {
+        Vector3i input = new Vector3i(0, 0, -1);
+        Vector3i inverter = new Vector3i(0, 0, 0);
+        Vector3i output = new Vector3i(0, 0, 1);
+        TestAdapter adapter = new TestAdapter()
+                .withNode(inverter, ConnectableRegistry.INVERTER_BLOCK_ID)
+                .withNode(output, ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID);
+
+        ConnectableSignalRecalculator.recompute(adapter);
+        assertEquals(SignalState.OFF, adapter.signal(inverter));
+        assertEquals(SignalState.OFF, adapter.signal(output));
+
+        adapter.withNode(input, ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID, runtime(false, true, SignalState.OFF, SignalState.PUSH))
+                .withSourceSignal(new Vector3i(0, 0, -2), input);
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertEquals(SignalState.PUSH, adapter.signal(input));
+        assertEquals(SignalState.PULL, adapter.signal(inverter));
+        assertEquals(SignalState.PULL, adapter.signal(output));
+        assertTrue(adapter.dirtyMarked(input));
+        assertTrue(adapter.dirtyMarked(inverter));
+        assertTrue(adapter.dirtyMarked(output));
+    }
+
+    @Test
     void brokenBackNodeRecomputesInverterOutputThroughGenericPropagation() {
         Vector3i input = new Vector3i(0, 0, -1);
         Vector3i inverter = new Vector3i(0, 0, 0);
@@ -171,19 +196,62 @@ class ConnectableSignalRecalculatorTest {
         ConnectableSignalRecalculator.recompute(adapter);
         assertFalse(adapter.invertEnabled(inverter));
 
-        adapter.withNode(control, ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID, runtime(false, true, SignalState.OFF, SignalState.OFF));
+        adapter.withNode(control, ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID, runtime(false, true, SignalState.OFF, SignalState.OFF))
+                .withoutSourceSignal(new Vector3i(2, 0, 0), control);
         ConnectableSignalRecalculator.recompute(adapter);
         assertFalse(adapter.invertEnabled(inverter));
         assertEquals(SignalState.OFF, adapter.controlMemory(inverter));
 
-        adapter.withNode(control, ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID, runtime(false, true, SignalState.PULL, SignalState.PULL));
+        adapter.withNode(control, ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID, runtime(false, true, SignalState.OFF, SignalState.PUSH))
+                .withSourceSignal(new Vector3i(2, 0, 0), control);
         ConnectableSignalRecalculator.recompute(adapter);
         assertTrue(adapter.invertEnabled(inverter));
-        assertEquals(SignalState.PULL, adapter.controlMemory(inverter));
+        assertEquals(SignalState.PUSH, adapter.controlMemory(inverter));
     }
 
     @Test
-    void dirtyCableEffectiveOffDoesNotFeedInvertCapableInputOrControl() {
+    void directSourceControlStillTogglesInvertEnabled() {
+        Vector3i input = new Vector3i(0, 0, -1);
+        Vector3i inverter = new Vector3i(0, 0, 0);
+        Vector3i output = new Vector3i(0, 0, 1);
+        TestAdapter adapter = new TestAdapter()
+                .withNode(input, ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID, runtime(false, true, SignalState.OFF, SignalState.PUSH))
+                .withNode(inverter, ConnectableRegistry.INVERTER_BLOCK_ID)
+                .withNode(output, ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID)
+                .withSourceSignal(new Vector3i(0, 0, -2), input)
+                .withSourceSignal(new Vector3i(1, 0, 0), inverter);
+
+        ConnectableSignalRecalculator.recompute(adapter);
+
+        assertFalse(adapter.invertEnabled(inverter));
+        assertEquals(SignalState.PUSH, adapter.controlMemory(inverter));
+        assertEquals(SignalState.PUSH, adapter.signal(output));
+    }
+
+    @Test
+    void worldAdapterDoesNotRestrictNodesToAffectedPositions() throws Exception {
+        String source = Files.readString(Path.of("src/main/java/dev/moxinat/forcesofgravium/connectable/propagation/ConnectableSignalRecalculator.java"));
+
+        assertFalse(source.contains("retainAll(affectedPositions)"));
+        assertFalse(source.contains("nodes.retainAll"));
+    }
+
+    @Test
+    void instantBfsDoesNotGateSignalTraversalOnEffectiveState() throws Exception {
+        String source = Files.readString(Path.of("src/main/java/dev/moxinat/forcesofgravium/connectable/propagation/ConnectableSignalRecalculator.java"));
+
+        assertFalse(source.contains("adapter.effectiveSignal(source) != signal"));
+    }
+
+    @Test
+    void recalculatorDoesNotScheduleWaveAdoptionForControlChanges() throws Exception {
+        String source = Files.readString(Path.of("src/main/java/dev/moxinat/forcesofgravium/connectable/propagation/ConnectableSignalRecalculator.java"));
+
+        assertFalse(source.contains("enqueueWaveAdoption"));
+    }
+
+    @Test
+    void dirtyInstantSignalFeedsInvertCapableInputAndControl() {
         Vector3i input = new Vector3i(0, 0, -1);
         Vector3i inverter = new Vector3i(0, 0, 0);
         Vector3i output = new Vector3i(0, 0, 1);
@@ -199,10 +267,12 @@ class ConnectableSignalRecalculatorTest {
         ConnectableSignalRecalculator.recompute(adapter);
 
         assertEquals(SignalState.PUSH, adapter.signal(input));
-        assertEquals(SignalState.OFF, adapter.signal(inverter));
-        assertEquals(SignalState.OFF, adapter.signal(output));
-        assertTrue(adapter.invertEnabled(inverter));
-        assertEquals(SignalState.OFF, adapter.controlMemory(inverter));
+        assertEquals(SignalState.PUSH, adapter.signal(inverter));
+        assertEquals(SignalState.PUSH, adapter.signal(output));
+        assertFalse(adapter.invertEnabled(inverter));
+        assertEquals(SignalState.PUSH, adapter.controlMemory(inverter));
+        assertTrue(adapter.dirtyMarked(inverter));
+        assertTrue(adapter.dirtyMarked(output));
     }
 
     @Test
@@ -253,6 +323,7 @@ class ConnectableSignalRecalculatorTest {
         private final Map<Vector3i, SignalState> signals = new LinkedHashMap<>();
         private final Map<Vector3i, Boolean> invertEnabled = new LinkedHashMap<>();
         private final Map<Vector3i, SignalState> controlMemory = new LinkedHashMap<>();
+        private final Set<Vector3i> dirtyMarks = new LinkedHashSet<>();
 
         private TestAdapter withNode(Vector3i position, String blockId) {
             boolean defaultInvert = ConnectableRegistry.INVERTER_BLOCK_ID.equals(blockId);
@@ -283,6 +354,11 @@ class ConnectableSignalRecalculatorTest {
             return this;
         }
 
+        private TestAdapter withoutSourceSignal(Vector3i source, Vector3i target) {
+            sourceSignals.remove(new Edge(source, target));
+            return this;
+        }
+
         private SignalState signal(Vector3i position) {
             return signals.getOrDefault(position, SignalState.OFF);
         }
@@ -293,6 +369,10 @@ class ConnectableSignalRecalculatorTest {
 
         private SignalState controlMemory(Vector3i position) {
             return controlMemory.getOrDefault(position, SignalState.OFF);
+        }
+
+        private boolean dirtyMarked(Vector3i position) {
+            return dirtyMarks.contains(position);
         }
 
         @Override
@@ -321,18 +401,17 @@ class ConnectableSignalRecalculatorTest {
         }
 
         @Override
-        public @Nonnull SignalState effectiveSignal(@Nonnull ConnectableNode node) {
-            return ConnectableSignalRecalculator.signalForState(node.effectiveState());
-        }
-
-        @Override
         public @Nonnull SignalState readControlInputMemory(@Nonnull ConnectableNode node) {
             return controlMemory(node.position());
         }
 
         @Override
         public void writeInstantState(@Nonnull ConnectableNode node, @Nonnull SignalState signal) {
+            SignalState previous = signal(node.position());
             signals.put(node.position(), signal);
+            if (previous != signal) {
+                dirtyMarks.add(node.position());
+            }
             updateNodeRuntime(node.position(), signal, invertEnabled(node.position()), controlMemory(node.position()));
         }
 

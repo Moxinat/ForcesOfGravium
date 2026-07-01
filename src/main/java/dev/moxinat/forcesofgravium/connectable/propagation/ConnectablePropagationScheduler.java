@@ -24,6 +24,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class ConnectablePropagationScheduler {
 
+    private static final int[] LOCAL_SIDES = new int[]{
+            ConnectableRegistry.SIDE_FRONT,
+            ConnectableRegistry.SIDE_BACK,
+            ConnectableRegistry.SIDE_RIGHT,
+            ConnectableRegistry.SIDE_LEFT,
+            ConnectableRegistry.SIDE_TOP,
+            ConnectableRegistry.SIDE_BOTTOM
+    };
+
     private static final Map<World, Set<Vector3i>> PENDING_RECOMPUTE = new ConcurrentHashMap<>();
     private static final Map<World, Set<Vector3i>> PENDING_PLACED = new ConcurrentHashMap<>();
     private static final Map<World, Set<Vector3i>> PENDING_BROKEN = new ConcurrentHashMap<>();
@@ -445,12 +454,46 @@ public final class ConnectablePropagationScheduler {
         String previousEffectiveState = ConnectableRuntimeAccessor.effectiveState(world, target);
         ConnectableRuntimeAccessor.adoptInstantState(world, target);
 
-        for (Vector3i neighbor : ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, target)) {
+        for (Vector3i neighbor : signalOutputNeighbors(world, target)) {
             boolean neighborDirty = ConnectableRuntimeAccessor.isDirty(world, neighbor);
             if (neighborDirty) {
                 enqueueWaveAdoption(world, neighbor);
             }
         }
         return !ConnectableRuntimeAccessor.effectiveState(world, target).equals(previousEffectiveState);
+    }
+
+    private static Set<Vector3i> signalOutputNeighbors(World world, Vector3i sourcePosition) {
+        ConnectableNode source = ConnectableNodeProvider.nodeAt(world, sourcePosition).orElse(null);
+        if (source == null) {
+            return Set.of();
+        }
+
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+        for (int localSide : LOCAL_SIDES) {
+            if (!source.canOutputSignalTo(localSide)) {
+                continue;
+            }
+            Vector3i neighborPosition = ConnectableNeighborResolver.adjacentPositionForLocalSide(world, sourcePosition, localSide);
+            ConnectableNode neighbor = ConnectableNodeProvider.nodeAt(world, neighborPosition).orElse(null);
+            if (neighbor != null && isSignalOutputNeighbor(source, neighbor)) {
+                result.add(neighbor.position());
+            }
+        }
+        return Set.copyOf(result);
+    }
+
+    static boolean isSignalOutputNeighbor(ConnectableNode source, ConnectableNode neighbor) {
+        WorldSide sourceToNeighbor = ConnectableNeighborResolver.worldSideFromSourceToTarget(
+                source.position(),
+                neighbor.position()
+        );
+        if (sourceToNeighbor == null) {
+            return false;
+        }
+
+        int sourceLocalSide = ConnectableNeighborResolver.localSideForWorldSide(source.rotation(), sourceToNeighbor);
+        int neighborLocalSide = ConnectableNeighborResolver.localSideForWorldSide(neighbor.rotation(), sourceToNeighbor.opposite());
+        return source.canOutputSignalTo(sourceLocalSide) && neighbor.canReceiveSignalFrom(neighborLocalSide);
     }
 }

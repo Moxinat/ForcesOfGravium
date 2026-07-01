@@ -1,14 +1,13 @@
 package dev.moxinat.forcesofgravium.connectable.network;
 
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
-
-import dev.moxinat.forcesofgravium.connectable.propagation.SignalState;
-
-import dev.moxinat.forcesofgravium.connectable.propagation.NetworkStep;
-
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
+import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableNode;
+import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableNodeProvider;
+import dev.moxinat.forcesofgravium.connectable.propagation.NetworkStep;
+import dev.moxinat.forcesofgravium.connectable.propagation.SignalState;
+import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -32,16 +31,18 @@ public final class ConnectableNetworkIndexer {
 
         LinkedHashMap<Long, ConnectableNetworkSummary> summaries = new LinkedHashMap<>();
         LinkedHashSet<NetworkStep> indexedSteps = new LinkedHashSet<>();
-        Set<Vector3i> carriers = ConnectableRuntimeAccessor.carrierPositionsForWorld(world);
 
-        for (Vector3i carrier : carriers) {
-            SignalState effectiveState = effectiveSignalState(world, carrier);
-            if (effectiveState == SignalState.OFF || !indexedSteps.add(new NetworkStep(carrier, effectiveState))) {
+        for (ConnectableNode node : ConnectableNodeProvider.nodesForWorld(world).values()) {
+            if (!node.isSignalRuntimeNode()) {
+                continue;
+            }
+            SignalState effectiveState = effectiveSignalState(node);
+            if (effectiveState == SignalState.OFF || !indexedSteps.add(new NetworkStep(node.position(), effectiveState))) {
                 continue;
             }
 
-            NetworkScanResult result = ConnectableNetworkScanner.scanFrom(world, carrier, effectiveState);
-            if (result.carriers().isEmpty()) {
+            NetworkScanResult result = ConnectableNetworkScanner.scanFrom(world, node.position(), effectiveState);
+            if (result.nodes().isEmpty()) {
                 continue;
             }
 
@@ -52,8 +53,11 @@ public final class ConnectableNetworkIndexer {
             for (Vector3i member : summary.members()) {
                 ConnectableRuntimeAccessor.setNetworkId(world, member, networkId);
             }
-            for (Vector3i resultCarrier : result.carriers()) {
-                indexedSteps.add(new NetworkStep(resultCarrier, result.requestedState()));
+            for (Vector3i resultNode : result.nodes()) {
+                SignalState memberState = signalForState(ConnectableRuntimeAccessor.effectiveState(world, resultNode));
+                if (memberState != SignalState.OFF) {
+                    indexedSteps.add(new NetworkStep(resultNode, memberState));
+                }
             }
         }
 
@@ -76,10 +80,7 @@ public final class ConnectableNetworkIndexer {
             long networkId,
             @Nonnull NetworkScanResult result
     ) {
-        LinkedHashSet<Vector3i> members = new LinkedHashSet<>();
-        members.addAll(result.carriers());
-        members.addAll(result.inverters());
-
+        LinkedHashSet<Vector3i> members = new LinkedHashSet<>(result.nodes());
         LinkedHashSet<Vector3i> energyCandidates = energyCandidates(world, result, members);
         LinkedHashSet<Vector3i> producers = new LinkedHashSet<>();
         LinkedHashSet<Vector3i> consumers = new LinkedHashSet<>();
@@ -102,7 +103,7 @@ public final class ConnectableNetworkIndexer {
                 networkId,
                 result.requestedState(),
                 Set.copyOf(members),
-                result.carriers(),
+                result.nodes(),
                 Set.copyOf(producers),
                 Set.copyOf(consumers),
                 totalEnergyDelta
@@ -134,12 +135,12 @@ public final class ConnectableNetworkIndexer {
         return candidates;
     }
 
-    private static @Nonnull SignalState effectiveSignalState(@Nonnull World world, @Nonnull Vector3i position) {
-        return signalForState(ConnectableRuntimeAccessor.effectiveState(world, position));
+    private static @Nonnull SignalState effectiveSignalState(@Nonnull ConnectableNode node) {
+        return signalForState(node.effectiveState());
     }
 
     private static @Nonnull SignalState signalForState(@Nonnull String state) {
-        return switch (state) {
+        return switch (GravityPowderSpecialStateStore.normalizeState(state)) {
             case GravityPowderSpecialStateStore.STATE_PUSH -> SignalState.PUSH;
             case GravityPowderSpecialStateStore.STATE_PULL -> SignalState.PULL;
             default -> SignalState.OFF;

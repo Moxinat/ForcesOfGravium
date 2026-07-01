@@ -32,28 +32,34 @@ public final class ConnectableSignalRecalculator {
         Objects.requireNonNull(adapter, "adapter");
         Map<Vector3i, Boolean> invertEnabled = new LinkedHashMap<>();
         Map<Vector3i, SignalState> controlInputMemory = new LinkedHashMap<>();
+        Set<Vector3i> controlNodes = new LinkedHashSet<>();
         for (Vector3i position : adapter.nodePositions()) {
             ConnectableNode node = adapter.nodeAt(position).orElse(null);
-            if (node == null || !node.invertCapable()) {
+            if (node == null || node.controlInputSides() == 0) {
                 continue;
             }
-            invertEnabled.put(position, node.invertEnabled());
-            controlInputMemory.put(position, adapter.readControlInputMemory(node));
+            controlNodes.add(position);
+            if (node.invertCapable()) {
+                invertEnabled.put(position, node.invertEnabled());
+                controlInputMemory.put(position, adapter.readControlInputMemory(node));
+            }
         }
 
         PropagationResult propagation = propagate(adapter, invertEnabled);
-        for (int remainingPasses = invertEnabled.size(); remainingPasses >= 0; remainingPasses--) {
+        for (int remainingPasses = controlNodes.size(); remainingPasses >= 0; remainingPasses--) {
             boolean toggled = false;
             Map<Vector3i, SignalState> nextControlInputMemory = new LinkedHashMap<>();
-            for (Vector3i position : invertEnabled.keySet()) {
+            for (Vector3i position : controlNodes) {
                 ConnectableNode node = adapter.nodeAt(position).orElse(null);
-                if (node == null || !node.invertCapable()) {
+                if (node == null || node.controlInputSides() == 0) {
                     continue;
                 }
                 SignalState controlInput = controlInputSignal(adapter, node, propagation.nodeSignals());
                 SignalState previousControlInput = controlInputMemory.getOrDefault(position, SignalState.OFF);
-                nextControlInputMemory.put(position, controlInput);
-                if (controlInput != SignalState.OFF && controlInput != previousControlInput) {
+                if (node.invertCapable()) {
+                    nextControlInputMemory.put(position, controlInput);
+                }
+                if (shouldToggleInvert(node, previousControlInput, controlInput)) {
                     invertEnabled.put(position, !invertEnabled.getOrDefault(position, node.invertEnabled()));
                     toggled = true;
                 }
@@ -151,9 +157,6 @@ public final class ConnectableSignalRecalculator {
             if (target == null || !canPropagateSignal(source, target)) {
                 continue;
             }
-            if (target.invertCapable() && source.passBehaviorCapable() && adapter.effectiveSignal(source) != signal) {
-                continue;
-            }
             enqueue(queue, visited, target.position(), signal);
         }
     }
@@ -188,10 +191,17 @@ public final class ConnectableSignalRecalculator {
             ConnectableNode source,
             Map<Vector3i, SignalState> propagatedSignals
     ) {
-        if (source.passBehaviorCapable()) {
-            return signalForState(source.effectiveState());
-        }
         return propagatedSignals.getOrDefault(source.position(), SignalState.OFF);
+    }
+
+    private static boolean shouldToggleInvert(
+            @Nonnull ConnectableNode node,
+            @Nonnull SignalState previousControlInput,
+            @Nonnull SignalState controlInput
+    ) {
+        return node.invertCapable()
+                && controlInput != SignalState.OFF
+                && controlInput != previousControlInput;
     }
 
     private static boolean canPropagateSignal(@Nonnull ConnectableNode source, @Nonnull ConnectableNode target) {
@@ -278,10 +288,6 @@ public final class ConnectableSignalRecalculator {
 
         boolean hasActiveSourceControlTo(@Nonnull Vector3i sourcePosition, @Nonnull ConnectableNode target);
 
-        default @Nonnull SignalState effectiveSignal(@Nonnull ConnectableNode node) {
-            return signalForState(node.effectiveState());
-        }
-
         @Nonnull SignalState readControlInputMemory(@Nonnull ConnectableNode node);
 
         void writeInstantState(@Nonnull ConnectableNode node, @Nonnull SignalState signal);
@@ -309,8 +315,12 @@ public final class ConnectableSignalRecalculator {
         private WorldNodeAdapter(World world, Set<Vector3i> affectedPositions) {
             this.world = Objects.requireNonNull(world, "world");
             Objects.requireNonNull(affectedPositions, "affectedPositions");
-            this.nodes = new LinkedHashSet<>(ConnectableNodeProvider.connectableNodePositionsForWorld(world));
-            this.nodes.retainAll(affectedPositions);
+            this.nodes = new LinkedHashSet<>();
+            for (ConnectableNode node : ConnectableNodeProvider.nodesForWorld(world).values()) {
+                if (node.isSignalRuntimeNode()) {
+                    this.nodes.add(node.position());
+                }
+            }
         }
 
         @Override
@@ -376,11 +386,12 @@ public final class ConnectableSignalRecalculator {
                 return;
             }
             String previousInstantState = ConnectableRuntimeAccessor.instantState(world, node.position());
+            String currentInstantState = ConnectableRuntimeAccessor.instantState(world, node.position());
             ConnectableRuntimeAccessor.setInverterState(
                     world,
                     node.position(),
-                    node.instantState(),
-                    node.instantState(),
+                    currentInstantState,
+                    currentInstantState,
                     invertEnabled,
                     stateForSignal(controlInputMemory)
             );
