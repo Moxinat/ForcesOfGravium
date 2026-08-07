@@ -167,16 +167,6 @@ public final class NodeTypes {
             GRAVIUM_SIPHON
     );
 
-    private static final Map<String, NodeType> BY_NAME = Map.ofEntries(
-            Map.entry("GravityPowder", GRAVITY_POWDER),
-            Map.entry("StraightCasedGravityPowder", STRAIGHT_CASED_GRAVITY_POWDER),
-            Map.entry("CurveCasedGravityPowder", CURVE_CASED_GRAVITY_POWDER),
-            Map.entry("Inverter", INVERTER),
-            Map.entry("WindGenerator", WIND_GENERATOR),
-            Map.entry("WoodenButton", WOODEN_BUTTON),
-            Map.entry("GraviumSiphon", GRAVIUM_SIPHON)
-    );
-
     private static final Map<String, NodeType> BY_BLOCK_ID = Map.ofEntries(
             Map.entry(GRAVITY_POWDER.blockId(), GRAVITY_POWDER),
             Map.entry(STRAIGHT_CASED_GRAVITY_POWDER.blockId(), STRAIGHT_CASED_GRAVITY_POWDER),
@@ -194,15 +184,9 @@ public final class NodeTypes {
         return ALL;
     }
 
-    public static @Nonnull Optional<NodeType> find(@Nonnull String typeNameOrBlockId) {
-        Objects.requireNonNull(typeNameOrBlockId, "typeNameOrBlockId");
-        NodeType byName = BY_NAME.get(typeNameOrBlockId);
-        return Optional.ofNullable(byName != null ? byName : BY_BLOCK_ID.get(typeNameOrBlockId));
-    }
-
-    public static @Nonnull NodeType require(@Nonnull String typeNameOrBlockId) {
-        return find(typeNameOrBlockId)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown node type: " + typeNameOrBlockId));
+    public static @Nonnull Optional<NodeType> find(@Nonnull String blockId) {
+        Objects.requireNonNull(blockId, "blockId");
+        return Optional.ofNullable(BY_BLOCK_ID.get(blockId));
     }
 
     public record NodeType(
