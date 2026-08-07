@@ -3,8 +3,8 @@ package dev.moxinat.forcesofgravium.data;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableDefinition;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeData;
+import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes.NodeType;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -17,16 +17,102 @@ import java.util.stream.Collectors;
 
 /**
  * Central runtime home for all placed connectable nodes.
- *
- * A Node contains the complete state of one concrete placed node. Values that are
- * normally defined by a node type, such as connectable sides, are copied into the
- * node when it is created so they can still be changed per node at runtime later.
  */
 public final class Nodes {
 
     private static final Map<NodeKey, Node> NODES = new ConcurrentHashMap<>();
 
     private Nodes() {
+    }
+
+    /**
+     * Creates a node with explicitly provided values and immediately stores it in
+     * the current runtime node map.
+     */
+    public static @Nonnull Node createNode(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull String blockId,
+            int signalInputSides,
+            int signalOutputSides,
+            int controlInputSides,
+            boolean invertCapable,
+            boolean passBehaviorCapable,
+            @Nonnull RotationTuple rotation,
+            @Nonnull String previousInstantState,
+            @Nonnull String instantState,
+            @Nonnull String previousEffectiveState,
+            @Nonnull String effectiveState,
+            boolean dirty,
+            boolean invertEnabled,
+            boolean passing,
+            int energyDelta,
+            long networkId
+    ) {
+        Node node = new Node(
+                position,
+                blockId,
+                signalInputSides,
+                signalOutputSides,
+                controlInputSides,
+                invertCapable,
+                passBehaviorCapable,
+                rotation,
+                previousInstantState,
+                instantState,
+                previousEffectiveState,
+                effectiveState,
+                dirty,
+                invertEnabled,
+                passing,
+                energyDelta,
+                networkId
+        );
+        put(world, node);
+        return node;
+    }
+
+    /**
+     * Creates and stores a node by copying all defaults from a registered NodeType.
+     */
+    public static @Nonnull Node createWithType(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull NodeType type
+    ) {
+        Objects.requireNonNull(type, "type");
+        return createNode(
+                world,
+                position,
+                type.blockId(),
+                type.signalInputSides(),
+                type.signalOutputSides(),
+                type.controlInputSides(),
+                type.invertCapable(),
+                type.passBehaviorCapable(),
+                type.rotation(),
+                type.previousInstantState(),
+                type.instantState(),
+                type.previousEffectiveState(),
+                type.effectiveState(),
+                type.dirty(),
+                type.invertEnabled(),
+                type.passing(),
+                type.energyDelta(),
+                type.networkId()
+        );
+    }
+
+    /**
+     * Convenience overload for callers that only know the registered type name or
+     * base block id.
+     */
+    public static @Nonnull Node createWithType(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull String typeNameOrBlockId
+    ) {
+        return createWithType(world, position, NodeTypes.require(typeNameOrBlockId));
     }
 
     public static void put(@Nonnull World world, @Nonnull Node node) {
@@ -76,10 +162,8 @@ public final class Nodes {
     /**
      * Complete data for one concrete node in the world.
      *
-     * The connectable-side masks and capabilities intentionally live on each Node,
-     * not only on a shared type definition. A registry/type can therefore act as a
-     * blueprint at creation time while the concrete node stays fully mutable by
-     * replacement during runtime.
+     * Values copied from NodeTypes stay on the concrete Node so they can later
+     * change independently for individual nodes at runtime.
      */
     public record Node(
             @Nonnull Vector3i position,
@@ -110,48 +194,6 @@ public final class Nodes {
             instantState = GravityPowderSpecialStateStore.normalizeState(instantState);
             previousEffectiveState = GravityPowderSpecialStateStore.normalizeState(previousEffectiveState);
             effectiveState = GravityPowderSpecialStateStore.normalizeState(effectiveState);
-        }
-
-        /**
-         * Migration bridge for the current architecture. Later the registry can
-         * create Nodes directly from its node-type blueprint instead.
-         */
-        public static @Nonnull Node fromCurrent(
-                @Nonnull Vector3i position,
-                @Nonnull String blockId,
-                @Nonnull ConnectableDefinition definition,
-                @Nonnull ConnectableRuntimeData runtimeData
-        ) {
-            Objects.requireNonNull(definition, "definition");
-            Objects.requireNonNull(runtimeData, "runtimeData");
-
-            return new Node(
-                    position,
-                    blockId,
-                    definition.signalInputSidesMask(),
-                    definition.signalOutputSidesMask(),
-                    definition.controlInputSidesMask(),
-                    definition.invertCapable(),
-                    definition.passBehaviorCapable(),
-                    runtimeData.rotation(),
-                    runtimeData.previousInstantState(),
-                    runtimeData.instantState(),
-                    runtimeData.previousEffectiveState(),
-                    runtimeData.effectiveState(),
-                    runtimeData.dirty(),
-                    runtimeData.invertEnabled(),
-                    runtimeData.passing(),
-                    runtimeData.energyDelta(),
-                    runtimeData.networkId()
-            );
-        }
-
-        public static @Nonnull Node defaultNode(
-                @Nonnull Vector3i position,
-                @Nonnull String blockId,
-                @Nonnull ConnectableDefinition definition
-        ) {
-            return fromCurrent(position, blockId, definition, ConnectableRuntimeData.defaultData());
         }
 
         @Override
