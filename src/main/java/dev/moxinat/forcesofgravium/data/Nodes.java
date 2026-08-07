@@ -3,7 +3,6 @@ package dev.moxinat.forcesofgravium.data;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
-import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes.NodeType;
 import org.joml.Vector3i;
 
@@ -101,18 +100,6 @@ public final class Nodes {
                 type.energyDelta(),
                 type.networkId()
         );
-    }
-
-    /**
-     * Convenience overload for callers that only know the registered type name or
-     * base block id.
-     */
-    public static @Nonnull Node createWithType(
-            @Nonnull World world,
-            @Nonnull Vector3i position,
-            @Nonnull String typeNameOrBlockId
-    ) {
-        return createWithType(world, position, NodeTypes.require(typeNameOrBlockId));
     }
 
     public static void put(@Nonnull World world, @Nonnull Node node) {
