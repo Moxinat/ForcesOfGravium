@@ -5,8 +5,9 @@ import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.data.Nodes;
+import dev.moxinat.forcesofgravium.data.Nodes.Node;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -119,7 +120,8 @@ public final class ConnectableNeighborResolver {
     }
 
     public static RotationTuple rotationFor(World world, Vector3i position) {
-        return ConnectableRuntimeAccessor.getRotation(world, position);
+        Node node = Nodes.get(world, position);
+        return node == null ? RotationTuple.NONE : node.rotation();
     }
 
     public static WorldSide worldSideForLocalSide(RotationTuple rotation, int localSideMask) {
