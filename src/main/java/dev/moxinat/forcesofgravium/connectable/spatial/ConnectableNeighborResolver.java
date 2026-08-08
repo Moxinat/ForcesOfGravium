@@ -13,13 +13,6 @@ import java.util.List;
 
 public final class ConnectableNeighborResolver {
 
-    public static final int CONNECTION_EAST = 1;
-    public static final int CONNECTION_WEST = 1 << 1;
-    public static final int CONNECTION_SOUTH = 1 << 2;
-    public static final int CONNECTION_NORTH = 1 << 3;
-    public static final int CONNECTION_UP = 1 << 4;
-    public static final int CONNECTION_DOWN = 1 << 5;
-
     private ConnectableNeighborResolver() {
     }
 
@@ -33,29 +26,6 @@ public final class ConnectableNeighborResolver {
         positions.add(new Vector3i(center.x(), center.y() + 1, center.z()));
         positions.add(new Vector3i(center.x(), center.y() - 1, center.z()));
         return List.copyOf(positions);
-    }
-
-    public static int buildConnectionsMask(boolean east, boolean west, boolean south, boolean north, boolean up, boolean down) {
-        int mask = 0;
-        if (east) {
-            mask |= CONNECTION_EAST;
-        }
-        if (west) {
-            mask |= CONNECTION_WEST;
-        }
-        if (south) {
-            mask |= CONNECTION_SOUTH;
-        }
-        if (north) {
-            mask |= CONNECTION_NORTH;
-        }
-        if (up) {
-            mask |= CONNECTION_UP;
-        }
-        if (down) {
-            mask |= CONNECTION_DOWN;
-        }
-        return mask;
     }
 
     private static boolean areMutuallyConnected(World world, Vector3i first, Vector3i second) {
@@ -169,13 +139,6 @@ public final class ConnectableNeighborResolver {
             return new Vector3d(0, -1, 0);
         }
         throw new IllegalArgumentException("Unknown local side mask: " + localSideMask);
-    }
-
-    private static boolean isTreatAsEmpty(Vector3i position, Vector3i treatAsEmpty) {
-        return treatAsEmpty != null
-                && treatAsEmpty.x() == position.x()
-                && treatAsEmpty.y() == position.y()
-                && treatAsEmpty.z() == position.z();
     }
 
     public enum WorldSide {
