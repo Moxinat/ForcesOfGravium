@@ -200,6 +200,12 @@ public final class Nodes {
             return (controlInputSides & localSide) != 0;
         }
 
+        public boolean isConnectableOnSide(int localSide) {
+            return canReceiveSignalFrom(localSide)
+                    || canOutputSignalTo(localSide)
+                    || canReceiveControlFrom(localSide);
+        }
+
         public boolean isSignalRuntimeNode() {
             return signalOutputSides != 0 || passBehaviorCapable || invertCapable;
         }
