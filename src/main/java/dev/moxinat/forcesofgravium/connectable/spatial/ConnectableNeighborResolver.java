@@ -2,7 +2,6 @@ package dev.moxinat.forcesofgravium.connectable.spatial;
 
 import org.joml.Vector3d;
 import org.joml.Vector3i;
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
@@ -59,28 +58,30 @@ public final class ConnectableNeighborResolver {
         return mask;
     }
 
-    public static boolean areMutuallyConnected(World world, Vector3i first, Vector3i second) {
+    private static boolean areMutuallyConnected(World world, Vector3i first, Vector3i second) {
         WorldSide firstToSecond = worldSideFromSourceToTarget(first, second);
         if (firstToSecond == null) {
             return false;
         }
 
-        BlockType firstType = world.getBlockType(first.x(), first.y(), first.z());
-        BlockType secondType = world.getBlockType(second.x(), second.y(), second.z());
-        if (firstType == null || secondType == null) {
+        Node firstNode = Nodes.get(world, first);
+        Node secondNode = Nodes.get(world, second);
+        if (firstNode == null || secondNode == null) {
             return false;
         }
 
-        String firstId = firstType.getId();
-        String secondId = secondType.getId();
-        if (ConnectableRegistry.isNotConnectable(firstId) || ConnectableRegistry.isNotConnectable(secondId)) {
-            return false;
-        }
+        int firstLocalSide = localSideForWorldSide(firstNode.rotation(), firstToSecond);
+        int secondLocalSide = localSideForWorldSide(secondNode.rotation(), firstToSecond.opposite());
 
-        RotationTuple firstRotation = rotationFor(world, first);
-        RotationTuple secondRotation = rotationFor(world, second);
-        return hasLocalSideFacingWorldSide(firstId, firstRotation, firstToSecond)
-                && hasLocalSideFacingWorldSide(secondId, secondRotation, firstToSecond.opposite());
+        boolean firstOutputsToSecond = firstNode.canOutputSignalTo(firstLocalSide)
+                && (secondNode.canReceiveSignalFrom(secondLocalSide)
+                || secondNode.canReceiveControlFrom(secondLocalSide));
+
+        boolean secondOutputsToFirst = secondNode.canOutputSignalTo(secondLocalSide)
+                && (firstNode.canReceiveSignalFrom(firstLocalSide)
+                || firstNode.canReceiveControlFrom(firstLocalSide));
+
+        return firstOutputsToSecond || secondOutputsToFirst;
     }
 
     public static java.util.Set<Vector3i> mutuallyConnectedNeighbors(World world, Vector3i position) {
