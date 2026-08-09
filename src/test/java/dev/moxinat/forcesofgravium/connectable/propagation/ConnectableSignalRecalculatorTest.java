@@ -1,6 +1,7 @@
 package dev.moxinat.forcesofgravium.connectable.propagation;
 
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableDefinition;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableDefinitions;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeData;

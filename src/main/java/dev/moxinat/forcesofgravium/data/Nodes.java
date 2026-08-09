@@ -2,7 +2,7 @@ package dev.moxinat.forcesofgravium.data;
 
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
 import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes.NodeType;
 import org.joml.Vector3i;
 
@@ -38,10 +38,10 @@ public final class Nodes {
             boolean invertCapable,
             boolean passBehaviorCapable,
             @Nonnull RotationTuple rotation,
-            @Nonnull String previousInstantState,
-            @Nonnull String instantState,
-            @Nonnull String previousEffectiveState,
-            @Nonnull String effectiveState,
+            @Nonnull SignalState previousInstantState,
+            @Nonnull SignalState instantState,
+            @Nonnull SignalState previousEffectiveState,
+            @Nonnull SignalState effectiveState,
             boolean dirty,
             boolean invertEnabled,
             boolean passing,
@@ -148,7 +148,6 @@ public final class Nodes {
 
     /**
      * Complete data for one concrete node in the world.
-     *
      * Values copied from NodeTypes stay on the concrete Node so they can later
      * change independently for individual nodes at runtime.
      */
@@ -161,10 +160,10 @@ public final class Nodes {
             boolean invertCapable,
             boolean passBehaviorCapable,
             @Nonnull RotationTuple rotation,
-            @Nonnull String previousInstantState,
-            @Nonnull String instantState,
-            @Nonnull String previousEffectiveState,
-            @Nonnull String effectiveState,
+            @Nonnull SignalState previousInstantState,
+            @Nonnull SignalState instantState,
+            @Nonnull SignalState previousEffectiveState,
+            @Nonnull SignalState effectiveState,
             boolean dirty,
             boolean invertEnabled,
             boolean passing,
@@ -175,12 +174,13 @@ public final class Nodes {
 
         public Node {
             position = new Vector3i(Objects.requireNonNull(position, "position"));
-            blockId = Objects.requireNonNull(blockId, "blockId");
-            rotation = Objects.requireNonNull(rotation, "rotation");
-            previousInstantState = GravityPowderSpecialStateStore.normalizeState(previousInstantState);
-            instantState = GravityPowderSpecialStateStore.normalizeState(instantState);
-            previousEffectiveState = GravityPowderSpecialStateStore.normalizeState(previousEffectiveState);
-            effectiveState = GravityPowderSpecialStateStore.normalizeState(effectiveState);
+
+            Objects.requireNonNull(blockId, "blockId");
+            Objects.requireNonNull(rotation, "rotation");
+            Objects.requireNonNull(previousInstantState, "previousInstantState");
+            Objects.requireNonNull(instantState, "instantState");
+            Objects.requireNonNull(previousEffectiveState, "previousEffectiveState");
+            Objects.requireNonNull(effectiveState, "effectiveState");
         }
 
         @Override
@@ -244,13 +244,13 @@ public final class Nodes {
                     dirty, invertEnabled, passing, energyDelta, networkId);
         }
 
-        public @Nonnull Node withInstantState(@Nonnull String value) {
+        public @Nonnull Node withInstantState(@Nonnull SignalState value) {
             return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
                     rotation, instantState, value, previousEffectiveState, effectiveState,
                     dirty, invertEnabled, passing, energyDelta, networkId);
         }
 
-        public @Nonnull Node withEffectiveState(@Nonnull String value) {
+        public @Nonnull Node withEffectiveState(@Nonnull SignalState value) {
             return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
                     rotation, previousInstantState, instantState, effectiveState, value,
                     dirty, invertEnabled, passing, energyDelta, networkId);
@@ -299,10 +299,10 @@ public final class Nodes {
                 boolean newInvertCapable,
                 boolean newPassBehaviorCapable,
                 @Nonnull RotationTuple newRotation,
-                @Nonnull String newPreviousInstantState,
-                @Nonnull String newInstantState,
-                @Nonnull String newPreviousEffectiveState,
-                @Nonnull String newEffectiveState,
+                @Nonnull SignalState newPreviousInstantState,
+                @Nonnull SignalState newInstantState,
+                @Nonnull SignalState newPreviousEffectiveState,
+                @Nonnull SignalState newEffectiveState,
                 boolean newDirty,
                 boolean newInvertEnabled,
                 boolean newPassing,

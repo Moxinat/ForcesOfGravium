@@ -5,7 +5,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.connectable.propagation.NetworkStep;
-import dev.moxinat.forcesofgravium.connectable.propagation.SignalState;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableBlockRoles;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver.WorldSide;

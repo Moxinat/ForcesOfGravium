@@ -4,6 +4,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
 import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore;
 import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore.InverterData;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver.WorldSide;

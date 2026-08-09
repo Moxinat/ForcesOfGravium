@@ -1,7 +1,7 @@
 package dev.moxinat.forcesofgravium.connectable.registry;
 
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
-import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
 
 import javax.annotation.Nonnull;
 import java.util.List;
@@ -11,15 +11,11 @@ import java.util.Optional;
 
 /**
  * Default blueprints used when a new node is created.
- *
  * A NodeType is not runtime state. Every value is copied into the concrete
  * Nodes.Node instance at creation time, so any of these values can later differ
  * between two nodes of the same type.
  */
 public final class NodeTypes {
-
-    private static final String OFF = GravityPowderSpecialStateStore.STATE_OFF;
-    private static final String PUSH = GravityPowderSpecialStateStore.STATE_PUSH;
 
     public static final NodeType GRAVITY_POWDER = new NodeType(
             ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID,
@@ -29,10 +25,10 @@ public final class NodeTypes {
             false,
             true,
             RotationTuple.NONE,
-            OFF,
-            OFF,
-            OFF,
-            OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
             false,
             false,
             true,
@@ -48,10 +44,10 @@ public final class NodeTypes {
             false,
             true,
             RotationTuple.NONE,
-            OFF,
-            OFF,
-            OFF,
-            OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
             false,
             false,
             true,
@@ -67,10 +63,10 @@ public final class NodeTypes {
             false,
             true,
             RotationTuple.NONE,
-            OFF,
-            OFF,
-            OFF,
-            OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
             false,
             false,
             true,
@@ -89,10 +85,10 @@ public final class NodeTypes {
             true,
             true,
             RotationTuple.NONE,
-            OFF,
-            OFF,
-            OFF,
-            OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
             false,
             true,
             true,
@@ -108,10 +104,10 @@ public final class NodeTypes {
             false,
             false,
             RotationTuple.NONE,
-            PUSH,
-            PUSH,
-            PUSH,
-            PUSH,
+            SignalState.PUSH,
+            SignalState.PUSH,
+            SignalState.PUSH,
+            SignalState.PUSH,
             false,
             false,
             false,
@@ -127,10 +123,10 @@ public final class NodeTypes {
             false,
             false,
             RotationTuple.NONE,
-            OFF,
-            OFF,
-            OFF,
-            OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
             false,
             false,
             false,
@@ -146,10 +142,10 @@ public final class NodeTypes {
             false,
             false,
             RotationTuple.NONE,
-            OFF,
-            OFF,
-            OFF,
-            OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
             false,
             false,
             false,
@@ -197,10 +193,10 @@ public final class NodeTypes {
             boolean invertCapable,
             boolean passBehaviorCapable,
             @Nonnull RotationTuple rotation,
-            @Nonnull String previousInstantState,
-            @Nonnull String instantState,
-            @Nonnull String previousEffectiveState,
-            @Nonnull String effectiveState,
+            @Nonnull SignalState previousInstantState,
+            @Nonnull SignalState instantState,
+            @Nonnull SignalState previousEffectiveState,
+            @Nonnull SignalState effectiveState,
             boolean dirty,
             boolean invertEnabled,
             boolean passing,
@@ -208,12 +204,12 @@ public final class NodeTypes {
             long networkId
     ) {
         public NodeType {
-            blockId = Objects.requireNonNull(blockId, "blockId");
-            rotation = Objects.requireNonNull(rotation, "rotation");
-            previousInstantState = Objects.requireNonNull(previousInstantState, "previousInstantState");
-            instantState = Objects.requireNonNull(instantState, "instantState");
-            previousEffectiveState = Objects.requireNonNull(previousEffectiveState, "previousEffectiveState");
-            effectiveState = Objects.requireNonNull(effectiveState, "effectiveState");
+            Objects.requireNonNull(blockId, "blockId");
+            Objects.requireNonNull(rotation, "rotation");
+            Objects.requireNonNull(previousInstantState, "previousInstantState");
+            Objects.requireNonNull(instantState, "instantState");
+            Objects.requireNonNull(previousEffectiveState, "previousEffectiveState");
+            Objects.requireNonNull(effectiveState, "effectiveState");
         }
     }
 }

@@ -1,5 +1,6 @@
 package dev.moxinat.forcesofgravium.connectable.propagation;
 
+import dev.moxinat.forcesofgravium.connectable.SignalState;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;

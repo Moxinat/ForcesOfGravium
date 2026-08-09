@@ -2,7 +2,7 @@ package dev.moxinat.forcesofgravium.connectable.network;
 
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 
-import dev.moxinat.forcesofgravium.connectable.propagation.SignalState;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
 
 import dev.moxinat.forcesofgravium.connectable.propagation.NetworkStep;
 

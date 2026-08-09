@@ -5,7 +5,7 @@ import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableDefinition;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableDefinitions;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeData;
-import dev.moxinat.forcesofgravium.connectable.propagation.SignalState;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
