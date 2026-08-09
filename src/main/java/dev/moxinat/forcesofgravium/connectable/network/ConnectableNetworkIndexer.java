@@ -3,8 +3,6 @@ package dev.moxinat.forcesofgravium.connectable.network;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableNode;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableNodeProvider;
 import dev.moxinat.forcesofgravium.connectable.propagation.NetworkStep;
 import dev.moxinat.forcesofgravium.connectable.propagation.SignalState;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;

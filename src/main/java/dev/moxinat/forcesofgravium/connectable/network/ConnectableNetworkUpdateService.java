@@ -10,8 +10,6 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableNode;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableNodeProvider;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonStore;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonBlockRefresher;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
