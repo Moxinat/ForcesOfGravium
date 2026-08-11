@@ -24,67 +24,170 @@ public final class ConnectableSignalRecalculator {
     private ConnectableSignalRecalculator() {
     }
 
-    public static void recompute(@Nonnull World world, @Nonnull Set<Vector3i> affectedPositions) {
+    public static void recompute(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
         Objects.requireNonNull(world, "world");
-        Objects.requireNonNull(affectedPositions, "affectedPositions");
+        Objects.requireNonNull(position, "position");
 
-        Map<Vector3i, Boolean> invertEnabled = new LinkedHashMap<>();
-        Map<Vector3i, SignalState> controlInputMemory = new LinkedHashMap<>();
-        Set<Vector3i> controlNodes = new LinkedHashSet<>();
-
-        for (Node node : Nodes.snapshotForWorld(world).values()) {
-            if (!node.isSignalRuntimeNode() || node.controlInputSides() == 0) {
-                continue;
-            }
-            Vector3i position = node.position();
-            controlNodes.add(position);
-            if (node.invertCapable()) {
-                invertEnabled.put(position, node.invertEnabled());
-                controlInputMemory.put(position, readControlInputMemory(world, position));
-            }
+        Node startNode = Nodes.get(world, position);
+        if (startNode == null) {
+            return;
         }
 
-        PropagationResult propagation = propagate(world, invertEnabled);
-        for (int remainingPasses = controlNodes.size(); remainingPasses >= 0; remainingPasses--) {
-            boolean toggled = false;
-            Map<Vector3i, SignalState> nextControlInputMemory = new LinkedHashMap<>();
-            for (Vector3i position : controlNodes) {
-                Node node = Nodes.get(world, position);
-                if (node == null || node.controlInputSides() == 0) {
+        // -------------------------
+        // BACKWARDS
+        // Find the current instant state at this position.
+        // -------------------------
+
+        ArrayDeque<Vector3i> backwardsStack = new ArrayDeque<>();
+        Set<Vector3i> backwardsVisited = new LinkedHashSet<>();
+
+        backwardsStack.push(position);
+
+        SignalState resolvedState = SignalState.OFF;
+
+        while (!backwardsStack.isEmpty()) {
+            Vector3i currentPosition = backwardsStack.pop();
+
+            if (!backwardsVisited.add(currentPosition)) {
+                continue;
+            }
+
+            Node currentNode = Nodes.get(world, currentPosition);
+            if (currentNode == null) {
+                continue;
+            }
+
+            // The start node itself is never treated as a boundary.
+            if (!currentPosition.equals(position)) {
+
+                // An enabled inverter is a known boundary.
+                // Its instant state represents its input,
+                // so its output is the inverted instant state.
+                if (currentNode.invertEnabled()) {
+                    SignalState output = currentNode.instantState().inverted();
+
+                    if (output == SignalState.PUSH) {
+                        resolvedState = SignalState.PUSH;
+                        break;
+                    }
+
+                    if (output == SignalState.PULL) {
+                        resolvedState = SignalState.PULL;
+                    }
+
+                    // Never search behind an enabled inverter.
                     continue;
                 }
-                SignalState controlInput = controlInputSignal(world, node, propagation.nodeSignals());
-                SignalState previousControlInput = controlInputMemory.getOrDefault(position, SignalState.OFF);
-                if (node.invertCapable()) {
-                    nextControlInputMemory.put(position, controlInput);
-                }
-                if (shouldToggleInvert(node, previousControlInput, controlInput)) {
-                    invertEnabled.put(position, !invertEnabled.getOrDefault(position, node.invertEnabled()));
-                    toggled = true;
+
+                // Powered nodes are sources and therefore known boundaries.
+                if (currentNode.energyDelta() > 0) {
+                    SignalState output = currentNode.instantState();
+
+                    if (output == SignalState.PUSH) {
+                        resolvedState = SignalState.PUSH;
+                        break;
+                    }
+
+                    if (output == SignalState.PULL) {
+                        resolvedState = SignalState.PULL;
+                    }
+
                 }
             }
-            controlInputMemory = nextControlInputMemory;
-            if (!toggled || remainingPasses == 0) {
-                break;
+
+            for (Vector3i backwardNeighbor :
+                    ConnectableNeighborResolver.allBackwardSignalNeighbors(
+                            world,
+                            currentPosition
+                    )) {
+
+                if (!backwardsVisited.contains(backwardNeighbor)) {
+                    backwardsStack.push(backwardNeighbor);
+                }
             }
-            propagation = propagate(world, invertEnabled);
         }
 
-        for (Map.Entry<Vector3i, SignalState> entry : propagation.nodeSignals().entrySet()) {
-            Node node = Nodes.get(world, entry.getKey());
-            if (node == null || !node.shouldStorePropagatedInstantState()) {
-                continue;
-            }
-            writeInstantState(world, node, entry.getValue());
+        // -------------------------
+        // SET START NODE
+        // -------------------------
+
+        startNode = Nodes.get(world, position);
+        if (startNode == null) {
+            return;
         }
 
-        for (Map.Entry<Vector3i, Boolean> entry : invertEnabled.entrySet()) {
-            Node node = Nodes.get(world, entry.getKey());
-            if (node == null || !node.invertCapable()) {
+        if (startNode.instantState() != resolvedState) {
+            startNode = startNode
+                    .withInstantState(resolvedState)
+                    .withDirty(true);
+
+            Nodes.put(world, startNode);
+        }
+
+        // The instant state is the state at the node's input.
+        // If this node actively inverts, its outgoing signal is inverted.
+        SignalState forwardState = startNode.invertEnabled()
+                ? resolvedState.inverted()
+                : resolvedState;
+
+        // -------------------------
+        // FORWARDS
+        // Spread the resolved state until enabled inverters.
+        // -------------------------
+
+        ArrayDeque<Vector3i> forwardStack = new ArrayDeque<>();
+        Set<Vector3i> forwardVisited = new LinkedHashSet<>();
+
+        forwardVisited.add(position);
+
+        for (Vector3i forwardNeighbor :
+                ConnectableNeighborResolver.allForwardSignalNeighbors(
+                        world,
+                        position
+                )) {
+
+            forwardStack.push(forwardNeighbor);
+        }
+
+        while (!forwardStack.isEmpty()) {
+            Vector3i currentPosition = forwardStack.pop();
+
+            if (!forwardVisited.add(currentPosition)) {
                 continue;
             }
-            SignalState memory = controlInputMemory.getOrDefault(entry.getKey(), SignalState.OFF);
-            writeInvertRuntime(world, node, entry.getValue(), memory);
+
+            Node currentNode = Nodes.get(world, currentPosition);
+            if (currentNode == null) {
+                continue;
+            }
+
+            if (currentNode.instantState() != forwardState) {
+                currentNode = currentNode
+                        .withInstantState(forwardState)
+                        .withDirty(true);
+
+                Nodes.put(world, currentNode);
+            }
+
+            // The inverter itself receives the current signal,
+            // but its inverted output belongs to the next section.
+            if (currentNode.invertEnabled()) {
+                continue;
+            }
+
+            for (Vector3i forwardNeighbor :
+                    ConnectableNeighborResolver.allForwardSignalNeighbors(
+                            world,
+                            currentPosition
+                    )) {
+
+                if (!forwardVisited.contains(forwardNeighbor)) {
+                    forwardStack.push(forwardNeighbor);
+                }
+            }
         }
     }
 
