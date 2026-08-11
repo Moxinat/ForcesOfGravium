@@ -10,6 +10,7 @@ import dev.moxinat.forcesofgravium.data.Nodes.Node;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public final class ConnectableNeighborResolver {
 
@@ -65,6 +66,81 @@ public final class ConnectableNeighborResolver {
             }
         }
         return java.util.Set.copyOf(result);
+    }
+
+    public static boolean isForwardSignalConnection(
+            World world,
+            Vector3i sourcePosition,
+            Vector3i targetPosition
+    ) {
+        Node source = Nodes.get(world, sourcePosition);
+        Node target = Nodes.get(world, targetPosition);
+
+        if (source == null || target == null) {
+            return false;
+        }
+
+        WorldSide sourceToTarget =
+                worldSideFromSourceToTarget(sourcePosition, targetPosition);
+
+        if (sourceToTarget == null) {
+            return false;
+        }
+
+        int sourceLocalSide =
+                localSideForWorldSide(source.rotation(), sourceToTarget);
+
+        int targetLocalSide =
+                localSideForWorldSide(target.rotation(), sourceToTarget.opposite());
+
+        return source.canOutputSignalTo(sourceLocalSide)
+                && target.canReceiveSignalFrom(targetLocalSide);
+    }
+
+    public static boolean isBackwardSignalConnection(
+            World world,
+            Vector3i sourcePosition,
+            Vector3i targetPosition
+    ) {
+        return isForwardSignalConnection(world, targetPosition, sourcePosition);
+    }
+
+    public static Set<Vector3i> allForwardSignalNeighbors(
+            World world,
+            Vector3i position
+    ) {
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+
+        for (Vector3i candidate : positionsAround(position)) {
+            if (candidate.equals(position)) {
+                continue;
+            }
+
+            if (isForwardSignalConnection(world, position, candidate)) {
+                result.add(candidate);
+            }
+        }
+
+        return Set.copyOf(result);
+    }
+
+    public static Set<Vector3i> allBackwardSignalNeighbors(
+            World world,
+            Vector3i position
+    ) {
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+
+        for (Vector3i candidate : positionsAround(position)) {
+            if (candidate.equals(position)) {
+                continue;
+            }
+
+            if (isBackwardSignalConnection(world, position, candidate)) {
+                result.add(candidate);
+            }
+        }
+
+        return Set.copyOf(result);
     }
 
     public static WorldSide worldSideFromSourceToTarget(Vector3i sourcePosition, Vector3i targetPosition) {
