@@ -8,6 +8,7 @@ import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.Nodes.Node;
 
+import javax.annotation.Nonnull;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -105,6 +106,41 @@ public final class ConnectableNeighborResolver {
         return isForwardSignalConnection(world, targetPosition, sourcePosition);
     }
 
+    public static boolean isControlForwardConnection(
+            @Nonnull World world,
+            @Nonnull Vector3i sourcePosition,
+            @Nonnull Vector3i targetPosition
+    ) {
+        Node source = Nodes.get(world, sourcePosition);
+        Node target = Nodes.get(world, targetPosition);
+
+        if (source == null || target == null) {
+            return false;
+        }
+
+        WorldSide sourceToTarget =
+                worldSideFromSourceToTarget(sourcePosition, targetPosition);
+
+        if (sourceToTarget == null) {
+            return false;
+        }
+
+        int sourceLocalSide =
+                localSideForWorldSide(
+                        source.rotation(),
+                        sourceToTarget
+                );
+
+        int targetLocalSide =
+                localSideForWorldSide(
+                        target.rotation(),
+                        sourceToTarget.opposite()
+                );
+
+        return source.canOutputSignalTo(sourceLocalSide)
+                && target.canReceiveControlFrom(targetLocalSide);
+    }
+
     public static Set<Vector3i> allForwardSignalNeighbors(
             World world,
             Vector3i position
@@ -136,6 +172,29 @@ public final class ConnectableNeighborResolver {
             }
 
             if (isBackwardSignalConnection(world, position, candidate)) {
+                result.add(candidate);
+            }
+        }
+
+        return Set.copyOf(result);
+    }
+
+    public static Set<Vector3i> allControlNeighbors(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+
+        for (Vector3i candidate : positionsAround(position)) {
+            if (candidate.equals(position)) {
+                continue;
+            }
+
+            if (isControlForwardConnection(
+                    world,
+                    position,
+                    candidate
+            )) {
                 result.add(candidate);
             }
         }
