@@ -6,6 +6,7 @@ import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayDeque;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -101,7 +102,7 @@ public class ConnectableNetworkManager {
         long targetNetworkId = neighborNetworkIds.iterator().next();
 
         for (Vector3i memberPosition :
-                ConnectableNetworkScanner.scanFrom(world, position)) {
+                scanFrom(world, position)) {
 
             Nodes.Node member = Nodes.get(world, memberPosition);
 
@@ -137,7 +138,7 @@ public class ConnectableNetworkManager {
             }
 
             Set<Vector3i> component =
-                    ConnectableNetworkScanner.scanFrom(
+                    scanFrom(
                             world,
                             neighborPosition
                     );
@@ -172,4 +173,53 @@ public class ConnectableNetworkManager {
         }
     }
 
+    private static @Nonnull Set<Vector3i> scanFrom(
+            @Nonnull World world,
+            @Nonnull Vector3i start
+    ) {
+        if (Nodes.get(world, start) == null) {
+            return Set.of();
+        }
+
+        ArrayDeque<Vector3i> queue = new ArrayDeque<>();
+        LinkedHashSet<Vector3i> visited = new LinkedHashSet<>();
+
+        queue.add(start);
+
+        while (!queue.isEmpty()) {
+            Vector3i position = queue.removeFirst();
+
+            if (!visited.add(position)) {
+                continue;
+            }
+
+            if (Nodes.get(world, position) == null) {
+                continue;
+            }
+
+            for (Vector3i neighbor :
+                    ConnectableNeighborResolver.allForwardSignalNeighbors(
+                            world,
+                            position
+                    )) {
+
+                if (!visited.contains(neighbor)) {
+                    queue.addLast(neighbor);
+                }
+            }
+
+            for (Vector3i neighbor :
+                    ConnectableNeighborResolver.allBackwardSignalNeighbors(
+                            world,
+                            position
+                    )) {
+
+                if (!visited.contains(neighbor)) {
+                    queue.addLast(neighbor);
+                }
+            }
+        }
+
+        return Set.copyOf(visited);
+    }
 }
