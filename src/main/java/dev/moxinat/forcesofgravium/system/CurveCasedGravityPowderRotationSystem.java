@@ -16,13 +16,18 @@ import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.connectable.network.ConnectableNetworkManager;
+import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
+import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
-import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 public final class CurveCasedGravityPowderRotationSystem {
@@ -46,7 +51,7 @@ public final class CurveCasedGravityPowderRotationSystem {
         @Override
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull UseBlockEvent.Post event) {
             BlockType blockType = event.getBlockType();
-            if (blockType == null || !ConnectableRegistry.isCurveCasedGravityPowderId(blockType.getId())) {
+            if (!NodeTypes.CURVE_CASED_GRAVITY_POWDER.blockId().equals(blockType.getId())) {
                 return;
             }
 
@@ -58,34 +63,179 @@ public final class CurveCasedGravityPowderRotationSystem {
 
             World world = player.getWorld();
             Vector3i position = new Vector3i(event.getTargetBlock());
-            RotationTuple currentRotation = ConnectableRuntimeAccessor.storedRotation(world, position);
-            if (currentRotation == null) {
+            Nodes.Node node = Nodes.get(world, position);
+
+            if (node == null) {
                 return;
             }
 
-            RotationTuple nextRotation = rotateAroundLocalAxis(currentRotation, LOCAL_INTERACTION_ROTATION_AXIS);
-            BlockAccessor blockAccessor = world.getChunk(ChunkUtil.indexChunkFromBlock(position.x(), position.z()));
+            RotationTuple nextRotation =
+                    rotateAroundLocalAxis(
+                            node.rotation(),
+                            LOCAL_INTERACTION_ROTATION_AXIS
+                    );
+
+            BlockAccessor blockAccessor =
+                    world.getChunk(
+                            ChunkUtil.indexChunkFromBlock(
+                                    position.x(),
+                                    position.z()
+                            )
+                    );
+
             if (blockAccessor == null) {
                 return;
             }
 
-            Set<Vector3i> previousNeighbors = ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, position);
-            ConnectableRuntimeAccessor.setRotation(world, position, nextRotation);
-            blockAccessor.placeBlock(position.x(), position.y(), position.z(), blockType.getId(), nextRotation, 0, false);
-            Set<Vector3i> nextNeighbors = ConnectableNeighborResolver.mutuallyConnectedNeighbors(world, position);
-            ConnectablePropagationScheduler.onConnectableConnectionsChanged(world, position, previousNeighbors, nextNeighbors);
+            // -------------------------
+            // SNAPSHOT OLD STATE
+            // -------------------------
+
+            long oldNetworkId = node.networkId();
+
+            Set<Vector3i> formerNetworkNeighbors =
+                    ConnectableNeighborResolver.allNetworkNeighbors(
+                            world,
+                            position
+                    );
+
+            Set<Vector3i> formerForwardNeighbors =
+                    ConnectableNeighborResolver.allForwardSignalNeighbors(
+                            world,
+                            position
+                    );
+
+            Map<Vector3i, SignalState> oldInstantStates =
+                    new LinkedHashMap<>();
+
+            oldInstantStates.put(
+                    position,
+                    node.instantState()
+            );
+
+            for (Vector3i adjacent :
+                    ConnectableNeighborResolver.positionsAround(position)) {
+
+                if (adjacent.equals(position)) {
+                    continue;
+                }
+
+                Nodes.Node adjacentNode =
+                        Nodes.get(world, adjacent);
+
+                if (adjacentNode != null) {
+                    oldInstantStates.put(
+                            adjacent,
+                            adjacentNode.instantState()
+                    );
+                }
+            }
+
+            // -------------------------
+            // REMOVE OLD TOPOLOGY
+            // -------------------------
+
+            Nodes.remove(
+                    world,
+                    position
+            );
+
+            ConnectableNetworkManager.onNodeBroken(
+                    world,
+                    oldNetworkId,
+                    formerNetworkNeighbors
+            );
+
+            // -------------------------
+            // APPLY NEW ROTATION
+            // -------------------------
+
+            Nodes.put(
+                    world,
+                    node
+                            .withRotation(nextRotation)
+                            .withNetworkId(Nodes.Node.NO_NETWORK)
+            );
+
+            blockAccessor.placeBlock(
+                    position.x(),
+                    position.y(),
+                    position.z(),
+                    blockType.getId(),
+                    nextRotation,
+                    0,
+                    false
+            );
+
+            // -------------------------
+            // RECONNECT NETWORK
+            // -------------------------
+
+            ConnectableNetworkManager.onNodePlaced(
+                    world,
+                    position
+            );
+
+            // -------------------------
+            // RECALCULATE SIGNAL
+            // -------------------------
+
+            ConnectableSignalRecalculator.recompute(
+                    world,
+                    position
+            );
+
+            // Old outputs may no longer be connected to the curve,
+            // so they cannot be reached by the recompute above anymore.
+            for (Vector3i formerForwardNeighbor :
+                    formerForwardNeighbors) {
+
+                ConnectableSignalRecalculator.recompute(
+                        world,
+                        formerForwardNeighbor
+                );
+            }
+
+            // -------------------------
+            // START EFFECTIVE WAVES
+            // -------------------------
+
+            for (Map.Entry<Vector3i, SignalState> entry :
+                    oldInstantStates.entrySet()) {
+
+                Nodes.Node currentNode =
+                        Nodes.get(
+                                world,
+                                entry.getKey()
+                        );
+
+                if (currentNode == null) {
+                    continue;
+                }
+
+                if (currentNode.instantState()
+                        != entry.getValue()) {
+
+                    ConnectablePropagationScheduler
+                            .scheduleAdoption(
+                                    world,
+                                    entry.getKey()
+                            );
+                }
+            }
+        }
+
+        private static @Nonnull RotationTuple rotateAroundLocalAxis(@Nonnull RotationTuple currentRotation, @Nonnull Axis localAxis) {
+            return RotationTuple.compose(currentRotation, localRotationStep(localAxis));
+        }
+
+        private static @Nonnull RotationTuple localRotationStep(@Nonnull Axis localAxis) {
+            return switch (localAxis) {
+                case X -> RotationTuple.of(Rotation.None, Rotation.Ninety, Rotation.None);
+                case Y -> RotationTuple.of(Rotation.Ninety, Rotation.None, Rotation.None);
+                case Z -> RotationTuple.of(Rotation.None, Rotation.None, Rotation.Ninety);
+            };
         }
     }
-
-    private static @Nonnull RotationTuple rotateAroundLocalAxis(@Nonnull RotationTuple currentRotation, @Nonnull Axis localAxis) {
-        return RotationTuple.compose(currentRotation, localRotationStep(localAxis));
-    }
-
-    private static @Nonnull RotationTuple localRotationStep(@Nonnull Axis localAxis) {
-        return switch (localAxis) {
-            case X -> RotationTuple.of(Rotation.None, Rotation.Ninety, Rotation.None);
-            case Y -> RotationTuple.of(Rotation.Ninety, Rotation.None, Rotation.None);
-            case Z -> RotationTuple.of(Rotation.None, Rotation.None, Rotation.Ninety);
-        };
-    }
 }
+

@@ -202,6 +202,29 @@ public final class ConnectableNeighborResolver {
         return Set.copyOf(result);
     }
 
+    public static Set<Vector3i> allNetworkNeighbors(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        LinkedHashSet<Vector3i> result = new LinkedHashSet<>();
+
+        result.addAll(
+                allForwardSignalNeighbors(
+                        world,
+                        position
+                )
+        );
+
+        result.addAll(
+                allBackwardSignalNeighbors(
+                        world,
+                        position
+                )
+        );
+
+        return Set.copyOf(result);
+    }
+
     public static WorldSide worldSideFromSourceToTarget(Vector3i sourcePosition, Vector3i targetPosition) {
         int dx = targetPosition.x() - sourcePosition.x();
         int dy = targetPosition.y() - sourcePosition.y();

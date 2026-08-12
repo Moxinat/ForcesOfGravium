@@ -25,7 +25,6 @@ import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 
 import javax.annotation.Nonnull;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -223,18 +222,11 @@ public final class ConnectableBlockLifecycleSystem {
                             target
                     );
 
-            Set<Vector3i> formerBackwardNeighbors =
-                    ConnectableNeighborResolver.allBackwardSignalNeighbors(
+            Set<Vector3i> formerNetworkNeighbors =
+                    ConnectableNeighborResolver.allNetworkNeighbors(
                             world,
                             target
                     );
-
-            // Network connectivity ignores signal direction.
-            Set<Vector3i> formerNetworkNeighbors =
-                    new LinkedHashSet<>();
-
-            formerNetworkNeighbors.addAll(formerForwardNeighbors);
-            formerNetworkNeighbors.addAll(formerBackwardNeighbors);
 
             // Snapshot ALL old instant states before the first recompute.
             Map<Vector3i, SignalState> oldForwardInstantStates =

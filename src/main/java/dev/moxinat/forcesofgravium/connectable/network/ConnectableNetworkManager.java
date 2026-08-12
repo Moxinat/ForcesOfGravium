@@ -46,21 +46,11 @@ public class ConnectableNetworkManager {
             return;
         }
 
-        LinkedHashSet<Vector3i> neighbors = new LinkedHashSet<>();
-
-        neighbors.addAll(
-                ConnectableNeighborResolver.allForwardSignalNeighbors(
+        Set<Vector3i> neighbors =
+                ConnectableNeighborResolver.allNetworkNeighbors(
                         world,
                         position
-                )
-        );
-
-        neighbors.addAll(
-                ConnectableNeighborResolver.allBackwardSignalNeighbors(
-                        world,
-                        position
-                )
-        );
+                );
 
         LinkedHashSet<Long> neighborNetworkIds = new LinkedHashSet<>();
 
@@ -198,18 +188,7 @@ public class ConnectableNetworkManager {
             }
 
             for (Vector3i neighbor :
-                    ConnectableNeighborResolver.allForwardSignalNeighbors(
-                            world,
-                            position
-                    )) {
-
-                if (!visited.contains(neighbor)) {
-                    queue.addLast(neighbor);
-                }
-            }
-
-            for (Vector3i neighbor :
-                    ConnectableNeighborResolver.allBackwardSignalNeighbors(
+                    ConnectableNeighborResolver.allNetworkNeighbors(
                             world,
                             position
                     )) {
