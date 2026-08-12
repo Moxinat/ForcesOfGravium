@@ -13,7 +13,6 @@ import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.BreakBlockEvent;
 import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
@@ -191,11 +190,6 @@ public final class ConnectableBlockLifecycleSystem {
                 @Nonnull CommandBuffer<EntityStore> commandBuffer,
                 @Nonnull BreakBlockEvent event
         ) {
-            BlockType brokenType = event.getBlockType();
-
-            if (brokenType == null) {
-                return;
-            }
 
             Ref<EntityStore> entityRef = chunk.getReferenceTo(index);
 
