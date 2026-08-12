@@ -49,7 +49,7 @@ public final class ConnectablePropagationScheduler {
         }
     }
 
-    private static void adoptInstantStateAndScheduleNeighbors(
+    public static void adoptInstantStateAndScheduleNeighbors(
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {

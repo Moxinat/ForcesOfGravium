@@ -6,6 +6,12 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.connectable.network.ConnectableNetworkManager;
+import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
+import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -14,14 +20,15 @@ import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonStore;
-import dev.moxinat.forcesofgravium.block.gravity.GravityPowderSpecialStateStore;
-import dev.moxinat.forcesofgravium.block.inverter.InverterSpecialStateStore;
 import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
-import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
+import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 
 import javax.annotation.Nonnull;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 
 public final class ConnectableBlockLifecycleSystem {
 
@@ -40,31 +47,128 @@ public final class ConnectableBlockLifecycleSystem {
         }
 
         @Override
-        public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull PlaceBlockEvent event) {
+        public void handle(
+                int index,
+                @Nonnull ArchetypeChunk<EntityStore> chunk,
+                @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer,
+                @Nonnull PlaceBlockEvent event
+        ) {
             ItemStack itemInHand = event.getItemInHand();
-            if (itemInHand == null || ConnectableRegistry.isNotConnectable(itemInHand.getItemId())) {
+
+            if (itemInHand == null) {
+                return;
+            }
+
+            String blockId = itemInHand.getItemId();
+
+            NodeTypes.NodeType nodeType = NodeTypes.find(blockId)
+                    .orElse(null);
+
+            if (nodeType == null) {
                 return;
             }
 
             Ref<EntityStore> entityRef = chunk.getReferenceTo(index);
-            Player player = store.getComponent(entityRef, Player.getComponentType());
+
+            Player player = store.getComponent(
+                    entityRef,
+                    Player.getComponentType()
+            );
+
             if (player == null || player.getWorld() == null) {
                 return;
             }
 
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
-            if (ConnectableRegistry.isGravityPowderCarrierId(itemInHand.getItemId())) {
-                GravityPowderSpecialStateStore.putDefault(world, target);
+
+            // -------------------------
+            // ROTATION
+            // -------------------------
+
+            RotationTuple rotation = event.getRotation();
+
+            HeadRotation headRotation = store.getComponent(
+                    entityRef,
+                    HeadRotation.getComponentType()
+            );
+
+            if (headRotation != null) {
+                rotation = BlockPlacementRotationSystem.resolveRotation(
+                        blockId,
+                        rotation,
+                        headRotation
+                );
             }
-            if (ConnectableRegistry.isInverterId(itemInHand.getItemId())) {
-                InverterSpecialStateStore.putDefault(world, target);
+
+            // Hytale block and Node must use the same final rotation.
+            event.setRotation(rotation);
+
+            // -------------------------
+            // CREATE NODE
+            // -------------------------
+
+            Nodes.Node node = Nodes.createWithType(
+                    world,
+                    target,
+                    nodeType
+            );
+
+            Nodes.put(
+                    world,
+                    node.withRotation(rotation)
+            );
+
+            // -------------------------
+            // NETWORK
+            // -------------------------
+
+            ConnectableNetworkManager.onNodePlaced(
+                    world,
+                    target
+            );
+
+
+            // -------------------------
+            // SIGNAL
+            // -------------------------
+
+            ConnectableSignalRecalculator.recompute(
+                    world,
+                    target
+            );
+
+            // -------------------------
+            // EFFECTIVE ADOPTION
+            // -------------------------
+
+            boolean hasStableBackwardNeighbor = false;
+
+            for (Vector3i neighborPosition :
+                    ConnectableNeighborResolver.allBackwardSignalNeighbors(
+                            world,
+                            target
+                    )) {
+
+                Nodes.Node neighbor = Nodes.get(
+                        world,
+                        neighborPosition
+                );
+
+                if (neighbor != null && !neighbor.dirty()) {
+                    hasStableBackwardNeighbor = true;
+                    break;
+                }
             }
-            if (ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID.equals(itemInHand.getItemId())) {
-                GraviumSiphonStore.add(world, target);
+
+            if (hasStableBackwardNeighbor) {
+                ConnectablePropagationScheduler
+                        .adoptInstantStateAndScheduleNeighbors(
+                                world,
+                                target
+                        );
             }
-            ConnectableRuntimeAccessor.setRotation(world, target, event.getRotation());
-            ConnectablePropagationScheduler.onConnectablePlaced(world, target);
         }
     }
 
@@ -80,31 +184,134 @@ public final class ConnectableBlockLifecycleSystem {
         }
 
         @Override
-        public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull BreakBlockEvent event) {
+        public void handle(
+                int index,
+                @Nonnull ArchetypeChunk<EntityStore> chunk,
+                @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer,
+                @Nonnull BreakBlockEvent event
+        ) {
             BlockType brokenType = event.getBlockType();
-            if (ConnectableRegistry.isNotConnectable(brokenType.getId())) {
+
+            if (brokenType == null) {
                 return;
             }
 
             Ref<EntityStore> entityRef = chunk.getReferenceTo(index);
-            Player player = store.getComponent(entityRef, Player.getComponentType());
+
+            Player player = store.getComponent(
+                    entityRef,
+                    Player.getComponentType()
+            );
+
             if (player == null || player.getWorld() == null) {
                 return;
             }
 
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
-            ConnectableRuntimeAccessor.remove(world, target);
-            if (ConnectableRegistry.isGravityPowderCarrierId(brokenType.getId())) {
-                GravityPowderSpecialStateStore.remove(world, target);
+
+            Nodes.Node brokenNode = Nodes.get(world, target);
+
+            if (brokenNode == null) {
+                return;
             }
-            if (ConnectableRegistry.isInverterId(brokenType.getId())) {
-                InverterSpecialStateStore.remove(world, target);
+
+            // -------------------------
+            // SNAPSHOT BEFORE REMOVAL
+            // -------------------------
+
+            long oldNetworkId = brokenNode.networkId();
+
+            Set<Vector3i> formerForwardNeighbors =
+                    ConnectableNeighborResolver.allForwardSignalNeighbors(
+                            world,
+                            target
+                    );
+
+            Set<Vector3i> formerBackwardNeighbors =
+                    ConnectableNeighborResolver.allBackwardSignalNeighbors(
+                            world,
+                            target
+                    );
+
+            // Network connectivity ignores signal direction.
+            Set<Vector3i> formerNetworkNeighbors =
+                    new LinkedHashSet<>();
+
+            formerNetworkNeighbors.addAll(formerForwardNeighbors);
+            formerNetworkNeighbors.addAll(formerBackwardNeighbors);
+
+            // Snapshot ALL old instant states before the first recompute.
+            Map<Vector3i, SignalState> oldForwardInstantStates =
+                    new LinkedHashMap<>();
+
+            for (Vector3i forwardNeighbor : formerForwardNeighbors) {
+                Nodes.Node neighbor = Nodes.get(
+                        world,
+                        forwardNeighbor
+                );
+
+                if (neighbor != null) {
+                    oldForwardInstantStates.put(
+                            forwardNeighbor,
+                            neighbor.instantState()
+                    );
+                }
             }
-            if (ConnectableRegistry.isGraviumSiphonId(brokenType.getId())) {
-                GraviumSiphonStore.remove(world, target);
+
+            // -------------------------
+            // REMOVE NODE
+            // -------------------------
+
+            Nodes.remove(
+                    world,
+                    target
+            );
+
+            // -------------------------
+            // NETWORK
+            // -------------------------
+
+            ConnectableNetworkManager.onNodeBroken(
+                    world,
+                    oldNetworkId,
+                    formerNetworkNeighbors
+            );
+
+            // -------------------------
+            // SIGNAL
+            // -------------------------
+
+            for (Map.Entry<Vector3i, SignalState> entry :
+                    oldForwardInstantStates.entrySet()) {
+
+                Vector3i position = entry.getKey();
+                SignalState oldInstantState = entry.getValue();
+
+                ConnectableSignalRecalculator.recompute(
+                        world,
+                        position
+                );
+
+                Nodes.Node recomputedNode = Nodes.get(
+                        world,
+                        position
+                );
+
+                if (recomputedNode == null) {
+                    continue;
+                }
+
+                // Only start a new effective wave if breaking the node
+                // actually changed the logical instant truth here.
+                if (recomputedNode.instantState() != oldInstantState) {
+                    ConnectablePropagationScheduler.scheduleAdoption(
+                            world,
+                            position
+                    );
+                }
             }
-            ConnectablePropagationScheduler.onConnectableBroken(world, target);
         }
     }
 }
