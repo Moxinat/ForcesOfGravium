@@ -8,7 +8,7 @@ import dev.moxinat.forcesofgravium.commands.ForcesOfGraviumCommand;
 import dev.moxinat.forcesofgravium.event.ForcesOfGraviumEvents;
 import dev.moxinat.forcesofgravium.system.ButtonInteractionSystem;
 import dev.moxinat.forcesofgravium.system.ConnectableBlockLifecycleSystem;
-import dev.moxinat.forcesofgravium.system.ConnectablePropagationSystem;
+import dev.moxinat.forcesofgravium.system.WorldTickSystem;
 import dev.moxinat.forcesofgravium.system.CurveCasedGravityPowderRotationSystem;
 
 import javax.annotation.Nonnull;
@@ -30,6 +30,6 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new CurveCasedGravityPowderRotationSystem.UseSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlaceSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.BreakSystem());
-        this.getEntityStoreRegistry().registerSystem(new ConnectablePropagationSystem());
+        this.getEntityStoreRegistry().registerSystem(new WorldTickSystem());
     }
 }
