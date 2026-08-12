@@ -162,7 +162,7 @@ public final class ConnectableBlockLifecycleSystem {
 
             if (hasStableBackwardNeighbor) {
                 ConnectablePropagationScheduler
-                        .adoptInstantStateAndScheduleNeighbors(
+                        .scheduleAdoption(
                                 world,
                                 target
                         );

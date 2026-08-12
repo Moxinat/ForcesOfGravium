@@ -1,8 +1,12 @@
 package dev.moxinat.forcesofgravium.block.source;
 
+import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
+import dev.moxinat.forcesofgravium.connectable.registry.SourceRegistry;
+import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
 
 import javax.annotation.Nonnull;
@@ -17,11 +21,59 @@ public final class SourceActivationScheduler {
     private SourceActivationScheduler() {
     }
 
-    public static void activateForTicks(@Nonnull World world, @Nonnull Vector3i position, long ticks) {
-        ConnectableRuntimeAccessor.setEnergyDelta(world, position, 1);
-        ACTIVE_UNTIL_TICKS.computeIfAbsent(world, ignored -> new ConcurrentHashMap<>())
-                .put(position, world.getTick() + ticks);
-        ConnectablePropagationScheduler.onConnectablePlaced(world, position);
+    public static void activateForTicks(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            long ticks
+    ) {
+        Nodes.Node node = Nodes.get(world, position);
+
+        if (node == null) {
+            return;
+        }
+
+        int power = SourceRegistry.powerFor(node.blockId());
+
+        if (power <= 0) {
+            return;
+        }
+
+        node = node
+                .withEnergyDelta(power)
+                .withInstantState(SignalState.PUSH)
+                .withDirty(true);
+
+        Nodes.put(
+                world,
+                node
+        );
+
+        ACTIVE_UNTIL_TICKS
+                .computeIfAbsent(
+                        world,
+                        ignored -> new ConcurrentHashMap<>()
+                )
+                .put(
+                        position,
+                        world.getTick() + ticks
+                );
+
+        for (Vector3i forwardNeighbor :
+                ConnectableNeighborResolver.allForwardSignalNeighbors(
+                        world,
+                        position
+                )) {
+
+            ConnectableSignalRecalculator.recompute(
+                    world,
+                    forwardNeighbor
+            );
+        }
+
+        ConnectablePropagationScheduler.scheduleAdoption(
+                world,
+                position
+        );
     }
 
     public static void tickWorld(@Nonnull World world) {
@@ -43,8 +95,42 @@ public final class SourceActivationScheduler {
             if (!activeUntilByPosition.remove(position, entry.getValue())) {
                 continue;
             }
-            ConnectableRuntimeAccessor.setEnergyDelta(world, position, 0);
-            ConnectablePropagationScheduler.onConnectableBroken(world, position);
+
+            Nodes.Node node = Nodes.get(
+                    world,
+                    position
+            );
+
+            if (node == null) {
+                continue;
+            }
+
+            node = node
+                    .withEnergyDelta(0)
+                    .withInstantState(SignalState.OFF)
+                    .withDirty(true);
+
+            Nodes.put(
+                    world,
+                    node
+            );
+
+            for (Vector3i forwardNeighbor :
+                    ConnectableNeighborResolver.allForwardSignalNeighbors(
+                            world,
+                            position
+                    )) {
+
+                ConnectableSignalRecalculator.recompute(
+                        world,
+                        forwardNeighbor
+                );
+            }
+
+            ConnectablePropagationScheduler.scheduleAdoption(
+                    world,
+                    position
+            );
         }
         if (activeUntilByPosition.isEmpty()) {
             ACTIVE_UNTIL_TICKS.remove(world, activeUntilByPosition);
