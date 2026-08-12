@@ -6,6 +6,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
+import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -13,7 +14,6 @@ import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.block.source.SourceActivationScheduler;
-import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
 
@@ -39,7 +39,7 @@ public final class ButtonInteractionSystem extends EntityEventSystem<EntityStore
             @Nonnull UseBlockEvent.Post event
     ) {
         BlockType blockType = event.getBlockType();
-        if (!ConnectableRegistry.isWoodenButtonId(blockType.getId())) {
+        if (!NodeTypes.WOODEN_BUTTON.blockId().equals(blockType.getId())) {
             return;
         }
 
