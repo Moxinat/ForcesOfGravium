@@ -33,8 +33,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.FillerBlockUtil;
 import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonStore;
-import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonStore.GraviumSiphonData;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
 
