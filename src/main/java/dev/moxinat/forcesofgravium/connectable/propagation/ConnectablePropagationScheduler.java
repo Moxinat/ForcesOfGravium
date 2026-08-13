@@ -72,6 +72,20 @@ public final class ConnectablePropagationScheduler {
 
             ConnectableVisualDispatcher.refreshAt(world, position);
 
+            if (node.invertEnabled()) {
+                for (Vector3i forwardNeighbor :
+                        ConnectableNeighborResolver.allForwardSignalNeighbors(
+                                world,
+                                position
+                        )) {
+
+                    ConnectableSignalRecalculator.recompute(
+                            world,
+                            forwardNeighbor
+                    );
+                }
+            }
+
             // Control-Reaktionen auf diesen neuen Effective-State.
             for (Vector3i controlNeighbor :
                     ConnectableNeighborResolver.allControlNeighbors(
