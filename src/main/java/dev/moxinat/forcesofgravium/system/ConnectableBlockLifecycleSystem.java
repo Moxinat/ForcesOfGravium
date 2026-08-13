@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
 import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.connectable.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.connectable.network.ConnectableNetworkManager;
 import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
 import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
@@ -167,6 +168,8 @@ public final class ConnectableBlockLifecycleSystem {
                                 target
                         );
             }
+
+            ConnectableVisualDispatcher.refreshTopologyAround(world, target);
         }
     }
 
@@ -298,6 +301,8 @@ public final class ConnectableBlockLifecycleSystem {
                     );
                 }
             }
+
+            ConnectableVisualDispatcher.refreshTopologyAround(world, target);
         }
     }
 }

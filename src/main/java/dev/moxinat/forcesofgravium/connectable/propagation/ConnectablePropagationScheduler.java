@@ -2,6 +2,7 @@ package dev.moxinat.forcesofgravium.connectable.propagation;
 
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.connectable.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.connectable.dispatcher.NodeControlDispatcher;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.data.Nodes;
@@ -66,6 +67,8 @@ public final class ConnectablePropagationScheduler {
 
         if (node.effectiveState() != previousEffectiveState) {
 
+            ConnectableVisualDispatcher.refreshAt(world, position);
+
             // Control-Reaktionen auf diesen neuen Effective-State.
             for (Vector3i controlNeighbor :
                     ConnectableNeighborResolver.allControlNeighbors(
@@ -73,10 +76,7 @@ public final class ConnectablePropagationScheduler {
                             position
                     )) {
 
-                NodeControlDispatcher.dispatch(
-                        world,
-                        controlNeighbor
-                );
+                NodeControlDispatcher.dispatch(world, controlNeighbor);
             }
         }
 

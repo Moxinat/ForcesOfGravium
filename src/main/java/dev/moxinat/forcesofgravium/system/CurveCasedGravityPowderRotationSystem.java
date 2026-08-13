@@ -17,6 +17,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.connectable.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.connectable.network.ConnectableNetworkManager;
 import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
 import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
@@ -223,6 +224,8 @@ public final class CurveCasedGravityPowderRotationSystem {
                             );
                 }
             }
+
+            ConnectableVisualDispatcher.refreshTopologyAround(world, position);
         }
 
         private static @Nonnull RotationTuple rotateAroundLocalAxis(@Nonnull RotationTuple currentRotation, @Nonnull Axis localAxis) {
