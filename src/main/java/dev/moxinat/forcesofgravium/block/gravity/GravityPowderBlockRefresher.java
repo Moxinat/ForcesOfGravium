@@ -1,16 +1,18 @@
 package dev.moxinat.forcesofgravium.block.gravity;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
+import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver.WorldSide;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
+
+import java.util.Set;
 
 public final class GravityPowderBlockRefresher {
 
@@ -28,27 +30,53 @@ public final class GravityPowderBlockRefresher {
     }
 
     public static void refreshAt(World world, Vector3i position) {
-        refreshAt(world, position.x(), position.y(), position.z(), null);
-    }
 
-    public static void refreshAt(World world, int x, int y, int z, Vector3i treatAsEmpty) {
-        BlockType blockType = world.getBlockType(x, y, z);
-        if (blockType == null || !ConnectableRegistry.isGravityPowderId(blockType.getId())) {
+        Nodes.Node node = Nodes.get(
+                world,
+                position
+        );
+
+        if (node == null
+                || !NodeTypes.GRAVITY_POWDER
+                .blockId()
+                .equals(node.blockId())) {
             return;
         }
 
-        String modeStateSuffix = modeStateSuffix(world, x, y, z);
+        int x = position.x;
+        int y = position.y;
+        int z = position.z;
 
-        boolean east = ConnectableNeighborResolver.isConnectable(world, x + 1, y, z, treatAsEmpty, WorldSide.WEST);
-        boolean west = ConnectableNeighborResolver.isConnectable(world, x - 1, y, z, treatAsEmpty, WorldSide.EAST);
-        boolean south = ConnectableNeighborResolver.isConnectable(world, x, y, z + 1, treatAsEmpty, WorldSide.NORTH);
-        boolean north = ConnectableNeighborResolver.isConnectable(world, x, y, z - 1, treatAsEmpty, WorldSide.SOUTH);
-        boolean up = ConnectableNeighborResolver.isConnectable(world, x, y + 1, z, treatAsEmpty, WorldSide.DOWN);
-        boolean down = ConnectableNeighborResolver.isConnectable(world, x, y - 1, z, treatAsEmpty, WorldSide.UP);
-        GravityPowderSpecialStateStore.setConnectionsMask(
-                world,
-                new Vector3i(x, y, z),
-                ConnectableNeighborResolver.buildConnectionsMask(east, west, south, north, up, down)
+        String modeStateSuffix = modeStateSuffix(node);
+
+        Set<Vector3i> connectedNeighbors =
+                ConnectableNeighborResolver.mutuallyConnectedNeighbors(
+                        world,
+                        position
+                );
+
+        boolean east = connectedNeighbors.contains(
+                new Vector3i(x + 1, y, z)
+        );
+
+        boolean west = connectedNeighbors.contains(
+                new Vector3i(x - 1, y, z)
+        );
+
+        boolean south = connectedNeighbors.contains(
+                new Vector3i(x, y, z + 1)
+        );
+
+        boolean north = connectedNeighbors.contains(
+                new Vector3i(x, y, z - 1)
+        );
+
+        boolean up = connectedNeighbors.contains(
+                new Vector3i(x, y + 1, z)
+        );
+
+        boolean down = connectedNeighbors.contains(
+                new Vector3i(x, y - 1, z)
         );
         int connectionCount = (east ? 1 : 0) + (west ? 1 : 0) + (south ? 1 : 0) + (north ? 1 : 0) + (up ? 1 : 0) + (down ? 1 : 0);
 
@@ -360,10 +388,12 @@ public final class GravityPowderBlockRefresher {
         chunk.placeBlock(x, y, z, defaultBlockKey, RotationTuple.of(Rotation.None, Rotation.None, Rotation.None), 0, false);
     }
 
-    private static String modeStateSuffix(World world, int x, int y, int z) {
-        return ConnectableRuntimeAccessor.stateSuffixForSignalState(
-                ConnectableRuntimeAccessor.effectiveState(world, new Vector3i(x, y, z))
-        );
+    private static String modeStateSuffix(Nodes.Node node) {
+        return switch (node.effectiveState()) {
+            case PUSH -> "Push";
+            case PULL -> "Pull";
+            case OFF -> "";
+        };
     }
 
     private static String stateBlockKey(BlockType baseType, String baseState, String modeSuffix) {

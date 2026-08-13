@@ -1,54 +1,103 @@
 package dev.moxinat.forcesofgravium.block.inverter;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
+import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
-import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
 
 public final class InverterBlockRefresher {
 
     private InverterBlockRefresher() {
     }
 
-    public static void refreshAt(World world, Vector3i position) {
-        int x = position.x();
-        int y = position.y();
-        int z = position.z();
-        BlockType blockType = world.getBlockType(x, y, z);
-        if (blockType == null || !ConnectableRegistry.isInverterId(blockType.getId())) {
+    public static void refreshAt(
+            World world,
+            Vector3i position
+    ) {
+        Nodes.Node node = Nodes.get(
+                world,
+                position
+        );
+
+        if (node == null
+                || !NodeTypes.INVERTER
+                .blockId()
+                .equals(node.blockId())) {
             return;
         }
 
-        BlockType baseType = BlockType.fromString(ConnectableRegistry.INVERTER_BLOCK_ID);
+        int x = position.x();
+        int y = position.y();
+        int z = position.z();
+
+        BlockType blockType =
+                world.getBlockType(x, y, z);
+
+        if (blockType == null) {
+            return;
+        }
+
+        BlockType baseType = BlockType.fromString(
+                NodeTypes.INVERTER.blockId()
+        );
+
         if (baseType == null) {
             return;
         }
 
-        String blockKey = baseType.getBlockKeyForState(stateName(world, position));
+        String stateName =
+                stateName(node);
+
+        String blockKey =
+                baseType.getBlockKeyForState(stateName);
+
         if (blockKey == null) {
-            blockKey = ConnectableRegistry.INVERTER_BLOCK_ID;
+            blockKey =
+                    NodeTypes.INVERTER.blockId();
         }
 
-        BlockAccessor chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(x, z));
+        if (blockKey.equals(blockType.getId())) {
+            return;
+        }
+
+        BlockAccessor chunk =
+                world.getChunk(
+                        ChunkUtil.indexChunkFromBlock(
+                                x,
+                                z
+                        )
+                );
+
         if (chunk == null) {
             return;
         }
 
-        RotationTuple rotation = ConnectableRuntimeAccessor.rotation(world, position);
-        chunk.placeBlock(x, y, z, blockKey, rotation, 0, false);
+        chunk.placeBlock(
+                x,
+                y,
+                z,
+                blockKey,
+                node.rotation(),
+                0,
+                false
+        );
     }
 
-    private static String stateName(World world, Vector3i position) {
-        boolean invertEnabled = ConnectableRuntimeAccessor.invertEnabled(world, position);
+    private static String stateName(
+            Nodes.Node node
+    ) {
+        String prefix = switch (node.effectiveState()) {
+            case PUSH -> "Push";
+            case PULL -> "Pull";
+            case OFF -> "Off";
+        };
 
-        return modeStatePrefix(InverterStateCalculator.computeInputMode(world, position)) + (invertEnabled ? "Off" : "On");
-    }
-
-    private static String modeStatePrefix(String mode) {
-        return ConnectableRuntimeAccessor.stateNameForSignalState(mode);
+        return prefix
+                + (node.invertEnabled()
+                ? "Off"
+                : "On");
     }
 }
