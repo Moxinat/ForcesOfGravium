@@ -41,6 +41,9 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
             @Nonnull CommandBuffer<EntityStore> commandBuffer
     ) {
         World world = store.getExternalData().getWorld();
+
+        WorldSaveFileService.ensureLoaded(world);
+
         long tick = world.getTick();
 
         if (!markWorldTickProcessed(world, tick)) {
@@ -61,7 +64,7 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
 
         // Autosave
         if (shouldAutosave(world, tick)) {
-            WorldSaveFileService.saveDirtyWorlds();
+            WorldSaveFileService.saveWorld(world);
         }
     }
 
