@@ -32,34 +32,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class WorldSaveFileService {
 
     private static final int SAVE_VERSION = 1;
-
     private static final String SAVE_FOLDER = "forcesofgravium";
     private static final String SAVE_FILE = "worldsave.json";
-
     private static final long SAVE_THROTTLE_MILLIS = 1000L;
 
-    private static final Map<String, World> LOADED_WORLDS =
-            new ConcurrentHashMap<>();
-
-    private static final Map<String, Long> LAST_SAVE_ATTEMPT_MILLIS =
-            new ConcurrentHashMap<>();
-
-    private static final Map<String, String> LAST_SAVE_ERROR =
-            new ConcurrentHashMap<>();
-
-    private static final Set<String> LOADING_WORLDS =
-            ConcurrentHashMap.newKeySet();
+    private static final Map<String, World> LOADED_WORLDS = new ConcurrentHashMap<>();
+    private static final Map<String, Long> LAST_SAVE_ATTEMPT_MILLIS = new ConcurrentHashMap<>();
+    private static final Map<String, String> LAST_SAVE_ERROR = new ConcurrentHashMap<>();
+    private static final Set<String> LOADING_WORLDS = ConcurrentHashMap.newKeySet();
 
     private WorldSaveFileService() {
     }
 
-    // ------------------------------------------------------------
-    // LOAD
-    // ------------------------------------------------------------
-
-    public static void ensureLoaded(
-            @Nonnull World world
-    ) {
+    public static void ensureLoaded(@Nonnull World world) {
         String key = worldKey(world);
 
         if (LOADED_WORLDS.containsKey(key)) {
@@ -67,18 +52,12 @@ public final class WorldSaveFileService {
         }
 
         synchronized (WorldSaveFileService.class) {
-
             if (LOADED_WORLDS.containsKey(key)) {
                 return;
             }
 
-            LOADED_WORLDS.put(
-                    key,
-                    world
-            );
-
+            LOADED_WORLDS.put(key, world);
             LOADING_WORLDS.add(key);
-
             clearWorldRuntime(world);
 
             try {
@@ -88,62 +67,40 @@ public final class WorldSaveFileService {
                     return;
                 }
 
-                String content = Files.readString(
-                        saveFile,
-                        StandardCharsets.UTF_8
-                );
-
+                String content = Files.readString(saveFile, StandardCharsets.UTF_8);
                 if (content.isBlank()) {
                     return;
                 }
 
-                BsonDocument root =
-                        BsonDocument.parse(content);
+                BsonDocument root = BsonDocument.parse(content);
 
                 if (!root.containsKey("nodes")) {
-                    System.err.println(
-                            "[FoG] Legacy worldsave is no longer supported."
-                    );
+                    System.err.println("[FoG] Legacy worldsave is no longer supported.");
                     return;
                 }
 
                 int version = root
-                        .getInt32(
-                                "version",
-                                new BsonInt32(1)
-                        )
+                        .getInt32("version", new BsonInt32(1))
                         .getValue();
 
                 if (version != SAVE_VERSION) {
-                    System.err.println(
-                            "[FoG] Unsupported worldsave version: "
-                                    + version
-                    );
+                    System.err.println("[FoG] Unsupported worldsave version: " + version);
                     return;
                 }
 
                 loadNodes(
                         world,
-                        root.getArray(
-                                "nodes",
-                                new BsonArray()
-                        )
+                        root.getArray("nodes", new BsonArray())
                 );
 
                 loadPropagation(
                         world,
-                        root.getDocument(
-                                "propagation",
-                                new BsonDocument()
-                        )
+                        root.getDocument("propagation", new BsonDocument())
                 );
 
                 loadTimedSources(
                         world,
-                        root.getArray(
-                                "timedSources",
-                                new BsonArray()
-                        )
+                        root.getArray("timedSources", new BsonArray())
                 );
 
             } catch (Exception exception) {
@@ -164,137 +121,29 @@ public final class WorldSaveFileService {
             @Nonnull BsonArray entries
     ) {
         for (BsonValue value : entries) {
-
             if (!value.isDocument()) {
                 continue;
             }
 
-            BsonDocument document =
-                    value.asDocument();
+            BsonDocument document = value.asDocument();
 
-            Vector3i position =
-                    readPosition(
-                            document.getDocument("position")
-                    );
-
-            String blockId =
-                    document
-                            .getString("blockId")
-                            .getValue();
-
-            int signalInputSides =
-                    document
-                            .getInt32(
-                                    "signalInputSides",
-                                    new BsonInt32(0)
-                            )
-                            .getValue();
-
-            int signalOutputSides =
-                    document
-                            .getInt32(
-                                    "signalOutputSides",
-                                    new BsonInt32(0)
-                            )
-                            .getValue();
-
-            int controlInputSides =
-                    document
-                            .getInt32(
-                                    "controlInputSides",
-                                    new BsonInt32(0)
-                            )
-                            .getValue();
-
-            boolean invertCapable =
-                    document
-                            .getBoolean(
-                                    "invertCapable",
-                                    BsonBoolean.FALSE
-                            )
-                            .getValue();
-
-            boolean passBehaviorCapable =
-                    document
-                            .getBoolean(
-                                    "passBehaviorCapable",
-                                    BsonBoolean.FALSE
-                            )
-                            .getValue();
-
-            RotationTuple rotation =
-                    readRotationTuple(
-                            document.getDocument(
-                                    "rotation",
-                                    new BsonDocument()
-                            )
-                    );
-
-            SignalState previousInstantState =
-                    readSignalState(
-                            document,
-                            "previousInstantState"
-                    );
-
-            SignalState instantState =
-                    readSignalState(
-                            document,
-                            "instantState"
-                    );
-
-            SignalState previousEffectiveState =
-                    readSignalState(
-                            document,
-                            "previousEffectiveState"
-                    );
-
-            SignalState effectiveState =
-                    readSignalState(
-                            document,
-                            "effectiveState"
-                    );
-
-            boolean dirty =
-                    document
-                            .getBoolean(
-                                    "dirty",
-                                    BsonBoolean.FALSE
-                            )
-                            .getValue();
-
-            boolean invertEnabled =
-                    document
-                            .getBoolean(
-                                    "invertEnabled",
-                                    BsonBoolean.FALSE
-                            )
-                            .getValue();
-
-            boolean passing =
-                    document
-                            .getBoolean(
-                                    "passing",
-                                    BsonBoolean.FALSE
-                            )
-                            .getValue();
-
-            int energyDelta =
-                    document
-                            .getInt32(
-                                    "energyDelta",
-                                    new BsonInt32(0)
-                            )
-                            .getValue();
-
-            long networkId =
-                    document
-                            .getInt64(
-                                    "networkId",
-                                    new BsonInt64(
-                                            Nodes.Node.NO_NETWORK
-                                    )
-                            )
-                            .getValue();
+            Vector3i position = readPosition(document.getDocument("position"));
+            String blockId = document.getString("blockId").getValue();
+            int signalInputSides = document.getInt32("signalInputSides", new BsonInt32(0)).getValue();
+            int signalOutputSides = document.getInt32("signalOutputSides", new BsonInt32(0)).getValue();
+            int controlInputSides = document.getInt32("controlInputSides", new BsonInt32(0)).getValue();
+            RotationTuple rotation = readRotationTuple(document.getDocument("rotation", new BsonDocument()));
+            SignalState previousInstantState = readSignalState(document, "previousInstantState");
+            SignalState instantState = readSignalState(document, "instantState");
+            SignalState previousEffectiveState = readSignalState(document, "previousEffectiveState");
+            SignalState effectiveState = readSignalState(document, "effectiveState");
+            boolean dirty = document.getBoolean("dirty", BsonBoolean.FALSE).getValue();
+            boolean invertEnabled = document.getBoolean("invertEnabled", BsonBoolean.FALSE).getValue();
+            boolean passing = document.getBoolean("passing", BsonBoolean.FALSE).getValue();
+            int energyDelta = document.getInt32("energyDelta", new BsonInt32(0)).getValue();
+            long networkId = document
+                    .getInt64("networkId", new BsonInt64(Nodes.Node.NO_NETWORK))
+                    .getValue();
 
             Nodes.createNode(
                     world,
@@ -303,8 +152,6 @@ public final class WorldSaveFileService {
                     signalInputSides,
                     signalOutputSides,
                     controlInputSides,
-                    invertCapable,
-                    passBehaviorCapable,
                     rotation,
                     previousInstantState,
                     instantState,
@@ -323,21 +170,12 @@ public final class WorldSaveFileService {
             @Nonnull World world,
             @Nonnull BsonDocument document
     ) {
-        Set<Vector3i> currentWave =
-                readPositions(
-                        document.getArray(
-                                "currentWave",
-                                new BsonArray()
-                        )
-                );
-
-        Set<Vector3i> nextWave =
-                readPositions(
-                        document.getArray(
-                                "nextWave",
-                                new BsonArray()
-                        )
-                );
+        Set<Vector3i> currentWave = readPositions(
+                document.getArray("currentWave", new BsonArray())
+        );
+        Set<Vector3i> nextWave = readPositions(
+                document.getArray("nextWave", new BsonArray())
+        );
 
         ConnectablePropagationScheduler.restoreWaves(
                 world,
@@ -350,66 +188,31 @@ public final class WorldSaveFileService {
             @Nonnull World world,
             @Nonnull BsonArray entries
     ) {
-        Map<Vector3i, Long> remainingTicks =
-                new HashMap<>();
+        Map<Vector3i, Long> remainingTicks = new HashMap<>();
 
         for (BsonValue value : entries) {
-
             if (!value.isDocument()) {
                 continue;
             }
 
-            BsonDocument document =
-                    value.asDocument();
+            BsonDocument document = value.asDocument();
+            Vector3i position = readPosition(document.getDocument("position"));
+            long remaining = document
+                    .getInt64("remainingTicks", new BsonInt64(0L))
+                    .getValue();
 
-            Vector3i position =
-                    readPosition(
-                            document.getDocument("position")
-                    );
-
-            long remaining =
-                    document
-                            .getInt64(
-                                    "remainingTicks",
-                                    new BsonInt64(0L)
-                            )
-                            .getValue();
-
-            remainingTicks.put(
-                    position,
-                    Math.max(
-                            0L,
-                            remaining
-                    )
-            );
+            remainingTicks.put(position, Math.max(0L, remaining));
         }
 
-        SourceActivationScheduler.restoreTimedSources(
-                world,
-                remainingTicks
-        );
+        SourceActivationScheduler.restoreTimedSources(world, remainingTicks);
     }
 
-    // ------------------------------------------------------------
-    // SAVE
-    // ------------------------------------------------------------
-
-    public static void saveWorld(
-            @Nonnull World world
-    ) {
-        saveWorld(
-                world,
-                false
-        );
+    public static void saveWorld(@Nonnull World world) {
+        saveWorld(world, false);
     }
 
-    public static void forceSaveWorld(
-            @Nonnull World world
-    ) {
-        saveWorld(
-                world,
-                true
-        );
+    public static void forceSaveWorld(@Nonnull World world) {
+        saveWorld(world, true);
     }
 
     private static void saveWorld(
@@ -419,52 +222,25 @@ public final class WorldSaveFileService {
         ensureLoaded(world);
 
         String key = worldKey(world);
-
-        long now =
-                System.currentTimeMillis();
-
-        long lastAttempt =
-                LAST_SAVE_ATTEMPT_MILLIS
-                        .getOrDefault(
-                                key,
-                                0L
-                        );
+        long now = System.currentTimeMillis();
+        long lastAttempt = LAST_SAVE_ATTEMPT_MILLIS.getOrDefault(key, 0L);
 
         if (!force && now - lastAttempt < SAVE_THROTTLE_MILLIS) {
             return;
         }
 
         synchronized (WorldSaveFileService.class) {
-
-            LAST_SAVE_ATTEMPT_MILLIS.put(
-                    key,
-                    now
-            );
+            LAST_SAVE_ATTEMPT_MILLIS.put(key, now);
 
             try {
-                BsonDocument root =
-                        createSaveDocument(world);
-
-                writeSaveFile(
-                        world,
-                        root
-                );
-
+                writeSaveFile(world, createSaveDocument(world));
                 LAST_SAVE_ERROR.remove(key);
-
             } catch (Exception exception) {
+                String message = exception.getClass().getSimpleName()
+                        + ": "
+                        + exception.getMessage();
 
-                String message =
-                        exception
-                                .getClass()
-                                .getSimpleName()
-                                + ": "
-                                + exception.getMessage();
-
-                LAST_SAVE_ERROR.put(
-                        key,
-                        message
-                );
+                LAST_SAVE_ERROR.put(key, message);
 
                 System.err.println(
                         "[FoG] Failed to save world save for '"
@@ -479,46 +255,21 @@ public final class WorldSaveFileService {
     private static @Nonnull BsonDocument createSaveDocument(
             @Nonnull World world
     ) {
-        BsonDocument root =
-                new BsonDocument();
-
-        root.put(
-                "version",
-                new BsonInt32(SAVE_VERSION)
-        );
-
-        root.put(
-                "nodes",
-                serializeNodes(world)
-        );
-
-        root.put(
-                "propagation",
-                serializePropagation(world)
-        );
-
-        root.put(
-                "timedSources",
-                serializeTimedSources(world)
-        );
-
+        BsonDocument root = new BsonDocument();
+        root.put("version", new BsonInt32(SAVE_VERSION));
+        root.put("nodes", serializeNodes(world));
+        root.put("propagation", serializePropagation(world));
+        root.put("timedSources", serializeTimedSources(world));
         return root;
     }
 
     private static @Nonnull BsonArray serializeNodes(
             @Nonnull World world
     ) {
-        BsonArray result =
-                new BsonArray();
+        BsonArray result = new BsonArray();
 
-        for (Nodes.Node node :
-                Nodes
-                        .snapshotForWorld(world)
-                        .values()) {
-
-            result.add(
-                    writeNode(node)
-            );
+        for (Nodes.Node node : Nodes.snapshotForWorld(world).values()) {
+            result.add(writeNode(node));
         }
 
         return result;
@@ -527,123 +278,23 @@ public final class WorldSaveFileService {
     private static @Nonnull BsonDocument writeNode(
             @Nonnull Nodes.Node node
     ) {
-        BsonDocument document =
-                new BsonDocument();
+        BsonDocument document = new BsonDocument();
 
-        document.put(
-                "position",
-                writePosition(node.position())
-        );
-
-        document.put(
-                "blockId",
-                new BsonString(node.blockId())
-        );
-
-        document.put(
-                "signalInputSides",
-                new BsonInt32(
-                        node.signalInputSides()
-                )
-        );
-
-        document.put(
-                "signalOutputSides",
-                new BsonInt32(
-                        node.signalOutputSides()
-                )
-        );
-
-        document.put(
-                "controlInputSides",
-                new BsonInt32(
-                        node.controlInputSides()
-                )
-        );
-
-        document.put(
-                "invertCapable",
-                new BsonBoolean(
-                        node.invertCapable()
-                )
-        );
-
-        document.put(
-                "passBehaviorCapable",
-                new BsonBoolean(
-                        node.passBehaviorCapable()
-                )
-        );
-
-        document.put(
-                "rotation",
-                writeRotation(
-                        node.rotation()
-                )
-        );
-
-        document.put(
-                "previousInstantState",
-                new BsonString(
-                        node.previousInstantState().name()
-                )
-        );
-
-        document.put(
-                "instantState",
-                new BsonString(
-                        node.instantState().name()
-                )
-        );
-
-        document.put(
-                "previousEffectiveState",
-                new BsonString(
-                        node.previousEffectiveState().name()
-                )
-        );
-
-        document.put(
-                "effectiveState",
-                new BsonString(
-                        node.effectiveState().name()
-                )
-        );
-
-        document.put(
-                "dirty",
-                new BsonBoolean(
-                        node.dirty()
-                )
-        );
-
-        document.put(
-                "invertEnabled",
-                new BsonBoolean(
-                        node.invertEnabled()
-                )
-        );
-
-        document.put(
-                "passing",
-                new BsonBoolean(
-                        node.passing()
-                )
-        );
-
-        document.put(
-                "energyDelta",
-                new BsonInt32(
-                        node.energyDelta()
-                )
-        );
-
-        document.put(
-                "networkId",
-                new BsonInt64(
-                        node.networkId()
-                )
-        );
+        document.put("position", writePosition(node.position()));
+        document.put("blockId", new BsonString(node.blockId()));
+        document.put("signalInputSides", new BsonInt32(node.signalInputSides()));
+        document.put("signalOutputSides", new BsonInt32(node.signalOutputSides()));
+        document.put("controlInputSides", new BsonInt32(node.controlInputSides()));
+        document.put("rotation", writeRotation(node.rotation()));
+        document.put("previousInstantState", new BsonString(node.previousInstantState().name()));
+        document.put("instantState", new BsonString(node.instantState().name()));
+        document.put("previousEffectiveState", new BsonString(node.previousEffectiveState().name()));
+        document.put("effectiveState", new BsonString(node.effectiveState().name()));
+        document.put("dirty", new BsonBoolean(node.dirty()));
+        document.put("invertEnabled", new BsonBoolean(node.invertEnabled()));
+        document.put("passing", new BsonBoolean(node.passing()));
+        document.put("energyDelta", new BsonInt32(node.energyDelta()));
+        document.put("networkId", new BsonInt64(node.networkId()));
 
         return document;
     }
@@ -651,110 +302,47 @@ public final class WorldSaveFileService {
     private static @Nonnull BsonDocument serializePropagation(
             @Nonnull World world
     ) {
-        BsonDocument document =
-                new BsonDocument();
-
+        BsonDocument document = new BsonDocument();
         document.put(
                 "currentWave",
-                writePositions(
-                        ConnectablePropagationScheduler
-                                .snapshotCurrentWave(world)
-                )
+                writePositions(ConnectablePropagationScheduler.snapshotCurrentWave(world))
         );
-
         document.put(
                 "nextWave",
-                writePositions(
-                        ConnectablePropagationScheduler
-                                .snapshotNextWave(world)
-                )
+                writePositions(ConnectablePropagationScheduler.snapshotNextWave(world))
         );
-
         return document;
     }
 
     private static @Nonnull BsonArray serializeTimedSources(
             @Nonnull World world
     ) {
-        BsonArray result =
-                new BsonArray();
+        BsonArray result = new BsonArray();
+        Map<Vector3i, Long> remainingTicks = SourceActivationScheduler.snapshotRemainingTicks(world);
 
-        Map<Vector3i, Long> remainingTicks =
-                SourceActivationScheduler
-                        .snapshotRemainingTicks(world);
-
-        for (Map.Entry<Vector3i, Long> entry :
-                remainingTicks.entrySet()) {
-
-            BsonDocument document =
-                    new BsonDocument();
-
-            document.put(
-                    "position",
-                    writePosition(
-                            entry.getKey()
-                    )
-            );
-
-            document.put(
-                    "remainingTicks",
-                    new BsonInt64(
-                            entry.getValue()
-                    )
-            );
-
+        for (Map.Entry<Vector3i, Long> entry : remainingTicks.entrySet()) {
+            BsonDocument document = new BsonDocument();
+            document.put("position", writePosition(entry.getKey()));
+            document.put("remainingTicks", new BsonInt64(entry.getValue()));
             result.add(document);
         }
 
         return result;
     }
 
-    // ------------------------------------------------------------
-    // SAVE ALL / AUTOSAVE
-    // ------------------------------------------------------------
-
-    /**
-     * Intended for shutdown.
-     * Force-save all loaded worlds so runtime-only values such as
-     * remaining source ticks and propagation queues are captured even
-     * if no normal dirty event happened immediately beforehand.
-     */
     public static void saveLoadedWorlds() {
-
-        for (World world :
-                List.copyOf(
-                        LOADED_WORLDS.values()
-                )) {
-
+        for (World world : List.copyOf(LOADED_WORLDS.values())) {
             forceSaveWorld(world);
         }
     }
 
-    // ------------------------------------------------------------
-    // SERIALIZATION HELPERS
-    // ------------------------------------------------------------
-
     private static @Nonnull BsonDocument writePosition(
             @Nonnull Vector3i position
     ) {
-        BsonDocument document =
-                new BsonDocument();
-
-        document.put(
-                "x",
-                new BsonInt32(position.x())
-        );
-
-        document.put(
-                "y",
-                new BsonInt32(position.y())
-        );
-
-        document.put(
-                "z",
-                new BsonInt32(position.z())
-        );
-
+        BsonDocument document = new BsonDocument();
+        document.put("x", new BsonInt32(position.x()));
+        document.put("y", new BsonInt32(position.y()));
+        document.put("z", new BsonInt32(position.z()));
         return document;
     }
 
@@ -771,13 +359,10 @@ public final class WorldSaveFileService {
     private static @Nonnull BsonArray writePositions(
             @Nonnull Set<Vector3i> positions
     ) {
-        BsonArray result =
-                new BsonArray();
+        BsonArray result = new BsonArray();
 
         for (Vector3i position : positions) {
-            result.add(
-                    writePosition(position)
-            );
+            result.add(writePosition(position));
         }
 
         return result;
@@ -786,20 +371,12 @@ public final class WorldSaveFileService {
     private static @Nonnull Set<Vector3i> readPositions(
             @Nonnull BsonArray array
     ) {
-        Set<Vector3i> positions =
-                ConcurrentHashMap.newKeySet();
+        Set<Vector3i> positions = ConcurrentHashMap.newKeySet();
 
         for (BsonValue value : array) {
-
-            if (!value.isDocument()) {
-                continue;
+            if (value.isDocument()) {
+                positions.add(readPosition(value.asDocument()));
             }
-
-            positions.add(
-                    readPosition(
-                            value.asDocument()
-                    )
-            );
         }
 
         return Set.copyOf(positions);
@@ -808,30 +385,10 @@ public final class WorldSaveFileService {
     private static @Nonnull BsonDocument writeRotation(
             @Nonnull RotationTuple rotation
     ) {
-        BsonDocument document =
-                new BsonDocument();
-
-        document.put(
-                "yaw",
-                new BsonString(
-                        rotation.yaw().name()
-                )
-        );
-
-        document.put(
-                "pitch",
-                new BsonString(
-                        rotation.pitch().name()
-                )
-        );
-
-        document.put(
-                "roll",
-                new BsonString(
-                        rotation.roll().name()
-                )
-        );
-
+        BsonDocument document = new BsonDocument();
+        document.put("yaw", new BsonString(rotation.yaw().name()));
+        document.put("pitch", new BsonString(rotation.pitch().name()));
+        document.put("roll", new BsonString(rotation.roll().name()));
         return document;
     }
 
@@ -839,18 +396,9 @@ public final class WorldSaveFileService {
             @Nonnull BsonDocument document
     ) {
         return RotationTuple.of(
-                readRotation(
-                        document,
-                        "yaw"
-                ),
-                readRotation(
-                        document,
-                        "pitch"
-                ),
-                readRotation(
-                        document,
-                        "roll"
-                )
+                readRotation(document, "yaw"),
+                readRotation(document, "pitch"),
+                readRotation(document, "roll")
         );
     }
 
@@ -860,12 +408,7 @@ public final class WorldSaveFileService {
     ) {
         return Rotation.valueOf(
                 document
-                        .getString(
-                                key,
-                                new BsonString(
-                                        Rotation.None.name()
-                                )
-                        )
+                        .getString(key, new BsonString(Rotation.None.name()))
                         .getValue()
         );
     }
@@ -876,36 +419,19 @@ public final class WorldSaveFileService {
     ) {
         return SignalState.valueOf(
                 document
-                        .getString(
-                                key,
-                                new BsonString(
-                                        SignalState.OFF.name()
-                                )
-                        )
+                        .getString(key, new BsonString(SignalState.OFF.name()))
                         .getValue()
         );
     }
-
-    // ------------------------------------------------------------
-    // FILE
-    // ------------------------------------------------------------
 
     private static void writeSaveFile(
             @Nonnull World world,
             @Nonnull BsonDocument root
     ) throws IOException {
+        Path saveFile = saveFile(world);
+        Files.createDirectories(saveFile.getParent());
 
-        Path saveFile =
-                saveFile(world);
-
-        Files.createDirectories(
-                saveFile.getParent()
-        );
-
-        Path temporaryFile =
-                saveFile.resolveSibling(
-                        SAVE_FILE + ".tmp"
-                );
+        Path temporaryFile = saveFile.resolveSibling(SAVE_FILE + ".tmp");
 
         Files.writeString(
                 temporaryFile,
@@ -920,9 +446,7 @@ public final class WorldSaveFileService {
                     StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE
             );
-
         } catch (AtomicMoveNotSupportedException exception) {
-
             Files.move(
                     temporaryFile,
                     saveFile,
@@ -931,27 +455,13 @@ public final class WorldSaveFileService {
         }
     }
 
-    // ------------------------------------------------------------
-    // RUNTIME CLEAR
-    // ------------------------------------------------------------
-
     private static void clearWorldRuntime(
             @Nonnull World world
     ) {
         Nodes.clearWorld(world);
-
-        ConnectablePropagationScheduler.clearWorld(
-                world
-        );
-
-        SourceActivationScheduler.clearWorld(
-                world
-        );
+        ConnectablePropagationScheduler.clearWorld(world);
+        SourceActivationScheduler.clearWorld(world);
     }
-
-    // ------------------------------------------------------------
-    // DEBUG
-    // ------------------------------------------------------------
 
     public static @Nonnull String debugSaveFilePath(
             @Nonnull World world
@@ -965,23 +475,14 @@ public final class WorldSaveFileService {
     public static boolean debugSaveFileExists(
             @Nonnull World world
     ) {
-        return Files.exists(
-                saveFile(world)
-        );
+        return Files.exists(saveFile(world));
     }
 
     public static @Nonnull String debugLastSaveError(
             @Nonnull World world
     ) {
-        return LAST_SAVE_ERROR.getOrDefault(
-                worldKey(world),
-                ""
-        );
+        return LAST_SAVE_ERROR.getOrDefault(worldKey(world), "");
     }
-
-    // ------------------------------------------------------------
-    // WORLD IDENTIFICATION
-    // ------------------------------------------------------------
 
     private static @Nonnull Path saveFile(
             @Nonnull World world
