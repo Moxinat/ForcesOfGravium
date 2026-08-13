@@ -8,27 +8,54 @@ Main mod command.
 
 If no valid subcommand is provided, the command shows the currently supported syntax.
 
-## `/fog rotation here`
+## Node debug
 
-Compares the rotation stored in the FoG `Nodes` runtime data with the rotation currently stored by the Hytale world for the block below the player.
+### `/fog node here`
 
-Useful for debugging local-side and placement-rotation problems.
+Shows all stored FoG `Node` information for the block at the player's current block position.
+
+### `/fog node under`
+
+Shows all stored FoG `Node` information for the block directly below the player.
+
+### `/fog node <x> <y> <z>`
+
+Shows all stored FoG `Node` information at an exact block position.
+
+The output includes:
+
+- block id
+- signal input sides
+- signal output sides
+- control input sides
+- invert capability and current invert state
+- pass behavior capability and current passing state
+- stored rotation
+- previous and current instant state
+- previous and current effective state
+- dirty state
+- energy delta
+- network id
+
+## Rotation debug
+
+### `/fog rotation here`
+
+Compares the rotation stored in the FoG `Node` with the rotation currently stored by the Hytale world for the block at the player's current block position.
+
+### `/fog rotation under`
+
+Runs the same rotation comparison for the block directly below the player.
+
+### `/fog rotation <x> <y> <z>`
+
+Runs the same rotation comparison at an exact block position.
 
 The output includes:
 
 - block id
 - stored FoG node rotation
 - Hytale world rotation
-
-## `/fog rotation <x> <y> <z>`
-
-Runs the same rotation comparison at an exact block position.
-
-Example:
-
-```text
-/fog rotation 10 64 5
-```
 
 ## `/fog saveinfo`
 
@@ -56,5 +83,4 @@ The output includes:
 ## Notes
 
 - The current commands are primarily development/debugging tools.
-- The rotation and save commands require a player sender because they operate on the player's current world.
-- Legacy gravity-powder, inverter, and siphon debug commands were removed together with their old block-specific runtime stores.
+- The node, rotation, and save commands require a player sender because they operate on the player's current world.
