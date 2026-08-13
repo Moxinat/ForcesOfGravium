@@ -79,7 +79,7 @@ public final class ConnectablePropagationScheduler {
                             position
                     )) {
 
-                NodeControlDispatcher.dispatch(world, controlNeighbor);
+                NodeControlDispatcher.dispatch(world, controlNeighbor, position);
             }
         }
 
