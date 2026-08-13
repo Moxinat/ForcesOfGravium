@@ -4,6 +4,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.connectable.SignalState;
 import dev.moxinat.forcesofgravium.connectable.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.connectable.dispatcher.NodeControlDispatcher;
+import dev.moxinat.forcesofgravium.connectable.dispatcher.NodeStateDispatcher;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
@@ -66,6 +67,8 @@ public final class ConnectablePropagationScheduler {
         Nodes.put(world, node);
 
         if (node.effectiveState() != previousEffectiveState) {
+
+            NodeStateDispatcher.dispatch(world, position);
 
             ConnectableVisualDispatcher.refreshAt(world, position);
 
