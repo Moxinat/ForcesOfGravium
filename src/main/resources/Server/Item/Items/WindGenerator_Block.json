@@ -22,7 +22,9 @@
       }
     ],
     "Group": "Stone",
-    "Flags": {},
+    "Flags": {
+      "IsUsable": true
+    },
     "Gathering": {
       "Breaking": {
         "GatherType": "Rocks"
@@ -35,6 +37,11 @@
       "WindGenerator_Block"
     ],
     "BlockBreakingDecalId": "Breaking_Decals_Rock",
+    "Interactions": {
+      "Use": {
+        "Interactions": []
+      }
+    },
     "RotationYawPlacementOffset": "OneEighty",
     "PlacementSettings": {
       "RotationMode": "BlockNormal"

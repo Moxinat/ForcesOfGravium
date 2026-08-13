@@ -6,10 +6,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import dev.moxinat.forcesofgravium.commands.ForcesOfGraviumCommand;
 import dev.moxinat.forcesofgravium.event.ForcesOfGraviumEvents;
-import dev.moxinat.forcesofgravium.system.ButtonInteractionSystem;
-import dev.moxinat.forcesofgravium.system.ConnectableBlockLifecycleSystem;
-import dev.moxinat.forcesofgravium.system.WorldTickSystem;
-import dev.moxinat.forcesofgravium.system.CurveCasedGravityPowderRotationSystem;
+import dev.moxinat.forcesofgravium.system.*;
 
 import javax.annotation.Nonnull;
 
@@ -31,5 +28,6 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlaceSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.BreakSystem());
         this.getEntityStoreRegistry().registerSystem(new WorldTickSystem());
+        this.getEntityStoreRegistry().registerSystem(new WindGeneratorInteractionSystem());
     }
 }
