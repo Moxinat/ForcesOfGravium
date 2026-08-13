@@ -32,364 +32,154 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
     @Override
     protected CompletableFuture<Void> execute(@Nonnull CommandContext context) {
         String[] args = tokenize(context.getInputString());
-        int startIndex = commandArgStartIndex(args);
+        int i = commandArgStartIndex(args);
 
-        if (args.length - startIndex >= 1
-                && "saveinfo".equalsIgnoreCase(args[startIndex])) {
+        if (args.length - i >= 1 && "saveinfo".equalsIgnoreCase(args[i])) {
             handleSaveInfo(context);
             return CompletableFuture.completedFuture(null);
         }
-
-        if (args.length - startIndex >= 1
-                && "saveworld".equalsIgnoreCase(args[startIndex])) {
+        if (args.length - i >= 1 && "saveworld".equalsIgnoreCase(args[i])) {
             handleSaveWorld(context);
             return CompletableFuture.completedFuture(null);
         }
-
-        if (args.length - startIndex >= 2
-                && "rotation".equalsIgnoreCase(args[startIndex])) {
-            return handleRotationDebug(context, args, startIndex);
+        if (args.length - i >= 2 && "node".equalsIgnoreCase(args[i])) {
+            return handleDebug(context, args, i, true);
+        }
+        if (args.length - i >= 2 && "rotation".equalsIgnoreCase(args[i])) {
+            return handleDebug(context, args, i, false);
         }
 
-        context.sendMessage(Message.raw(
-                "Usage: /fog rotation here | /fog rotation <x> <y> <z> | /fog saveinfo | /fog saveworld"
-        ));
-
+        context.sendMessage(Message.raw("Usage: /fog node here|under|<x y z> | /fog rotation here|under|<x y z> | /fog saveinfo | /fog saveworld"));
         return CompletableFuture.completedFuture(null);
     }
 
-    private void handleSaveInfo(@Nonnull CommandContext context) {
-        PlayerCommandState playerState = playerState(context);
-
-        if (playerState == null) {
-            context.sendMessage(Message.raw(
-                    "This command currently requires a player sender."
-            ));
+    private void handleSaveInfo(CommandContext context) {
+        PlayerCommandState state = playerState(context);
+        if (state == null) {
+            context.sendMessage(Message.raw("This command requires a player sender."));
             return;
         }
-
-        context.sendMessage(Message.raw(
-                "World save path: "
-                        + WorldSaveFileService.debugSaveFilePath(
-                                playerState.world()
-                        )
-        ));
+        context.sendMessage(Message.raw("World save path: " + WorldSaveFileService.debugSaveFilePath(state.world())));
     }
 
-    private void handleSaveWorld(@Nonnull CommandContext context) {
-        PlayerCommandState playerState = playerState(context);
-
-        if (playerState == null) {
-            context.sendMessage(Message.raw(
-                    "This command currently requires a player sender."
-            ));
+    private void handleSaveWorld(CommandContext context) {
+        PlayerCommandState state = playerState(context);
+        if (state == null) {
+            context.sendMessage(Message.raw("This command requires a player sender."));
             return;
         }
-
-        World world = playerState.world();
-
+        World world = state.world();
         WorldSaveFileService.forceSaveWorld(world);
-
-        context.sendMessage(Message.raw(
-                "Triggered forced save for world '"
-                        + world.getName()
-                        + "'."
-        ));
-
-        context.sendMessage(Message.raw(
-                "World save path: "
-                        + WorldSaveFileService.debugSaveFilePath(world)
-        ));
-
-        context.sendMessage(Message.raw(
-                "Save file exists: "
-                        + WorldSaveFileService.debugSaveFileExists(world)
-        ));
-
-        String lastError =
-                WorldSaveFileService.debugLastSaveError(world);
-
-        if (!lastError.isBlank()) {
-            context.sendMessage(Message.raw(
-                    "Last save error: " + lastError
-            ));
-        }
+        context.sendMessage(Message.raw("Triggered forced save for world '" + world.getName() + "'."));
+        context.sendMessage(Message.raw("World save path: " + WorldSaveFileService.debugSaveFilePath(world)));
+        context.sendMessage(Message.raw("Save file exists: " + WorldSaveFileService.debugSaveFileExists(world)));
+        String error = WorldSaveFileService.debugLastSaveError(world);
+        if (!error.isBlank()) context.sendMessage(Message.raw("Last save error: " + error));
     }
 
-    private CompletableFuture<Void> handleRotationDebug(
-            @Nonnull CommandContext context,
-            @Nonnull String[] args,
-            int startIndex
-    ) {
-        PlayerCommandState playerState = playerState(context);
-
-        if (playerState == null) {
-            context.sendMessage(Message.raw(
-                    "This command currently requires a player sender."
-            ));
+    private CompletableFuture<Void> handleDebug(CommandContext context, String[] args, int i, boolean nodeDebug) {
+        PlayerCommandState state = playerState(context);
+        if (state == null) {
+            context.sendMessage(Message.raw("This command requires a player sender."));
             return CompletableFuture.completedFuture(null);
         }
 
-        World world = playerState.world();
-        Ref<EntityStore> playerRef = playerState.ref();
+        Supplier<Vector3i> target = resolveTarget(context, state.ref(), args, i, nodeDebug ? "node" : "rotation");
+        if (target == null) return CompletableFuture.completedFuture(null);
 
-        if ("here".equalsIgnoreCase(args[startIndex + 1])) {
-            return runRotationDebugOnWorldThread(
-                    context,
-                    world,
-                    () -> getPlayerBlockBelowPosition(playerRef)
-            );
-        }
-
-        if (args.length - startIndex < 4) {
-            context.sendMessage(Message.raw(
-                    "Usage: /fog rotation here | /fog rotation <x> <y> <z>"
-            ));
-            return CompletableFuture.completedFuture(null);
-        }
-
-        try {
-            int x = Integer.parseInt(args[startIndex + 1]);
-            int y = Integer.parseInt(args[startIndex + 2]);
-            int z = Integer.parseInt(args[startIndex + 3]);
-
-            Vector3i position = new Vector3i(x, y, z);
-
-            return runRotationDebugOnWorldThread(
-                    context,
-                    world,
-                    () -> position
-            );
-
-        } catch (NumberFormatException exception) {
-            context.sendMessage(Message.raw(
-                    "Coordinates must be integers."
-            ));
-            return CompletableFuture.completedFuture(null);
-        }
-    }
-
-    private CompletableFuture<Void> runRotationDebugOnWorldThread(
-            @Nonnull CommandContext context,
-            @Nonnull World world,
-            @Nonnull Supplier<Vector3i> positionSupplier
-    ) {
-        CompletableFuture<Void> future =
-                new CompletableFuture<>();
-
-        world.execute(() -> {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        state.world().execute(() -> {
             try {
-                sendRotationDebug(
-                        context,
-                        world,
-                        positionSupplier.get()
-                );
-
-                future.complete(null);
-
+                Vector3i position = target.get();
+                if (nodeDebug) sendNodeDebug(context, state.world(), position);
+                else sendRotationDebug(context, state.world(), position);
             } catch (Exception exception) {
-                context.sendMessage(Message.raw(
-                        "Rotation debug failed: "
-                                + exception.getClass().getSimpleName()
-                                + ": "
-                                + exception.getMessage()
-                ));
-
+                context.sendMessage(Message.raw("Debug failed: " + exception.getClass().getSimpleName() + ": " + exception.getMessage()));
+            } finally {
                 future.complete(null);
             }
         });
-
         return future;
     }
 
-    private void sendRotationDebug(
-            @Nonnull CommandContext context,
-            @Nonnull World world,
-            @Nonnull Vector3i position
-    ) {
-        BlockType blockType =
-                world.getBlockType(
-                        position.x(),
-                        position.y(),
-                        position.z()
-                );
-
-        Nodes.Node node =
-                Nodes.get(
-                        world,
-                        position
-                );
-
-        RotationTuple storedRotation =
-                node != null
-                        ? node.rotation()
-                        : null;
-
-        RotationTuple worldRotation =
-                getWorldRotation(
-                        world,
-                        position
-                );
-
-        context.sendMessage(Message.raw(
-                "Rotation debug at "
-                        + formatPosition(position)
-        ));
-
-        context.sendMessage(Message.raw(
-                "block="
-                        + (blockType != null
-                                ? blockType.getId()
-                                : "null")
-        ));
-
-        context.sendMessage(Message.raw(
-                "storedRotation=" + storedRotation
-        ));
-
-        context.sendMessage(Message.raw(
-                "worldRotation=" + worldRotation
-        ));
-    }
-
-    private static @Nullable RotationTuple getWorldRotation(
-            @Nonnull World world,
-            @Nonnull Vector3i position
-    ) {
-        BlockAccessor blockAccessor =
-                world.getChunk(
-                        ChunkUtil.indexChunkFromBlock(
-                                position.x(),
-                                position.z()
-                        )
-                );
-
-        if (blockAccessor == null) {
+    private @Nullable Supplier<Vector3i> resolveTarget(CommandContext context, Ref<EntityStore> ref, String[] args, int i, String name) {
+        String target = args[i + 1];
+        if ("here".equalsIgnoreCase(target)) return () -> playerBlockPosition(ref);
+        if ("under".equalsIgnoreCase(target)) return () -> {
+            Vector3i p = playerBlockPosition(ref);
+            return new Vector3i(p.x(), p.y() - 1, p.z());
+        };
+        if (args.length - i < 4) {
+            context.sendMessage(Message.raw("Usage: /fog " + name + " here | /fog " + name + " under | /fog " + name + " <x> <y> <z>"));
             return null;
         }
-
-        return blockAccessor.getRotation(
-                position.x(),
-                position.y(),
-                position.z()
-        );
-    }
-
-    private static @Nonnull String formatPosition(
-            @Nonnull Vector3i position
-    ) {
-        return "("
-                + position.x()
-                + ","
-                + position.y()
-                + ","
-                + position.z()
-                + ")";
-    }
-
-    private static @Nonnull Vector3i getPlayerBlockPosition(
-            @Nonnull Ref<EntityStore> playerRef
-    ) {
-        TransformComponent transform =
-                playerRef
-                        .getStore()
-                        .getComponent(
-                                playerRef,
-                                TransformComponent.getComponentType()
-                        );
-
-        return blockPosition(
-                transform.getPosition()
-        );
-    }
-
-    private static @Nonnull Vector3i getPlayerBlockBelowPosition(
-            @Nonnull Ref<EntityStore> playerRef
-    ) {
-        Vector3i position =
-                getPlayerBlockPosition(playerRef);
-
-        return new Vector3i(
-                position.x(),
-                position.y() - 1,
-                position.z()
-        );
-    }
-
-    private static @Nonnull Vector3i blockPosition(
-            @Nonnull Vector3d position
-    ) {
-        return new Vector3i(
-                (int) Math.floor(position.x()),
-                (int) Math.floor(position.y()),
-                (int) Math.floor(position.z())
-        );
-    }
-
-    private static @Nullable PlayerCommandState playerState(
-            @Nonnull CommandContext context
-    ) {
-        if (!context.isPlayer()) {
+        try {
+            Vector3i p = new Vector3i(Integer.parseInt(args[i + 1]), Integer.parseInt(args[i + 2]), Integer.parseInt(args[i + 3]));
+            return () -> p;
+        } catch (NumberFormatException exception) {
+            context.sendMessage(Message.raw("Coordinates must be integers."));
             return null;
         }
-
-        Ref<EntityStore> playerRef =
-                context.senderAsPlayerRef();
-
-        if (playerRef == null
-                || !playerRef.isValid()) {
-            return null;
-        }
-
-        World world =
-                playerRef
-                        .getStore()
-                        .getExternalData()
-                        .getWorld();
-
-        if (world == null) {
-            return null;
-        }
-
-        return new PlayerCommandState(
-                world,
-                playerRef
-        );
     }
 
-    private record PlayerCommandState(
-            @Nonnull World world,
-            @Nonnull Ref<EntityStore> ref
-    ) {
+    private void sendNodeDebug(CommandContext context, World world, Vector3i p) {
+        Nodes.Node n = Nodes.get(world, p);
+        if (n == null) {
+            context.sendMessage(Message.raw("No FoG node at " + formatPosition(p) + "."));
+            return;
+        }
+        context.sendMessage(Message.raw("Node at " + formatPosition(p) + " blockId=" + n.blockId()));
+        context.sendMessage(Message.raw("signalInputSides=" + n.signalInputSides() + " signalOutputSides=" + n.signalOutputSides() + " controlInputSides=" + n.controlInputSides()));
+        context.sendMessage(Message.raw("invertCapable=" + n.invertCapable() + " invertEnabled=" + n.invertEnabled() + " passBehaviorCapable=" + n.passBehaviorCapable() + " passing=" + n.passing()));
+        context.sendMessage(Message.raw("rotation=" + n.rotation()));
+        context.sendMessage(Message.raw("previousInstantState=" + n.previousInstantState() + " instantState=" + n.instantState()));
+        context.sendMessage(Message.raw("previousEffectiveState=" + n.previousEffectiveState() + " effectiveState=" + n.effectiveState()));
+        context.sendMessage(Message.raw("dirty=" + n.dirty() + " energyDelta=" + n.energyDelta() + " networkId=" + n.networkId()));
     }
 
-    private static @Nonnull String[] tokenize(
-            @Nullable String input
-    ) {
-        if (input == null
-                || input.isBlank()) {
-            return new String[0];
-        }
-
-        return input
-                .trim()
-                .split("\\s+");
+    private void sendRotationDebug(CommandContext context, World world, Vector3i p) {
+        BlockType block = world.getBlockType(p.x(), p.y(), p.z());
+        Nodes.Node node = Nodes.get(world, p);
+        RotationTuple stored = node != null ? node.rotation() : null;
+        RotationTuple actual = getWorldRotation(world, p);
+        context.sendMessage(Message.raw("Rotation debug at " + formatPosition(p)));
+        context.sendMessage(Message.raw("block=" + (block != null ? block.getId() : "null")));
+        context.sendMessage(Message.raw("storedRotation=" + stored));
+        context.sendMessage(Message.raw("worldRotation=" + actual));
     }
 
-    private int commandArgStartIndex(
-            @Nonnull String[] args
-    ) {
-        if (args.length == 0) {
-            return 0;
-        }
+    private static @Nullable RotationTuple getWorldRotation(World world, Vector3i p) {
+        BlockAccessor accessor = world.getChunk(ChunkUtil.indexChunkFromBlock(p.x(), p.z()));
+        return accessor == null ? null : accessor.getRotation(p.x(), p.y(), p.z());
+    }
 
-        String commandName = getName();
+    private static Vector3i playerBlockPosition(Ref<EntityStore> ref) {
+        TransformComponent transform = ref.getStore().getComponent(ref, TransformComponent.getComponentType());
+        Vector3d p = transform.getPosition();
+        return new Vector3i((int) Math.floor(p.x()), (int) Math.floor(p.y()), (int) Math.floor(p.z()));
+    }
 
-        if (commandName != null
-                && commandName.equalsIgnoreCase(args[0])) {
-            return 1;
-        }
+    private static String formatPosition(Vector3i p) {
+        return "(" + p.x() + "," + p.y() + "," + p.z() + ")";
+    }
 
-        return 0;
+    private static @Nullable PlayerCommandState playerState(CommandContext context) {
+        if (!context.isPlayer()) return null;
+        Ref<EntityStore> ref = context.senderAsPlayerRef();
+        if (ref == null || !ref.isValid()) return null;
+        World world = ref.getStore().getExternalData().getWorld();
+        return world == null ? null : new PlayerCommandState(world, ref);
+    }
+
+    private record PlayerCommandState(World world, Ref<EntityStore> ref) {}
+
+    private static String[] tokenize(@Nullable String input) {
+        return input == null || input.isBlank() ? new String[0] : input.trim().split("\\s+");
+    }
+
+    private int commandArgStartIndex(String[] args) {
+        if (args.length == 0) return 0;
+        String name = getName();
+        return name != null && name.equalsIgnoreCase(args[0]) ? 1 : 0;
     }
 }
