@@ -35,8 +35,6 @@ public final class Nodes {
             int signalInputSides,
             int signalOutputSides,
             int controlInputSides,
-            boolean invertCapable,
-            boolean passBehaviorCapable,
             @Nonnull RotationTuple rotation,
             @Nonnull SignalState previousInstantState,
             @Nonnull SignalState instantState,
@@ -54,8 +52,6 @@ public final class Nodes {
                 signalInputSides,
                 signalOutputSides,
                 controlInputSides,
-                invertCapable,
-                passBehaviorCapable,
                 rotation,
                 previousInstantState,
                 instantState,
@@ -87,8 +83,6 @@ public final class Nodes {
                 type.signalInputSides(),
                 type.signalOutputSides(),
                 type.controlInputSides(),
-                type.invertCapable(),
-                type.passBehaviorCapable(),
                 type.rotation(),
                 type.previousInstantState(),
                 type.instantState(),
@@ -157,8 +151,6 @@ public final class Nodes {
             int signalInputSides,
             int signalOutputSides,
             int controlInputSides,
-            boolean invertCapable,
-            boolean passBehaviorCapable,
             @Nonnull RotationTuple rotation,
             @Nonnull SignalState previousInstantState,
             @Nonnull SignalState instantState,
@@ -200,94 +192,74 @@ public final class Nodes {
             return (controlInputSides & localSide) != 0;
         }
 
-        public boolean isSignalRuntimeNode() {
-            return signalOutputSides != 0 || passBehaviorCapable || invertCapable;
-        }
-
-        public boolean shouldStorePropagatedInstantState() {
-            return signalInputSides != 0 && isSignalRuntimeNode();
-        }
-
         public @Nonnull Node withSignalInputSides(int value) {
-            return copy(value, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(value, signalOutputSides, controlInputSides,
                     rotation, previousInstantState, instantState, previousEffectiveState, effectiveState,
                     dirty, invertEnabled, passing, energyDelta, networkId);
         }
 
         public @Nonnull Node withSignalOutputSides(int value) {
-            return copy(signalInputSides, value, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(signalInputSides, value, controlInputSides,
                     rotation, previousInstantState, instantState, previousEffectiveState, effectiveState,
                     dirty, invertEnabled, passing, energyDelta, networkId);
         }
 
         public @Nonnull Node withControlInputSides(int value) {
-            return copy(signalInputSides, signalOutputSides, value, invertCapable, passBehaviorCapable,
-                    rotation, previousInstantState, instantState, previousEffectiveState, effectiveState,
-                    dirty, invertEnabled, passing, energyDelta, networkId);
-        }
-
-        public @Nonnull Node withInvertCapable(boolean value) {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, value, passBehaviorCapable,
-                    rotation, previousInstantState, instantState, previousEffectiveState, effectiveState,
-                    dirty, invertEnabled, passing, energyDelta, networkId);
-        }
-
-        public @Nonnull Node withPassBehaviorCapable(boolean value) {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, value,
+            return copy(signalInputSides, signalOutputSides, value,
                     rotation, previousInstantState, instantState, previousEffectiveState, effectiveState,
                     dirty, invertEnabled, passing, energyDelta, networkId);
         }
 
         public @Nonnull Node withRotation(@Nonnull RotationTuple value) {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(signalInputSides, signalOutputSides, controlInputSides,
                     value, previousInstantState, instantState, previousEffectiveState, effectiveState,
                     dirty, invertEnabled, passing, energyDelta, networkId);
         }
 
         public @Nonnull Node withInstantState(@Nonnull SignalState value) {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(signalInputSides, signalOutputSides, controlInputSides,
                     rotation, instantState, value, previousEffectiveState, effectiveState,
                     dirty, invertEnabled, passing, energyDelta, networkId);
         }
 
         public @Nonnull Node withEffectiveState(@Nonnull SignalState value) {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(signalInputSides, signalOutputSides, controlInputSides,
                     rotation, previousInstantState, instantState, effectiveState, value,
                     dirty, invertEnabled, passing, energyDelta, networkId);
         }
 
         public @Nonnull Node adoptInstantState() {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(signalInputSides, signalOutputSides, controlInputSides,
                     rotation, previousInstantState, instantState, effectiveState, instantState,
                     false, invertEnabled, passing, energyDelta, networkId);
         }
 
         public @Nonnull Node withDirty(boolean value) {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(signalInputSides, signalOutputSides, controlInputSides,
                     rotation, previousInstantState, instantState, previousEffectiveState, effectiveState,
                     value, invertEnabled, passing, energyDelta, networkId);
         }
 
         public @Nonnull Node withInvertEnabled(boolean value) {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(signalInputSides, signalOutputSides, controlInputSides,
                     rotation, previousInstantState, instantState, previousEffectiveState, effectiveState,
                     dirty, value, passing, energyDelta, networkId);
         }
 
         public @Nonnull Node withPassing(boolean value) {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(signalInputSides, signalOutputSides, controlInputSides,
                     rotation, previousInstantState, instantState, previousEffectiveState, effectiveState,
                     dirty, invertEnabled, value, energyDelta, networkId);
         }
 
         public @Nonnull Node withEnergyDelta(int value) {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(signalInputSides, signalOutputSides, controlInputSides,
                     rotation, previousInstantState, instantState, previousEffectiveState, effectiveState,
                     dirty, invertEnabled, passing, value, networkId);
         }
 
         public @Nonnull Node withNetworkId(long value) {
-            return copy(signalInputSides, signalOutputSides, controlInputSides, invertCapable, passBehaviorCapable,
+            return copy(signalInputSides, signalOutputSides, controlInputSides,
                     rotation, previousInstantState, instantState, previousEffectiveState, effectiveState,
                     dirty, invertEnabled, passing, energyDelta, value);
         }
@@ -296,8 +268,6 @@ public final class Nodes {
                 int newSignalInputSides,
                 int newSignalOutputSides,
                 int newControlInputSides,
-                boolean newInvertCapable,
-                boolean newPassBehaviorCapable,
                 @Nonnull RotationTuple newRotation,
                 @Nonnull SignalState newPreviousInstantState,
                 @Nonnull SignalState newInstantState,
@@ -315,8 +285,6 @@ public final class Nodes {
                     newSignalInputSides,
                     newSignalOutputSides,
                     newControlInputSides,
-                    newInvertCapable,
-                    newPassBehaviorCapable,
                     newRotation,
                     newPreviousInstantState,
                     newInstantState,
