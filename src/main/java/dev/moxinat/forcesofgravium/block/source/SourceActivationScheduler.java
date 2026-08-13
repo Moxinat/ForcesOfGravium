@@ -136,4 +136,73 @@ public final class SourceActivationScheduler {
             ACTIVE_UNTIL_TICKS.remove(world, activeUntilByPosition);
         }
     }
+
+    public static @Nonnull Map<Vector3i, Long> snapshotRemainingTicks(
+            @Nonnull World world
+    ) {
+        Map<Vector3i, Long> activeUntilByPosition =
+                ACTIVE_UNTIL_TICKS.get(world);
+
+        if (activeUntilByPosition == null
+                || activeUntilByPosition.isEmpty()) {
+            return Map.of();
+        }
+
+        long currentTick = world.getTick();
+
+        Map<Vector3i, Long> remainingTicks =
+                new HashMap<>();
+
+        for (Map.Entry<Vector3i, Long> entry :
+                activeUntilByPosition.entrySet()) {
+
+            long remaining = Math.max(
+                    0L,
+                    entry.getValue() - currentTick
+            );
+
+            remainingTicks.put(
+                    new Vector3i(entry.getKey()),
+                    remaining
+            );
+        }
+
+        return Map.copyOf(remainingTicks);
+    }
+
+    public static void restoreTimedSources(
+            @Nonnull World world,
+            @Nonnull Map<Vector3i, Long> remainingTicks
+    ) {
+        clearWorld(world);
+
+        if (remainingTicks.isEmpty()) {
+            return;
+        }
+
+        long currentTick = world.getTick();
+
+        Map<Vector3i, Long> activeUntilByPosition =
+                new ConcurrentHashMap<>();
+
+        for (Map.Entry<Vector3i, Long> entry :
+                remainingTicks.entrySet()) {
+
+            activeUntilByPosition.put(
+                    new Vector3i(entry.getKey()),
+                    currentTick + entry.getValue()
+            );
+        }
+
+        ACTIVE_UNTIL_TICKS.put(
+                world,
+                activeUntilByPosition
+        );
+    }
+
+    public static void clearWorld(
+            @Nonnull World world
+    ) {
+        ACTIVE_UNTIL_TICKS.remove(world);
+    }
 }

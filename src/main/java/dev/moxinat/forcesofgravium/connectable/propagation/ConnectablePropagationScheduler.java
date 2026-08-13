@@ -117,4 +117,71 @@ public final class ConnectablePropagationScheduler {
         }
     }
 
+    private static @Nonnull Set<Vector3i> copyPositions(
+            Set<Vector3i> positions
+    ) {
+        Set<Vector3i> copy =
+                ConcurrentHashMap.newKeySet();
+
+        for (Vector3i position : positions) {
+            copy.add(new Vector3i(position));
+        }
+
+        return copy;
+    }
+
+    public static void clearWorld(
+            @Nonnull World world
+    ) {
+        CURRENT_WAVE.remove(world);
+        NEXT_WAVE.remove(world);
+    }
+
+    public static @Nonnull Set<Vector3i> snapshotCurrentWave(
+            @Nonnull World world
+    ) {
+        Set<Vector3i> wave = CURRENT_WAVE.get(world);
+
+        if (wave == null) {
+            return Set.of();
+        }
+
+        return Set.copyOf(copyPositions(wave));
+    }
+
+    public static @Nonnull Set<Vector3i> snapshotNextWave(
+            @Nonnull World world
+    ) {
+        Set<Vector3i> wave = NEXT_WAVE.get(world);
+
+        if (wave == null) {
+            return Set.of();
+        }
+
+        return Set.copyOf(copyPositions(wave));
+    }
+
+    public static void restoreWaves(
+            @Nonnull World world,
+            @Nonnull Set<Vector3i> currentWave,
+            @Nonnull Set<Vector3i> nextWave
+    ) {
+        clearWorld(world);
+
+        if (!currentWave.isEmpty()) {
+            CURRENT_WAVE.put(
+                    world,
+                    copyPositions(currentWave)
+            );
+        }
+
+        if (!nextWave.isEmpty()) {
+            NEXT_WAVE.put(
+                    world,
+                    copyPositions(nextWave)
+            );
+        }
+    }
+
+
 }
