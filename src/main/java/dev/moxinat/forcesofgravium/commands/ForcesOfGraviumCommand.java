@@ -130,7 +130,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         }
         context.sendMessage(Message.raw("Node at " + formatPosition(p) + " blockId=" + n.blockId()));
         context.sendMessage(Message.raw("signalInputSides=" + n.signalInputSides() + " signalOutputSides=" + n.signalOutputSides() + " controlInputSides=" + n.controlInputSides()));
-        context.sendMessage(Message.raw("invertCapable=" + n.invertCapable() + " invertEnabled=" + n.invertEnabled() + " passBehaviorCapable=" + n.passBehaviorCapable() + " passing=" + n.passing()));
+        context.sendMessage(Message.raw("invertEnabled=" + n.invertEnabled() + " passing=" + n.passing()));
         context.sendMessage(Message.raw("rotation=" + n.rotation()));
         context.sendMessage(Message.raw("previousInstantState=" + n.previousInstantState() + " instantState=" + n.instantState()));
         context.sendMessage(Message.raw("previousEffectiveState=" + n.previousEffectiveState() + " effectiveState=" + n.effectiveState()));
