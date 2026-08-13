@@ -10,6 +10,9 @@ import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
 import com.hypixel.hytale.protocol.BlockMaterial;
@@ -32,7 +35,6 @@ import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.FillerBlockUtil;
-import dev.moxinat.forcesofgravium.connectable.core.ConnectableRuntimeAccessor;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
 
@@ -52,44 +54,77 @@ public final class GraviumSiphonLogic {
     private GraviumSiphonLogic() {
     }
 
-    public static void tickWorld(@Nonnull World world, @Nullable CommandBuffer<EntityStore> commandBuffer) {
+    public static void tickWorld(
+            @Nonnull World world,
+            @Nullable CommandBuffer<EntityStore> commandBuffer
+    ) {
         Objects.requireNonNull(world, "world");
 
-        for (Vector3i position : ConnectableRuntimeAccessor.positionsMatching(world, ConnectableRegistry::isGraviumSiphonId)) {
-            GraviumSiphonStore.add(world, position);
-        }
+        for (Map.Entry<Vector3i, Nodes.Node> entry :
+                Nodes.snapshotForWorld(world).entrySet()) {
 
-        for (Map.Entry<Vector3i, GraviumSiphonData> entry : GraviumSiphonStore.snapshotForWorld(world).entrySet()) {
             Vector3i position = entry.getKey();
-            BlockType blockType = world.getBlockType(position.x(), position.y(), position.z());
-            if (blockType == null || !ConnectableRegistry.isGraviumSiphonId(blockType.getId())) {
-                GraviumSiphonStore.remove(world, position);
+            Nodes.Node node = entry.getValue();
+
+            if (!NodeTypes.GRAVIUM_SIPHON
+                    .blockId()
+                    .equals(node.blockId())) {
                 continue;
             }
 
-            if (entry.getValue().locked()) {
+            if (node.effectiveState() == SignalState.PULL) {
                 continue;
             }
-            if (canTransfer(world, position, entry.getValue())) {
-                transferOneItem(world, position, commandBuffer);
+
+            if (canTransfer(
+                    world,
+                    position,
+                    node
+            )) {
+                transferOneItem(
+                        world,
+                        position,
+                        commandBuffer
+                );
             }
         }
     }
 
-    private static boolean canTransfer(@Nonnull World world, @Nonnull Vector3i position, @Nonnull GraviumSiphonData data) {
-        if (!data.powered() && ConnectableNeighborResolver.rotationFor(world, position).pitch() != Rotation.Ninety) {
+    private static boolean canTransfer(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull Nodes.Node node
+    ) {
+        boolean powered =
+                node.effectiveState() == SignalState.PUSH;
+
+        if (!powered
+                && node.rotation().pitch() != Rotation.Ninety) {
             return false;
         }
 
         long tick = world.getTick();
-        int interval = data.powered() ? POWERED_TRANSFER_INTERVAL_TICKS : UNPOWERED_TRANSFER_INTERVAL_TICKS;
-        String key = transferKey(world, position);
-        Long previousTick = LAST_TRANSFER_TICKS.get(key);
-        if (previousTick != null && tick - previousTick < interval) {
+
+        int interval = powered
+                ? POWERED_TRANSFER_INTERVAL_TICKS
+                : UNPOWERED_TRANSFER_INTERVAL_TICKS;
+
+        String key =
+                transferKey(world, position);
+
+        Long previousTick =
+                LAST_TRANSFER_TICKS.get(key);
+
+        if (previousTick != null
+                && tick - previousTick < interval) {
             return false;
         }
 
-        LAST_TRANSFER_TICKS.put(key, tick);
+        LAST_TRANSFER_TICKS.put(
+                key,
+                tick
+        );
+
         return true;
     }
 
