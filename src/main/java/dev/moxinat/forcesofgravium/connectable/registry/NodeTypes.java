@@ -94,14 +94,14 @@ public final class NodeTypes {
             ConnectableRegistry.SIDE_BACK,
             0,
             RotationTuple.NONE,
-            SignalState.PUSH,
-            SignalState.PUSH,
-            SignalState.PUSH,
-            SignalState.PUSH,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
             false,
             false,
             false,
-            1,
+            0,
             0L
     );
 
