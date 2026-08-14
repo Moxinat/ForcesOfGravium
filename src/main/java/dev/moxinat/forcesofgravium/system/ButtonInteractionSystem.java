@@ -7,8 +7,8 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
 import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -38,11 +38,6 @@ public final class ButtonInteractionSystem extends EntityEventSystem<EntityStore
             @Nonnull CommandBuffer<EntityStore> commandBuffer,
             @Nonnull UseBlockEvent.Post event
     ) {
-        BlockType blockType = event.getBlockType();
-        if (!NodeTypes.WOODEN_BUTTON.blockId().equals(blockType.getId())) {
-            return;
-        }
-
         Ref<EntityStore> entityRef = chunk.getReferenceTo(index);
         Player player = store.getComponent(entityRef, Player.getComponentType());
         if (player == null || player.getWorld() == null) {
@@ -51,6 +46,12 @@ public final class ButtonInteractionSystem extends EntityEventSystem<EntityStore
 
         World world = player.getWorld();
         Vector3i position = new Vector3i(event.getTargetBlock());
+        Nodes.Node node = Nodes.get(world, position);
+
+        if (node == null || !NodeTypes.WOODEN_BUTTON.blockId().equals(node.blockId())) {
+            return;
+        }
+
         SourceActivationScheduler.activateForTicks(world, position, BUTTON_ACTIVE_TICKS);
     }
 }
