@@ -141,16 +141,9 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         BlockType block = world.getBlockType(p.x(), p.y(), p.z());
         Nodes.Node node = Nodes.get(world, p);
         RotationTuple stored = node != null ? node.rotation() : null;
-        RotationTuple actual = getWorldRotation(world, p);
         context.sendMessage(Message.raw("Rotation debug at " + formatPosition(p)));
         context.sendMessage(Message.raw("block=" + (block != null ? block.getId() : "null")));
         context.sendMessage(Message.raw("storedRotation=" + stored));
-        context.sendMessage(Message.raw("worldRotation=" + actual));
-    }
-
-    private static @Nullable RotationTuple getWorldRotation(World world, Vector3i p) {
-        BlockAccessor accessor = world.getChunk(ChunkUtil.indexChunkFromBlock(p.x(), p.z()));
-        return accessor == null ? null : accessor.getRotation(p.x(), p.y(), p.z());
     }
 
     private static Vector3i playerBlockPosition(Ref<EntityStore> ref) {
