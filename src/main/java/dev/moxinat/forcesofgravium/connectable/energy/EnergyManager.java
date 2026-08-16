@@ -1,12 +1,28 @@
 package dev.moxinat.forcesofgravium.connectable.energy;
 
 import com.hypixel.hytale.server.core.universe.world.World;
+import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.connectable.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class EnergyManager {
+
+    private static final long FAILURE_STATE_TICKS = 30L;
+    private static final SignalState[] FAILURE_SEQUENCE = {
+            SignalState.PUSH,
+            SignalState.PULL,
+            SignalState.PUSH,
+            SignalState.PULL,
+            SignalState.OFF
+    };
+
+    private static final Map<World, Map<Long, FailureState>> FAILING_NETWORKS =
+            new ConcurrentHashMap<>();
 
     private EnergyManager() {
     }
@@ -34,9 +50,84 @@ public final class EnergyManager {
         }
     }
 
+    public static void tickWorld(@Nonnull World world) {
+        Map<Long, FailureState> failingNetworks = FAILING_NETWORKS.get(world);
+
+        if (failingNetworks == null || failingNetworks.isEmpty()) {
+            return;
+        }
+
+        long currentTick = world.getTick();
+
+        for (Map.Entry<Long, FailureState> entry :
+                Map.copyOf(failingNetworks).entrySet()) {
+
+            long networkId = entry.getKey();
+            FailureState failureState = entry.getValue();
+
+            if (currentTick < failureState.nextChangeTick()) {
+                continue;
+            }
+
+            SignalState state = FAILURE_SEQUENCE[failureState.step()];
+
+            for (Nodes.Node node : Nodes.snapshotForWorld(world).values()) {
+                if (node.networkId() != networkId) {
+                    continue;
+                }
+
+                Nodes.Node updatedNode = node
+                        .withEffectiveState(state)
+                        .withDirty(false);
+
+                if (state == SignalState.OFF) {
+                    updatedNode = updatedNode
+                            .withInstantState(SignalState.OFF)
+                            .withDirty(false);
+                }
+
+                Nodes.put(world, updatedNode);
+                ConnectableVisualDispatcher.refreshAt(world, updatedNode.position());
+            }
+
+            int nextStep = failureState.step() + 1;
+
+            if (nextStep >= FAILURE_SEQUENCE.length) {
+                failingNetworks.remove(networkId);
+            } else {
+                failingNetworks.put(
+                        networkId,
+                        new FailureState(
+                                nextStep,
+                                currentTick + FAILURE_STATE_TICKS
+                        )
+                );
+            }
+        }
+
+        if (failingNetworks.isEmpty()) {
+            FAILING_NETWORKS.remove(world, failingNetworks);
+        }
+    }
+
     private static void failNetwork(
             @Nonnull World world,
             long networkId
+    ) {
+        FAILING_NETWORKS
+                .computeIfAbsent(
+                        world,
+                        ignored -> new ConcurrentHashMap<>()
+                )
+                .putIfAbsent(
+                        networkId,
+                        new FailureState(0, world.getTick())
+                );
+    }
+
+    private record FailureState(
+            int step,
+            long nextChangeTick
     ) {
     }
 }
