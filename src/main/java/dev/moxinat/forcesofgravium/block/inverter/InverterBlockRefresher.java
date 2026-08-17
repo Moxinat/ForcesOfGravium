@@ -51,18 +51,6 @@ public final class InverterBlockRefresher {
         String stateName =
                 stateName(node);
 
-        String blockKey =
-                baseType.getBlockKeyForState(stateName);
-
-        if (blockKey == null) {
-            blockKey =
-                    NodeTypes.INVERTER.blockId();
-        }
-
-        if (blockKey.equals(blockType.getId())) {
-            return;
-        }
-
         BlockAccessor chunk =
                 world.getChunk(
                         ChunkUtil.indexChunkFromBlock(
@@ -75,14 +63,10 @@ public final class InverterBlockRefresher {
             return;
         }
 
-        chunk.placeBlock(
-                x,
-                y,
-                z,
-                blockKey,
-                node.rotation(),
-                0,
-                false
+        chunk.setBlockInteractionState(
+                position,
+                baseType,
+                stateName
         );
     }
 

@@ -55,6 +55,104 @@ public final class GravityPowderBlockRefresher {
                         position
                 );
 
+
+
+        System.out.println("\n========== GRAVITY POWDER REFRESH ==========");
+        System.out.println("position: " + position);
+        System.out.println("blockId: " + node.blockId());
+        System.out.println("rotation: " + node.rotation());
+        System.out.println("effectiveState: " + node.effectiveState());
+        System.out.println("instantState: " + node.instantState());
+
+        System.out.println(
+                "sides input=" + node.signalInputSides()
+                        + " output=" + node.signalOutputSides()
+                        + " control=" + node.controlInputSides()
+        );
+
+        System.out.println("connectedNeighbors: " + connectedNeighbors);
+
+        for (Vector3i candidate :
+                ConnectableNeighborResolver.positionsAround(position)) {
+
+            if (candidate.equals(position)) {
+                continue;
+            }
+
+            Nodes.Node neighbor = Nodes.get(world, candidate);
+
+            System.out.println("\n--- neighbor " + candidate + " ---");
+
+            if (neighbor == null) {
+                System.out.println("NO NODE");
+                continue;
+            }
+
+            System.out.println("blockId: " + neighbor.blockId());
+            System.out.println("rotation: " + neighbor.rotation());
+
+            System.out.println(
+                    "sides input=" + neighbor.signalInputSides()
+                            + " output=" + neighbor.signalOutputSides()
+                            + " control=" + neighbor.controlInputSides()
+            );
+
+            boolean powderToNeighborSignal =
+                    ConnectableNeighborResolver.isForwardSignalConnection(
+                            world,
+                            position,
+                            candidate
+                    );
+
+            boolean powderToNeighborControl =
+                    ConnectableNeighborResolver.isControlForwardConnection(
+                            world,
+                            position,
+                            candidate
+                    );
+
+            boolean neighborToPowderSignal =
+                    ConnectableNeighborResolver.isForwardSignalConnection(
+                            world,
+                            candidate,
+                            position
+                    );
+
+            boolean neighborToPowderControl =
+                    ConnectableNeighborResolver.isControlForwardConnection(
+                            world,
+                            candidate,
+                            position
+                    );
+
+            System.out.println(
+                    "powder -> neighbor SIGNAL: "
+                            + powderToNeighborSignal
+            );
+
+            System.out.println(
+                    "powder -> neighbor CONTROL: "
+                            + powderToNeighborControl
+            );
+
+            System.out.println(
+                    "neighbor -> powder SIGNAL: "
+                            + neighborToPowderSignal
+            );
+
+            System.out.println(
+                    "neighbor -> powder CONTROL: "
+                            + neighborToPowderControl
+            );
+
+            System.out.println(
+                    "MUTUALLY CONNECTED RESULT: "
+                            + connectedNeighbors.contains(candidate)
+            );
+        }
+
+
+
         boolean east = connectedNeighbors.contains(
                 new Vector3i(x + 1, y, z)
         );
@@ -79,6 +177,22 @@ public final class GravityPowderBlockRefresher {
                 new Vector3i(x, y - 1, z)
         );
         int connectionCount = (east ? 1 : 0) + (west ? 1 : 0) + (south ? 1 : 0) + (north ? 1 : 0) + (up ? 1 : 0) + (down ? 1 : 0);
+
+
+        System.out.println(
+                "\nconnections:"
+                        + " east=" + east
+                        + " west=" + west
+                        + " south=" + south
+                        + " north=" + north
+                        + " up=" + up
+                        + " down=" + down
+        );
+
+        System.out.println(
+                "connectionCount: " + connectionCount
+        );
+
 
         boolean straightEastWest = east && west && !north && !south && !up && !down;
         boolean straightNorthSouth = north && south && !east && !west && !up && !down;
@@ -129,6 +243,27 @@ public final class GravityPowderBlockRefresher {
             return;
         }
 
+
+        System.out.println(
+                "\nbaseType: " + baseType.getId()
+        );
+
+        System.out.println(
+                "OneConnect key: "
+                        + baseType.getBlockKeyForState("OneConnect")
+        );
+
+        System.out.println(
+                "Straight key: "
+                        + baseType.getBlockKeyForState("Straight")
+        );
+
+        System.out.println(
+                "Curve key: "
+                        + baseType.getBlockKeyForState("Curve")
+        );
+
+
         BlockAccessor chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(x, z));
         if (chunk == null) {
             return;
@@ -148,6 +283,13 @@ public final class GravityPowderBlockRefresher {
             } else {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.Ninety, Rotation.None);
             }
+
+            System.out.println(
+                    "PLACING STATE: Straight"
+                            + " key=" + straightBlockKey
+                            + " rotation=" + targetRotation
+            );
+
             chunk.placeBlock(x, y, z, straightBlockKey, targetRotation, 0, false);
             return;
         }
@@ -172,6 +314,12 @@ public final class GravityPowderBlockRefresher {
             } else {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.TwoSeventy, Rotation.None);
             }
+
+            System.out.println(
+                    "PLACING STATE: OneConnect"
+                            + " key=" + oneConnectBlockKey
+                            + " rotation=" + targetRotation
+            );
 
             chunk.placeBlock(x, y, z, oneConnectBlockKey, targetRotation, 0, false);
             return;
@@ -377,6 +525,12 @@ public final class GravityPowderBlockRefresher {
                 }
             }
 
+            System.out.println(
+                    "PLACING STATE: Curve"
+                            + " key=" + curveBlockKey
+                            + " rotation=" + targetRotation
+            );
+
             chunk.placeBlock(x, y, z, curveBlockKey, targetRotation, 0, false);
             return;
         }
@@ -385,6 +539,12 @@ public final class GravityPowderBlockRefresher {
         if (defaultBlockKey == null) {
             defaultBlockKey = ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID;
         }
+
+        System.out.println(
+                "PLACING STATE: DEFAULT"
+                        + " key=" + defaultBlockKey
+        );
+
         chunk.placeBlock(x, y, z, defaultBlockKey, RotationTuple.of(Rotation.None, Rotation.None, Rotation.None), 0, false);
     }
 

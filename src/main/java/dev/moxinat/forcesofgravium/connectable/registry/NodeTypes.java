@@ -166,9 +166,26 @@ public final class NodeTypes {
         return ALL;
     }
 
-    public static @Nonnull Optional<NodeType> find(@Nonnull String blockId) {
+    public static @Nonnull Optional<NodeType> find(
+            @Nonnull String blockId
+    ) {
         Objects.requireNonNull(blockId, "blockId");
-        return Optional.ofNullable(BY_BLOCK_ID.get(blockId));
+
+        NodeType exact = BY_BLOCK_ID.get(blockId);
+
+        if (exact != null) {
+            return Optional.of(exact);
+        }
+
+        for (NodeType type : ALL) {
+            String statePrefix = type.blockId() + "_State_";
+
+            if (blockId.startsWith(statePrefix)) {
+                return Optional.of(type);
+            }
+        }
+
+        return Optional.empty();
     }
 
     public record NodeType(
