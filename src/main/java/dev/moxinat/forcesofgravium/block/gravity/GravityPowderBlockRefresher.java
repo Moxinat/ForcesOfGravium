@@ -290,7 +290,11 @@ public final class GravityPowderBlockRefresher {
                             + " rotation=" + targetRotation
             );
 
-            chunk.placeBlock(x, y, z, straightBlockKey, targetRotation, 0, false);
+            chunk.setBlockInteractionState(
+                    position,
+                    baseType,
+                    stateName(baseType, STRAIGHT_STATE, modeStateSuffix)
+            );
             return;
         }
 
@@ -321,7 +325,11 @@ public final class GravityPowderBlockRefresher {
                             + " rotation=" + targetRotation
             );
 
-            chunk.placeBlock(x, y, z, oneConnectBlockKey, targetRotation, 0, false);
+            chunk.setBlockInteractionState(
+                    position,
+                    baseType,
+                    stateName(baseType, ONE_CONNECT_STATE, modeStateSuffix)
+            );
             return;
         }
 
@@ -346,7 +354,11 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.None, Rotation.Ninety);
             }
 
-            chunk.placeBlock(x, y, z, fiveCrossBlockKey, targetRotation, 0, false);
+            chunk.setBlockInteractionState(
+                    position,
+                    baseType,
+                    stateName(baseType, FIVE_CROSS_STATE, modeStateSuffix)
+            );
             return;
         }
 
@@ -356,7 +368,11 @@ public final class GravityPowderBlockRefresher {
                 return;
             }
 
-            chunk.placeBlock(x, y, z, allConnectBlockKey, RotationTuple.of(Rotation.None, Rotation.None, Rotation.None), 0, false);
+            chunk.setBlockInteractionState(
+                    position,
+                    baseType,
+                    stateName(baseType, ALL_CONNECT_STATE, modeStateSuffix)
+            );
             return;
         }
 
@@ -393,7 +409,11 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.TwoSeventy, Rotation.None);
             }
 
-            chunk.placeBlock(x, y, z, fourCurveBlockKey, targetRotation, 0, false);
+            chunk.setBlockInteractionState(
+                    position,
+                    baseType,
+                    stateName(baseType, FOUR_CURVE_STATE, modeStateSuffix)
+            );
             return;
         }
 
@@ -412,7 +432,11 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.None, Rotation.None);
             }
 
-            chunk.placeBlock(x, y, z, crossBlockKey, targetRotation, 0, false);
+            chunk.setBlockInteractionState(
+                    position,
+                    baseType,
+                    stateName(baseType, CROSS_STATE, modeStateSuffix)
+            );
             return;
         }
 
@@ -453,7 +477,11 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.None, Rotation.None);
             }
 
-            chunk.placeBlock(x, y, z, tConnectBlockKey, targetRotation, 0, false);
+            chunk.setBlockInteractionState(
+                    position,
+                    baseType,
+                    stateName(baseType, T_CONNECT_STATE, modeStateSuffix)
+            );
             return;
         }
 
@@ -482,7 +510,11 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.TwoSeventy, Rotation.None);
             }
 
-            chunk.placeBlock(x, y, z, threeDCurveBlockKey, targetRotation, 0, false);
+            chunk.setBlockInteractionState(
+                    position,
+                    baseType,
+                    stateName(baseType, THREE_D_CURVE_STATE, modeStateSuffix)
+            );
             return;
         }
 
@@ -531,21 +563,29 @@ public final class GravityPowderBlockRefresher {
                             + " rotation=" + targetRotation
             );
 
-            chunk.placeBlock(x, y, z, curveBlockKey, targetRotation, 0, false);
+            chunk.setBlockInteractionState(
+                    position,
+                    baseType,
+                    stateName(baseType, CURVE_STATE, modeStateSuffix)
+            );
             return;
         }
 
-        String defaultBlockKey = stateBlockKey(baseType, null, modeStateSuffix);
-        if (defaultBlockKey == null) {
-            defaultBlockKey = ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID;
+        String defaultState = stateName(baseType, null, modeStateSuffix);
+        if (defaultState == null) {
+            return;
         }
 
         System.out.println(
                 "PLACING STATE: DEFAULT"
-                        + " key=" + defaultBlockKey
+                        + " state=" + defaultState
         );
 
-        chunk.placeBlock(x, y, z, defaultBlockKey, RotationTuple.of(Rotation.None, Rotation.None, Rotation.None), 0, false);
+        chunk.setBlockInteractionState(
+                position,
+                baseType,
+                defaultState
+        );
     }
 
     private static String modeStateSuffix(Nodes.Node node) {
