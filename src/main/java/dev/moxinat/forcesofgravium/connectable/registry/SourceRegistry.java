@@ -5,7 +5,7 @@ import java.util.Map;
 public final class SourceRegistry {
 
     public static final int WOODEN_BUTTON_POWER = 1;
-    public static final int WIND_GENERATOR_POWER = 1;
+    public static final int WIND_GENERATOR_POWER = 9999999;
 
     private static final Map<String, Integer> SOURCE_POWER_BY_BLOCK_ID = Map.of(
             NodeTypes.WOODEN_BUTTON.blockId(), WOODEN_BUTTON_POWER,
