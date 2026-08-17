@@ -94,6 +94,7 @@ public final class ConnectablePropagationScheduler {
                     )) {
 
                 NodeControlDispatcher.dispatch(world, controlNeighbor, position);
+                ConnectableVisualDispatcher.refreshAt(world, controlNeighbor);
             }
         }
 

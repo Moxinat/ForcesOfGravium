@@ -52,9 +52,6 @@ public final class CurveCasedGravityPowderRotationSystem {
         @Override
         public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> chunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull UseBlockEvent.Post event) {
             BlockType blockType = event.getBlockType();
-            if (!NodeTypes.CURVE_CASED_GRAVITY_POWDER.blockId().equals(blockType.getId())) {
-                return;
-            }
 
             Ref<EntityStore> entityRef = chunk.getReferenceTo(index);
             Player player = store.getComponent(entityRef, Player.getComponentType());
@@ -66,7 +63,9 @@ public final class CurveCasedGravityPowderRotationSystem {
             Vector3i position = new Vector3i(event.getTargetBlock());
             Nodes.Node node = Nodes.get(world, position);
 
-            if (node == null) {
+            if (node == null || !NodeTypes.CURVE_CASED_GRAVITY_POWDER
+                    .blockId()
+                    .equals(node.blockId())) {
                 return;
             }
 
