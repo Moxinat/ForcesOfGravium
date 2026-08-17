@@ -135,7 +135,7 @@ public final class NodeTypes {
             false,
             false,
             false,
-            0,
+            -1,
             0L
     );
 
