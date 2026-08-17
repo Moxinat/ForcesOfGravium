@@ -55,6 +55,10 @@ public final class ConnectableVisualDispatcher {
         for (Vector3i neighbor :
                 ConnectableNeighborResolver.positionsAround(position)) {
 
+            if (neighbor.equals(position)) {
+                continue;
+            }
+
             refreshAt(
                     world,
                     neighbor
