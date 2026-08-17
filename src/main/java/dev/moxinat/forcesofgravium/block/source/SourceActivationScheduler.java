@@ -1,6 +1,7 @@
 package dev.moxinat.forcesofgravium.block.source;
 
 import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.connectable.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
 import dev.moxinat.forcesofgravium.connectable.registry.SourceRegistry;
 import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
@@ -46,6 +47,11 @@ public final class SourceActivationScheduler {
         Nodes.put(
                 world,
                 node
+        );
+
+        EnergyManager.checkNetwork(
+                world,
+                position
         );
 
         ACTIVE_UNTIL_TICKS
@@ -113,6 +119,11 @@ public final class SourceActivationScheduler {
             Nodes.put(
                     world,
                     node
+            );
+
+            EnergyManager.checkNetwork(
+                    world,
+                    position
             );
 
             for (Vector3i forwardNeighbor :

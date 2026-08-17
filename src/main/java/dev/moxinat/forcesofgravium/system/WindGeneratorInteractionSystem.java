@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.connectable.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
 import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
@@ -105,6 +106,11 @@ public final class WindGeneratorInteractionSystem
         Nodes.put(
                 world,
                 node
+        );
+
+        EnergyManager.checkNetwork(
+                world,
+                position
         );
 
         for (Vector3i forwardNeighbor :
