@@ -4,6 +4,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.gravity.CasedGravityPowderBlockRefresher;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderBlockRefresher;
 import dev.moxinat.forcesofgravium.block.inverter.InverterBlockRefresher;
+import dev.moxinat.forcesofgravium.block.sensor.SensorBlockRefresher;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonBlockRefresher;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
@@ -37,6 +38,8 @@ public final class ConnectableVisualDispatcher {
                     CasedGravityPowderBlockRefresher.refreshAt(world, position);
             case ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID ->
                     GravityPowderBlockRefresher.refreshAt(world, position);
+            case ConnectableRegistry.GRAVIUM_SENSOR_BLOCK_ID ->
+                    SensorBlockRefresher.refreshAt(world, position);
 
             default -> {
             }

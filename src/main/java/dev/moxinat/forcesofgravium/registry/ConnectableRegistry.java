@@ -9,6 +9,7 @@ public final class ConnectableRegistry {
     public static final String WOODEN_BUTTON_BLOCK_ID = "Wooden_Button_Block";
     public static final String STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID = "Straight_Cased_Gravity_Powder";
     public static final String CURVE_CASED_GRAVITY_POWDER_BLOCK_ID = "Curve_Cased_Gravity_Powder";
+    public static final String GRAVIUM_SENSOR_BLOCK_ID = "Gravium_Sensor_Block";
     public static final String GRAVITY_POWDER_STATE_PREFIX = "*" + GRAVITY_POWDER_BLOCK_ID + "_State_";
     public static final String INVERTER_STATE_PREFIX = "*" + INVERTER_BLOCK_ID + "_State_";
     public static final String GRAVIUM_SIPHON_STATE_PREFIX = "*" + GRAVIUM_SIPHON_BLOCK_ID + "_State_";

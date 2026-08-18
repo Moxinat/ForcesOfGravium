@@ -12,6 +12,8 @@ Gravium_Siphon_Block.name = Gravium Siphon
 Gravium_Siphon_Block.description = Draws in unstable gravium force
 Wooden_Button_Block.name = Wooden Button
 Wooden_Button_Block.description = A small wooden button
+Gravium_Sensor_Block.name = Gravium Sensor
+Gravium_Sensor_Block.description = Observes changes in the world and converts them into gravium signals
 
 
 ui.ForcesOfGraviumCategory.items=Gravium Items

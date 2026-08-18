@@ -139,6 +139,23 @@ public final class NodeTypes {
             0L
     );
 
+    public static final NodeType GRAVIUM_SENSOR = new NodeType(
+            ConnectableRegistry.GRAVIUM_SENSOR_BLOCK_ID,
+            ConnectableRegistry.SIDE_TOP,
+            ConnectableRegistry.SIDE_FRONT,
+            0,
+            RotationTuple.NONE,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            SignalState.OFF,
+            false,
+            false,
+            true,
+            0,
+            0L
+    );
+
     private static final List<NodeType> ALL = List.of(
             GRAVITY_POWDER,
             STRAIGHT_CASED_GRAVITY_POWDER,
@@ -146,7 +163,8 @@ public final class NodeTypes {
             INVERTER,
             WIND_GENERATOR,
             WOODEN_BUTTON,
-            GRAVIUM_SIPHON
+            GRAVIUM_SIPHON,
+            GRAVIUM_SENSOR
     );
 
     private static final Map<String, NodeType> BY_BLOCK_ID = Map.ofEntries(
@@ -156,7 +174,8 @@ public final class NodeTypes {
             Map.entry(INVERTER.blockId(), INVERTER),
             Map.entry(WIND_GENERATOR.blockId(), WIND_GENERATOR),
             Map.entry(WOODEN_BUTTON.blockId(), WOODEN_BUTTON),
-            Map.entry(GRAVIUM_SIPHON.blockId(), GRAVIUM_SIPHON)
+            Map.entry(GRAVIUM_SIPHON.blockId(), GRAVIUM_SIPHON),
+            Map.entry(GRAVIUM_SENSOR.blockId(), GRAVIUM_SENSOR)
     );
 
     private NodeTypes() {

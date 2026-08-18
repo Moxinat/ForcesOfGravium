@@ -13,7 +13,8 @@ public final class BlockPlacementRotationSystem {
     private static final Set<String> ROTATION_CONTROLLED_BLOCKS = Set.of(
             "Inverter_Block",
             "Gravium_Siphon_Block",
-            "Straight_Cased_Gravity_Powder"
+            "Straight_Cased_Gravity_Powder",
+            "Gravium_Sensor_Block"
     );
     private static final double VERTICAL_DIRECTION_THRESHOLD = 0.9D;
 

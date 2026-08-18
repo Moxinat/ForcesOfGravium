@@ -1,0 +1,175 @@
+{
+  "TranslationProperties": {
+    "Name": "items.Gravium_Sensor_Block.name",
+    "Description": "items.Gravium_Sensor_Block.description"
+  },
+  "ItemLevel": 10,
+  "MaxStack": 100,
+  "Categories": [
+    "ForcesOfGraviumCategory.items"
+  ],
+  "PlayerAnimationsId": "Block",
+  "Set": "Gravium_Sensor_Block",
+
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+
+    "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
+
+    "CustomModelTexture": [
+      {
+        "Texture": "BlockTextures/Sensor_Block_Off.png",
+        "Weight": 1
+      }
+    ],
+
+    "Group": "Stone",
+
+    "Flags": {
+      "IsUsable": true
+    },
+
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks"
+      }
+    },
+
+    "State": {
+      "Definitions": {
+        "Off": {
+          "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Sensor_Block_Off.png",
+              "Weight": 1
+            }
+          ]
+        },
+
+        "Push": {
+          "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
+          "CustomModelAnimation": "Blocks/Gravium_Sensor/Sensor_Block.blockyanim",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Sensor_Block_Push.png",
+              "Weight": 1
+            }
+          ]
+        },
+
+        "Pull": {
+          "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
+          "CustomModelAnimation": "Blocks/Gravium_Sensor/Sensor_Block.blockyanim",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Sensor_Block_Pull.png",
+              "Weight": 1
+            }
+          ]
+        }
+      }
+    },
+
+    "ParticleColor": "#737055",
+    "VariantRotation": "All",
+    "BlockSoundSetId": "Stone",
+
+    "Aliases": [
+      "Gravium_Sensor_Block"
+    ],
+
+    "BlockBreakingDecalId": "Breaking_Decals_Rock",
+
+    "Interactions": {
+      "Use": {
+        "Interactions": []
+      }
+    },
+
+    "RotationYawPlacementOffset": "OneEighty",
+
+    "Supporting": {
+      "Down": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "Up": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "North": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "South": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "East": [
+        {
+          "FaceType": "Full"
+        }
+      ],
+      "West": [
+        {
+          "FaceType": "Full"
+        }
+      ]
+    },
+
+    "PlacementSettings": {
+      "RotationMode": "BlockNormal"
+    }
+  },
+
+  "Tags": {
+    "Type": [
+      "Rock"
+    ]
+  },
+
+  "ItemSoundSetId": "ISS_Blocks_Stone",
+
+  "IconProperties": {
+    "Scale": 0.58823,
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ],
+    "Translation": [
+      0,
+      -13.5
+    ]
+  },
+
+  "Recipe": {
+    "PrimaryOutput": {
+      "ItemId": "Gravium_Sensor_Block"
+    },
+    "BenchRequirement": [
+      {
+        "Id": "Workbench",
+        "Categories": [
+          "Workbench_Tinkering"
+        ]
+      }
+    ],
+    "Input": [
+      {
+        "ItemId": "Gravity_Powder_Default",
+        "Quantity": 2
+      },
+      {
+        "ItemId": "Ingredient_Bar_Iron",
+        "Quantity": 4
+      }
+    ]
+  }
+}
