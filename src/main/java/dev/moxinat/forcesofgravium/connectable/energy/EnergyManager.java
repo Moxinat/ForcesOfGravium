@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class EnergyManager {
 
-    private static final long FAILURE_STATE_TICKS = 30L;
+    private static final long FAILURE_STATE_TICKS = 5L;
     private static final SignalState[] FAILURE_SEQUENCE = {
             SignalState.PUSH,
             SignalState.PULL,
@@ -38,14 +38,23 @@ public final class EnergyManager {
         }
 
         long networkId = node.networkId();
-        int energy = Nodes.snapshotForWorld(world)
-                .values()
-                .stream()
-                .filter(networkNode -> networkNode.networkId() == networkId)
-                .mapToInt(Nodes.Node::energyDelta)
-                .sum();
 
-        if (energy < 0) {
+        int energy = 0;
+        boolean hasEnergySource = false;
+
+        for (Nodes.Node networkNode : Nodes.snapshotForWorld(world).values()) {
+            if (networkNode.networkId() != networkId) {
+                continue;
+            }
+
+            energy += networkNode.energyDelta();
+
+            if (networkNode.energyDelta() > 0) {
+                hasEnergySource = true;
+            }
+        }
+
+        if (hasEnergySource && energy < 0) {
             failNetwork(world, networkId);
         }
     }
