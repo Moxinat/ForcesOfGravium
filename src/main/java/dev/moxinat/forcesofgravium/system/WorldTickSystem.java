@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
 
     private static final int SIPHON_LOGIC_INTERVAL_TICKS = 5;
-    private static final int AUTOSAVE_INTERVAL_TICKS = 100;
+    private static final int AUTOSAVE_INTERVAL_TICKS = 1000;
     private static final Map<String, Long> LAST_PROCESSED_WORLD_TICKS = new ConcurrentHashMap<>();
     private static final Map<String, Long> LAST_AUTOSAVED_WORLD_TICKS = new ConcurrentHashMap<>();
 

@@ -56,60 +56,81 @@ public final class WorldSaveFileService {
                 return;
             }
 
-            LOADED_WORLDS.put(key, world);
             LOADING_WORLDS.add(key);
             clearWorldRuntime(world);
 
             try {
                 Path saveFile = saveFile(world);
 
-                if (!Files.exists(saveFile)) {
-                    return;
+                if (Files.exists(saveFile)) {
+                    String content =
+                            Files.readString(
+                                    saveFile,
+                                    StandardCharsets.UTF_8
+                            );
+
+                    if (!content.isBlank()) {
+                        BsonDocument root =
+                                BsonDocument.parse(content);
+
+                        if (!root.containsKey("nodes")) {
+                            throw new IllegalStateException(
+                                    "Legacy worldsave is no longer supported."
+                            );
+                        }
+
+                        int version = root
+                                .getInt32(
+                                        "version",
+                                        new BsonInt32(1)
+                                )
+                                .getValue();
+
+                        if (version != SAVE_VERSION) {
+                            throw new IllegalStateException(
+                                    "Unsupported worldsave version: "
+                                            + version
+                            );
+                        }
+
+                        loadNodes(
+                                world,
+                                root.getArray(
+                                        "nodes",
+                                        new BsonArray()
+                                )
+                        );
+
+                        loadPropagation(
+                                world,
+                                root.getDocument(
+                                        "propagation",
+                                        new BsonDocument()
+                                )
+                        );
+
+                        loadTimedSources(
+                                world,
+                                root.getArray(
+                                        "timedSources",
+                                        new BsonArray()
+                                )
+                        );
+                    }
                 }
 
-                String content = Files.readString(saveFile, StandardCharsets.UTF_8);
-                if (content.isBlank()) {
-                    return;
-                }
-
-                BsonDocument root = BsonDocument.parse(content);
-
-                if (!root.containsKey("nodes")) {
-                    System.err.println("[FoG] Legacy worldsave is no longer supported.");
-                    return;
-                }
-
-                int version = root
-                        .getInt32("version", new BsonInt32(1))
-                        .getValue();
-
-                if (version != SAVE_VERSION) {
-                    System.err.println("[FoG] Unsupported worldsave version: " + version);
-                    return;
-                }
-
-                loadNodes(
-                        world,
-                        root.getArray("nodes", new BsonArray())
-                );
-
-                loadPropagation(
-                        world,
-                        root.getDocument("propagation", new BsonDocument())
-                );
-
-                loadTimedSources(
-                        world,
-                        root.getArray("timedSources", new BsonArray())
-                );
+                LOADED_WORLDS.put(key, world);
 
             } catch (Exception exception) {
+                clearWorldRuntime(world);
+
                 System.err.println(
                         "[FoG] Failed to load world save for '"
                                 + world.getName()
                                 + "': "
                                 + exception.getMessage()
                 );
+
             } finally {
                 LOADING_WORLDS.remove(key);
             }
@@ -141,9 +162,11 @@ public final class WorldSaveFileService {
             boolean invertEnabled = document.getBoolean("invertEnabled", BsonBoolean.FALSE).getValue();
             boolean passing = document.getBoolean("passing", BsonBoolean.FALSE).getValue();
             int energyDelta = document.getInt32("energyDelta", new BsonInt32(0)).getValue();
-            long networkId = document
-                    .getInt64("networkId", new BsonInt64(Nodes.Node.NO_NETWORK))
-                    .getValue();
+            long networkId = readLong(
+                    document,
+                    "networkId",
+                    Nodes.Node.NO_NETWORK
+            );
 
             Nodes.createNode(
                     world,
@@ -164,6 +187,11 @@ public final class WorldSaveFileService {
                     networkId
             );
         }
+
+        System.out.println(
+                "[FoG LOAD] loaded nodes="
+                        + Nodes.sizeForWorld(world)
+        );
     }
 
     private static void loadPropagation(
@@ -197,9 +225,11 @@ public final class WorldSaveFileService {
 
             BsonDocument document = value.asDocument();
             Vector3i position = readPosition(document.getDocument("position"));
-            long remaining = document
-                    .getInt64("remainingTicks", new BsonInt64(0L))
-                    .getValue();
+            long remaining = readLong(
+                    document,
+                    "remainingTicks",
+                    0L
+            );
 
             remainingTicks.put(position, Math.max(0L, remaining));
         }
@@ -222,6 +252,11 @@ public final class WorldSaveFileService {
         ensureLoaded(world);
 
         String key = worldKey(world);
+
+        if (!LOADED_WORLDS.containsKey(key)) {
+            return;
+        }
+
         long now = System.currentTimeMillis();
         long lastAttempt = LAST_SAVE_ATTEMPT_MILLIS.getOrDefault(key, 0L);
 
@@ -233,6 +268,14 @@ public final class WorldSaveFileService {
             LAST_SAVE_ATTEMPT_MILLIS.put(key, now);
 
             try {
+                System.out.println(
+                        "[FoG SAVE] world=" + world.getName()
+                                + " nodes=" + Nodes.sizeForWorld(world)
+                                + " force=" + force
+                );
+
+                Thread.dumpStack();
+
                 writeSaveFile(world, createSaveDocument(world));
                 LAST_SAVE_ERROR.remove(key);
             } catch (Exception exception) {
@@ -501,5 +544,27 @@ public final class WorldSaveFileService {
                 .toAbsolutePath()
                 .normalize()
                 .toString();
+    }
+
+    private static long readLong(
+            @Nonnull BsonDocument document,
+            @Nonnull String key,
+            long defaultValue
+    ) {
+        BsonValue value = document.get(key);
+
+        if (value == null) {
+            return defaultValue;
+        }
+
+        if (value.isInt64()) {
+            return value.asInt64().getValue();
+        }
+
+        if (value.isInt32()) {
+            return value.asInt32().getValue();
+        }
+
+        return defaultValue;
     }
 }
