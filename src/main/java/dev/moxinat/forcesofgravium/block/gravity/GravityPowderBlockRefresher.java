@@ -55,104 +55,6 @@ public final class GravityPowderBlockRefresher {
                         position
                 );
 
-
-
-        System.out.println("\n========== GRAVITY POWDER REFRESH ==========");
-        System.out.println("position: " + position);
-        System.out.println("blockId: " + node.blockId());
-        System.out.println("rotation: " + node.rotation());
-        System.out.println("effectiveState: " + node.effectiveState());
-        System.out.println("instantState: " + node.instantState());
-
-        System.out.println(
-                "sides input=" + node.signalInputSides()
-                        + " output=" + node.signalOutputSides()
-                        + " control=" + node.controlInputSides()
-        );
-
-        System.out.println("connectedNeighbors: " + connectedNeighbors);
-
-        for (Vector3i candidate :
-                ConnectableNeighborResolver.positionsAround(position)) {
-
-            if (candidate.equals(position)) {
-                continue;
-            }
-
-            Nodes.Node neighbor = Nodes.get(world, candidate);
-
-            System.out.println("\n--- neighbor " + candidate + " ---");
-
-            if (neighbor == null) {
-                System.out.println("NO NODE");
-                continue;
-            }
-
-            System.out.println("blockId: " + neighbor.blockId());
-            System.out.println("rotation: " + neighbor.rotation());
-
-            System.out.println(
-                    "sides input=" + neighbor.signalInputSides()
-                            + " output=" + neighbor.signalOutputSides()
-                            + " control=" + neighbor.controlInputSides()
-            );
-
-            boolean powderToNeighborSignal =
-                    ConnectableNeighborResolver.isForwardSignalConnection(
-                            world,
-                            position,
-                            candidate
-                    );
-
-            boolean powderToNeighborControl =
-                    ConnectableNeighborResolver.isControlForwardConnection(
-                            world,
-                            position,
-                            candidate
-                    );
-
-            boolean neighborToPowderSignal =
-                    ConnectableNeighborResolver.isForwardSignalConnection(
-                            world,
-                            candidate,
-                            position
-                    );
-
-            boolean neighborToPowderControl =
-                    ConnectableNeighborResolver.isControlForwardConnection(
-                            world,
-                            candidate,
-                            position
-                    );
-
-            System.out.println(
-                    "powder -> neighbor SIGNAL: "
-                            + powderToNeighborSignal
-            );
-
-            System.out.println(
-                    "powder -> neighbor CONTROL: "
-                            + powderToNeighborControl
-            );
-
-            System.out.println(
-                    "neighbor -> powder SIGNAL: "
-                            + neighborToPowderSignal
-            );
-
-            System.out.println(
-                    "neighbor -> powder CONTROL: "
-                            + neighborToPowderControl
-            );
-
-            System.out.println(
-                    "MUTUALLY CONNECTED RESULT: "
-                            + connectedNeighbors.contains(candidate)
-            );
-        }
-
-
-
         boolean east = connectedNeighbors.contains(
                 new Vector3i(x + 1, y, z)
         );
@@ -178,20 +80,6 @@ public final class GravityPowderBlockRefresher {
         );
         int connectionCount = (east ? 1 : 0) + (west ? 1 : 0) + (south ? 1 : 0) + (north ? 1 : 0) + (up ? 1 : 0) + (down ? 1 : 0);
 
-
-        System.out.println(
-                "\nconnections:"
-                        + " east=" + east
-                        + " west=" + west
-                        + " south=" + south
-                        + " north=" + north
-                        + " up=" + up
-                        + " down=" + down
-        );
-
-        System.out.println(
-                "connectionCount: " + connectionCount
-        );
 
 
         boolean straightEastWest = east && west && !north && !south && !up && !down;
@@ -243,27 +131,6 @@ public final class GravityPowderBlockRefresher {
             return;
         }
 
-
-        System.out.println(
-                "\nbaseType: " + baseType.getId()
-        );
-
-        System.out.println(
-                "OneConnect key: "
-                        + baseType.getBlockKeyForState("OneConnect")
-        );
-
-        System.out.println(
-                "Straight key: "
-                        + baseType.getBlockKeyForState("Straight")
-        );
-
-        System.out.println(
-                "Curve key: "
-                        + baseType.getBlockKeyForState("Curve")
-        );
-
-
         BlockAccessor chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(x, z));
         if (chunk == null) {
             return;
@@ -284,16 +151,13 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.Ninety, Rotation.None);
             }
 
-            System.out.println(
-                    "PLACING STATE: Straight"
-                            + " key=" + straightBlockKey
-                            + " rotation=" + targetRotation
-            );
-
-            chunk.setBlockInteractionState(
+            setVisualBlock(
+                    world,
+                    chunk,
+                    node,
                     position,
-                    baseType,
-                    stateName(baseType, STRAIGHT_STATE, modeStateSuffix)
+                    straightBlockKey,
+                    targetRotation
             );
             return;
         }
@@ -319,16 +183,13 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.TwoSeventy, Rotation.None);
             }
 
-            System.out.println(
-                    "PLACING STATE: OneConnect"
-                            + " key=" + oneConnectBlockKey
-                            + " rotation=" + targetRotation
-            );
-
-            chunk.setBlockInteractionState(
+            setVisualBlock(
+                    world,
+                    chunk,
+                    node,
                     position,
-                    baseType,
-                    stateName(baseType, ONE_CONNECT_STATE, modeStateSuffix)
+                    oneConnectBlockKey,
+                    targetRotation
             );
             return;
         }
@@ -354,10 +215,13 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.None, Rotation.Ninety);
             }
 
-            chunk.setBlockInteractionState(
+            setVisualBlock(
+                    world,
+                    chunk,
+                    node,
                     position,
-                    baseType,
-                    stateName(baseType, FIVE_CROSS_STATE, modeStateSuffix)
+                    fiveCrossBlockKey,
+                    targetRotation
             );
             return;
         }
@@ -368,10 +232,20 @@ public final class GravityPowderBlockRefresher {
                 return;
             }
 
-            chunk.setBlockInteractionState(
+            RotationTuple targetRotation =
+                    RotationTuple.of(
+                            Rotation.None,
+                            Rotation.None,
+                            Rotation.None
+                    );
+
+            setVisualBlock(
+                    world,
+                    chunk,
+                    node,
                     position,
-                    baseType,
-                    stateName(baseType, ALL_CONNECT_STATE, modeStateSuffix)
+                    allConnectBlockKey,
+                    targetRotation
             );
             return;
         }
@@ -409,10 +283,13 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.TwoSeventy, Rotation.None);
             }
 
-            chunk.setBlockInteractionState(
+            setVisualBlock(
+                    world,
+                    chunk,
+                    node,
                     position,
-                    baseType,
-                    stateName(baseType, FOUR_CURVE_STATE, modeStateSuffix)
+                    fourCurveBlockKey,
+                    targetRotation
             );
             return;
         }
@@ -432,10 +309,13 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.None, Rotation.None);
             }
 
-            chunk.setBlockInteractionState(
+            setVisualBlock(
+                    world,
+                    chunk,
+                    node,
                     position,
-                    baseType,
-                    stateName(baseType, CROSS_STATE, modeStateSuffix)
+                    crossBlockKey,
+                    targetRotation
             );
             return;
         }
@@ -477,10 +357,13 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.None, Rotation.None);
             }
 
-            chunk.setBlockInteractionState(
+            setVisualBlock(
+                    world,
+                    chunk,
+                    node,
                     position,
-                    baseType,
-                    stateName(baseType, T_CONNECT_STATE, modeStateSuffix)
+                    tConnectBlockKey,
+                    targetRotation
             );
             return;
         }
@@ -510,10 +393,13 @@ public final class GravityPowderBlockRefresher {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.TwoSeventy, Rotation.None);
             }
 
-            chunk.setBlockInteractionState(
+            setVisualBlock(
+                    world,
+                    chunk,
+                    node,
                     position,
-                    baseType,
-                    stateName(baseType, THREE_D_CURVE_STATE, modeStateSuffix)
+                    threeDCurveBlockKey,
+                    targetRotation
             );
             return;
         }
@@ -557,34 +443,43 @@ public final class GravityPowderBlockRefresher {
                 }
             }
 
-            System.out.println(
-                    "PLACING STATE: Curve"
-                            + " key=" + curveBlockKey
-                            + " rotation=" + targetRotation
-            );
-
-            chunk.setBlockInteractionState(
+            setVisualBlock(
+                    world,
+                    chunk,
+                    node,
                     position,
-                    baseType,
-                    stateName(baseType, CURVE_STATE, modeStateSuffix)
+                    curveBlockKey,
+                    targetRotation
             );
             return;
         }
 
-        String defaultState = stateName(baseType, null, modeStateSuffix);
-        if (defaultState == null) {
-            return;
+        String defaultBlockKey =
+                stateBlockKey(
+                        baseType,
+                        null,
+                        modeStateSuffix
+                );
+
+        if (defaultBlockKey == null) {
+            defaultBlockKey =
+                    ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID;
         }
 
-        System.out.println(
-                "PLACING STATE: DEFAULT"
-                        + " state=" + defaultState
-        );
+        RotationTuple targetRotation =
+                RotationTuple.of(
+                        Rotation.None,
+                        Rotation.None,
+                        Rotation.None
+                );
 
-        chunk.setBlockInteractionState(
+        setVisualBlock(
+                world,
+                chunk,
+                node,
                 position,
-                baseType,
-                defaultState
+                defaultBlockKey,
+                targetRotation
         );
     }
 
@@ -620,5 +515,43 @@ public final class GravityPowderBlockRefresher {
             return modeState;
         }
         return baseState;
+    }
+
+    private static void setVisualBlock(
+            World world,
+            BlockAccessor chunk,
+            Nodes.Node node,
+            Vector3i position,
+            String blockKey,
+            RotationTuple targetRotation
+    ) {
+        if (blockKey == null) {
+            return;
+        }
+
+        int x = position.x();
+        int y = position.y();
+        int z = position.z();
+
+        chunk.breakBlock(
+                x,
+                y,
+                z
+        );
+
+        chunk.placeBlock(
+                x,
+                y,
+                z,
+                blockKey,
+                targetRotation,
+                0,
+                false
+        );
+
+        Nodes.put(
+                world,
+                node.withRotation(targetRotation)
+        );
     }
 }

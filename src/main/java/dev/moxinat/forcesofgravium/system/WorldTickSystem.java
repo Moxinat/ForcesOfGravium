@@ -55,6 +55,7 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
         SourceActivationScheduler.tickWorld(world);
         ConnectablePropagationScheduler.tickWorld(world);
         EnergyManager.tickWorld(world);
+        ConnectableVisualRefreshScheduler.tickWorld(world);
 
         // Siphon Ticks
         if (tick % SIPHON_LOGIC_INTERVAL_TICKS == 0) {

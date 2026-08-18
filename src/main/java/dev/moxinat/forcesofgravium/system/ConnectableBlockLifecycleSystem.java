@@ -83,8 +83,6 @@ public final class ConnectableBlockLifecycleSystem {
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
 
-            System.out.println("PLACE EVENT: " + event.getTargetBlock());
-
             // -------------------------
             // ROTATION
             // -------------------------
@@ -178,7 +176,7 @@ public final class ConnectableBlockLifecycleSystem {
                         );
             }
 
-            ConnectableVisualDispatcher.refreshTopologyAround(world, target);
+            ConnectableVisualRefreshScheduler.scheduleTopologyRefresh(world, target);
         }
     }
 
@@ -221,8 +219,6 @@ public final class ConnectableBlockLifecycleSystem {
             if (brokenNode == null) {
                 return;
             }
-
-            System.out.println("BREAK EVENT: " + event.getTargetBlock());
 
             // -------------------------
             // SNAPSHOT BEFORE REMOVAL
