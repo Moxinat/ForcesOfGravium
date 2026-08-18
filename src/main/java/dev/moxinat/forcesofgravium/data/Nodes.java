@@ -2,8 +2,8 @@ package dev.moxinat.forcesofgravium.data;
 
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.SignalState;
-import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes.NodeType;
+import dev.moxinat.forcesofgravium.signal.SignalState;
+import dev.moxinat.forcesofgravium.registry.NodeTypes.NodeType;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;

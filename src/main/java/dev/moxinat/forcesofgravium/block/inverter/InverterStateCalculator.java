@@ -1,11 +1,10 @@
 package dev.moxinat.forcesofgravium.block.inverter;
 
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.SignalState;
-import dev.moxinat.forcesofgravium.connectable.dispatcher.ConnectableVisualDispatcher;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.signal.SignalState;
+import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
+import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 

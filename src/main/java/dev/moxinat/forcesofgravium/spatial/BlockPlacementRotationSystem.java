@@ -1,4 +1,4 @@
-package dev.moxinat.forcesofgravium.system;
+package dev.moxinat.forcesofgravium.spatial;
 
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;

@@ -1,7 +1,7 @@
 package dev.moxinat.forcesofgravium.block.gravity;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
-import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
@@ -9,8 +9,8 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
-import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import java.util.Set;
 

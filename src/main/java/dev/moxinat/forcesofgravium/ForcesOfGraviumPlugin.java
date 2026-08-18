@@ -4,9 +4,12 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.event.events.ShutdownEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import dev.moxinat.forcesofgravium.block.button.ButtonInteractionSystem;
+import dev.moxinat.forcesofgravium.block.gravity.CurveCasedGravityPowderRotationSystem;
+import dev.moxinat.forcesofgravium.block.windgen.WindGeneratorInteractionSystem;
 import dev.moxinat.forcesofgravium.commands.ForcesOfGraviumCommand;
-import dev.moxinat.forcesofgravium.event.ForcesOfGraviumEvents;
-import dev.moxinat.forcesofgravium.system.*;
+import dev.moxinat.forcesofgravium.lifecycle.ForcesOfGraviumEvents;
+import dev.moxinat.forcesofgravium.lifecycle.*;
 
 import javax.annotation.Nonnull;
 

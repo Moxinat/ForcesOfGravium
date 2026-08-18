@@ -1,4 +1,4 @@
-package dev.moxinat.forcesofgravium.system;
+package dev.moxinat.forcesofgravium.lifecycle;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -8,10 +8,11 @@ import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.connectable.energy.EnergyManager;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
+import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualRefreshScheduler;
+import dev.moxinat.forcesofgravium.energy.EnergyManager;
+import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
-import dev.moxinat.forcesofgravium.block.source.SourceActivationScheduler;
+import dev.moxinat.forcesofgravium.source.SourceActivationScheduler;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
 import javax.annotation.Nonnull;

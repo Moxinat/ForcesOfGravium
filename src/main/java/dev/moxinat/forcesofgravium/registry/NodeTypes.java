@@ -1,7 +1,7 @@
-package dev.moxinat.forcesofgravium.connectable.registry;
+package dev.moxinat.forcesofgravium.registry;
 
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
-import dev.moxinat.forcesofgravium.connectable.SignalState;
+import dev.moxinat.forcesofgravium.signal.SignalState;
 
 import javax.annotation.Nonnull;
 import java.util.List;

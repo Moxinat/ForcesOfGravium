@@ -1,7 +1,7 @@
 package dev.moxinat.forcesofgravium.block.inverter;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
-import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;

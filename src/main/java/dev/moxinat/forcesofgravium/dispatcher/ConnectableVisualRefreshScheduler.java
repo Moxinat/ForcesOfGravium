@@ -1,7 +1,6 @@
-package dev.moxinat.forcesofgravium.system;
+package dev.moxinat.forcesofgravium.dispatcher;
 
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.dispatcher.ConnectableVisualDispatcher;
 import org.joml.Vector3i;
 
 import java.util.Map;

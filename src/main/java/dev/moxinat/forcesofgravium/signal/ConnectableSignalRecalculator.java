@@ -1,8 +1,7 @@
-package dev.moxinat.forcesofgravium.connectable.propagation;
+package dev.moxinat.forcesofgravium.signal;
 
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.SignalState;
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.Nodes.Node;
 import org.joml.Vector3i;

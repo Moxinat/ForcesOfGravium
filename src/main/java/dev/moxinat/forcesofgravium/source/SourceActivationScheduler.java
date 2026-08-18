@@ -1,14 +1,14 @@
-package dev.moxinat.forcesofgravium.block.source;
+package dev.moxinat.forcesofgravium.source;
 
-import dev.moxinat.forcesofgravium.connectable.SignalState;
-import dev.moxinat.forcesofgravium.connectable.energy.EnergyManager;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
-import dev.moxinat.forcesofgravium.connectable.registry.SourceRegistry;
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.signal.SignalState;
+import dev.moxinat.forcesofgravium.energy.EnergyManager;
+import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
+import dev.moxinat.forcesofgravium.registry.SourceRegistry;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
+import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 
 import javax.annotation.Nonnull;
 import java.util.HashMap;

@@ -1,4 +1,4 @@
-package dev.moxinat.forcesofgravium.connectable;
+package dev.moxinat.forcesofgravium.signal;
 
 public enum SignalState {
     PUSH,

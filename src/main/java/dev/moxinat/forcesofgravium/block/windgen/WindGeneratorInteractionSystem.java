@@ -1,4 +1,4 @@
-package dev.moxinat.forcesofgravium.system;
+package dev.moxinat.forcesofgravium.block.windgen;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -11,13 +11,13 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.connectable.SignalState;
-import dev.moxinat.forcesofgravium.connectable.energy.EnergyManager;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
-import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
-import dev.moxinat.forcesofgravium.connectable.registry.SourceRegistry;
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.signal.SignalState;
+import dev.moxinat.forcesofgravium.energy.EnergyManager;
+import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
+import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
+import dev.moxinat.forcesofgravium.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.registry.SourceRegistry;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 

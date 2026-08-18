@@ -1,4 +1,4 @@
-package dev.moxinat.forcesofgravium.system;
+package dev.moxinat.forcesofgravium.lifecycle;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -6,13 +6,15 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
-import dev.moxinat.forcesofgravium.connectable.SignalState;
-import dev.moxinat.forcesofgravium.connectable.dispatcher.ConnectableVisualDispatcher;
-import dev.moxinat.forcesofgravium.connectable.energy.EnergyManager;
-import dev.moxinat.forcesofgravium.connectable.network.ConnectableNetworkManager;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectableSignalRecalculator;
-import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualRefreshScheduler;
+import dev.moxinat.forcesofgravium.signal.SignalState;
+import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
+import dev.moxinat.forcesofgravium.energy.EnergyManager;
+import dev.moxinat.forcesofgravium.network.ConnectableNetworkManager;
+import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
+import dev.moxinat.forcesofgravium.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.spatial.BlockPlacementRotationSystem;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -21,7 +23,7 @@ import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.moxinat.forcesofgravium.connectable.propagation.ConnectablePropagationScheduler;
+import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 

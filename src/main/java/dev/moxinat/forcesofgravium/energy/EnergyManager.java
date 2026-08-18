@@ -1,8 +1,8 @@
-package dev.moxinat.forcesofgravium.connectable.energy;
+package dev.moxinat.forcesofgravium.energy;
 
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.SignalState;
-import dev.moxinat.forcesofgravium.connectable.dispatcher.ConnectableVisualDispatcher;
+import dev.moxinat.forcesofgravium.signal.SignalState;
+import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 

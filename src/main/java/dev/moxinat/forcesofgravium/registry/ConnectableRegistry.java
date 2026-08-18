@@ -1,4 +1,4 @@
-package dev.moxinat.forcesofgravium.connectable.registry;
+package dev.moxinat.forcesofgravium.registry;
 
 public final class ConnectableRegistry {
 

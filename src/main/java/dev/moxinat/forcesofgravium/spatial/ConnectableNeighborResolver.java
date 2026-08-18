@@ -1,10 +1,10 @@
-package dev.moxinat.forcesofgravium.connectable.spatial;
+package dev.moxinat.forcesofgravium.spatial;
 
 import org.joml.Vector3d;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.Nodes.Node;
 

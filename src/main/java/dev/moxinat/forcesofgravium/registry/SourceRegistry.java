@@ -1,4 +1,4 @@
-package dev.moxinat.forcesofgravium.connectable.registry;
+package dev.moxinat.forcesofgravium.registry;
 
 import java.util.Map;
 

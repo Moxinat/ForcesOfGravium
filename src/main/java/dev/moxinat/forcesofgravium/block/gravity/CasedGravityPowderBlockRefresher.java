@@ -4,11 +4,9 @@ import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
-import dev.moxinat.forcesofgravium.connectable.registry.NodeTypes;
+import dev.moxinat.forcesofgravium.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
-
-import javax.annotation.Nullable;
 
 public final class CasedGravityPowderBlockRefresher {
 

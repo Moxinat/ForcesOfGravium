@@ -1,12 +1,12 @@
-package dev.moxinat.forcesofgravium.connectable.dispatcher;
+package dev.moxinat.forcesofgravium.dispatcher;
 
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.gravity.CasedGravityPowderBlockRefresher;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderBlockRefresher;
 import dev.moxinat.forcesofgravium.block.inverter.InverterBlockRefresher;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonBlockRefresher;
-import dev.moxinat.forcesofgravium.connectable.registry.ConnectableRegistry;
-import dev.moxinat.forcesofgravium.connectable.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 

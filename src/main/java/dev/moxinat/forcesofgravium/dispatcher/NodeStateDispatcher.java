@@ -1,4 +1,4 @@
-package dev.moxinat.forcesofgravium.connectable.dispatcher;
+package dev.moxinat.forcesofgravium.dispatcher;
 
 import com.hypixel.hytale.server.core.universe.world.World;
 import org.joml.Vector3i;
