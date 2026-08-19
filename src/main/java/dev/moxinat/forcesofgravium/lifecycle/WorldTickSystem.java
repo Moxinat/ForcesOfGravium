@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualRefreshScheduler;
+import dev.moxinat.forcesofgravium.dispatcher.NodeControlDispatcher;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
@@ -57,6 +58,7 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
         ConnectablePropagationScheduler.tickWorld(world);
         EnergyManager.tickWorld(world);
         ConnectableVisualRefreshScheduler.tickWorld(world);
+        NodeControlDispatcher.tickWorld(world);
 
         // Siphon Ticks
         if (tick % SIPHON_LOGIC_INTERVAL_TICKS == 0) {
