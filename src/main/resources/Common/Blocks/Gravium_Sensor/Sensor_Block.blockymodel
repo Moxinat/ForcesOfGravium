@@ -260,7 +260,7 @@
                 {
                   "id": "7",
                   "name": "pupil",
-                  "position": {"x": 0, "y": 0, "z": -3.55},
+                  "position": {"x": 0, "y": 0, "z": -4.55},
                   "orientation": {"x": 0, "y": 0, "z": 0, "w": 1},
                   "shape": {
                     "type": "box",
@@ -291,7 +291,7 @@
                 {
                   "id": "8",
                   "name": "eyelid",
-                  "position": {"x": 0, "y": 0, "z": -1},
+                  "position": {"x": 0, "y": 0, "z": -2},
                   "orientation": {"x": 0, "y": 0, "z": 0, "w": 1},
                   "shape": {
                     "type": "box",

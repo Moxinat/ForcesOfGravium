@@ -34,7 +34,7 @@ public final class WorldSaveFileService {
     private static final int SAVE_VERSION = 1;
     private static final String SAVE_FOLDER = "forcesofgravium";
     private static final String SAVE_FILE = "worldsave.json";
-    private static final long SAVE_THROTTLE_MILLIS = 1000L;
+    private static final long SAVE_THROTTLE_MILLIS = 100L;
 
     private static final Map<String, World> LOADED_WORLDS = new ConcurrentHashMap<>();
     private static final Map<String, Long> LAST_SAVE_ATTEMPT_MILLIS = new ConcurrentHashMap<>();

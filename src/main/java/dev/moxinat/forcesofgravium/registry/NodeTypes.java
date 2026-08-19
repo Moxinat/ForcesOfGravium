@@ -100,7 +100,7 @@ public final class NodeTypes {
             SignalState.OFF,
             false,
             false,
-            false,
+            true,
             0,
             0L
     );
@@ -117,7 +117,7 @@ public final class NodeTypes {
             SignalState.OFF,
             false,
             false,
-            false,
+            true,
             0,
             0L
     );

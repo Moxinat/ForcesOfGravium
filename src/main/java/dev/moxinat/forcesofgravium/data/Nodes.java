@@ -185,7 +185,7 @@ public final class Nodes {
         }
 
         public boolean canOutputSignalTo(int localSide) {
-            return (signalOutputSides & localSide) != 0;
+            return passing && (signalOutputSides & localSide) != 0;
         }
 
         public boolean canReceiveControlFrom(int localSide) {
