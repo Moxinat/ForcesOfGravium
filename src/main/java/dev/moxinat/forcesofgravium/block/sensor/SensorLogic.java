@@ -5,7 +5,11 @@ import com.hypixel.hytale.builtin.triggervolumes.TriggerVolumesPlugin;
 import com.hypixel.hytale.builtin.triggervolumes.manager.TriggerVolumeManager;
 import com.hypixel.hytale.builtin.triggervolumes.manager.VolumeEntry;
 import com.hypixel.hytale.builtin.triggervolumes.shape.BoxShape;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.SensorSnapshots;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
@@ -174,6 +178,41 @@ public final class SensorLogic {
                         ConnectableRegistry.SIDE_FRONT
                 );
 
+        Ref<ChunkStore> chunkRef =
+                world.getChunkStore().getChunkSectionReferenceAtBlock(
+                        observedPosition.x(),
+                        observedPosition.y(),
+                        observedPosition.z()
+                );
+
+        String blockId = "";
+
+        if (chunkRef != null) {
+            BlockChunk blockChunk =
+                    world.getChunkStore()
+                            .getStore()
+                            .getComponent(
+                                    chunkRef,
+                                    BlockChunk.getComponentType()
+                            );
+
+            if (blockChunk != null) {
+                int numericBlockId =
+                        blockChunk.getBlock(
+                                observedPosition.x(),
+                                observedPosition.y(),
+                                observedPosition.z()
+                        );
+
+                BlockType blockType =
+                        BlockType.getAssetMap().getAsset(numericBlockId);
+
+                if (blockType != null) {
+                    blockId = blockType.getId();
+                }
+            }
+        }
+
         Nodes.Node observedNode =
                 Nodes.get(world, observedPosition);
 
@@ -188,7 +227,7 @@ public final class SensorLogic {
                 );
 
         return new SensorSnapshots.SensorSnapshot(
-                "",          // blockId später
+                blockId,
                 nodeSnapshot,
                 null,        // containerItemCount später
                 0,           // entityCount später
