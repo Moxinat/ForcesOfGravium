@@ -6,6 +6,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
+import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualRefreshScheduler;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
@@ -220,6 +221,13 @@ public final class ConnectableBlockLifecycleSystem {
 
             if (brokenNode == null) {
                 return;
+            }
+
+            if (NodeTypes.GRAVIUM_SENSOR.blockId().equals(brokenNode.blockId())) {
+                SensorLogic.handleBroken(
+                        world,
+                        target
+                );
             }
 
             // -------------------------

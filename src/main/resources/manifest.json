@@ -12,7 +12,8 @@
     "DisabledByDefault": false,
     "IncludesAssetPack": true,
     "Dependencies": {
-        "Hytale:EntityModule": "*"
+        "Hytale:EntityModule": "*",
+        "Hytale:TriggerVolumes": "*"
     },
     "OptionalDependencies": {},
     "ServerVersion": "0.5.0",
