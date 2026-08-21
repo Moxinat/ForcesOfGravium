@@ -40,6 +40,7 @@
       "Definitions": {
         "Off": {
           "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
+          "CustomAnimation": "Blocks/Gravium_Sensor/Push_Close.blockyanim",
           "CustomModelTexture": [
             {
               "Texture": "BlockTextures/Sensor_Block_Off.png",
@@ -50,7 +51,7 @@
 
         "Push": {
           "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
-          "CustomModelAnimation": "Blocks/Gravium_Sensor/Sensor_Block.blockyanim",
+          "CustomModelAnimation": "Blocks/Gravium_Sensor/Push_Open.blockyanim",
           "CustomModelTexture": [
             {
               "Texture": "BlockTextures/Sensor_Block_Push.png",
@@ -61,7 +62,7 @@
 
         "Pull": {
           "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
-          "CustomModelAnimation": "Blocks/Gravium_Sensor/Sensor_Block.blockyanim",
+          "CustomModelAnimation": "Blocks/Gravium_Sensor/Pull_Open.blockyanim",
           "CustomModelTexture": [
             {
               "Texture": "BlockTextures/Sensor_Block_Pull.png",
