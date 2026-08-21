@@ -97,6 +97,10 @@ public final class SensorLogic {
                 CURRENT_PENDING_COMPARE.remove(world);
 
         if (current != null) {
+            System.out.println(
+                    "[SENSOR] PROCESS CURRENT " + current
+            );
+
             for (Vector3i position : current) {
                 compareSnapshotNow(
                         world,
@@ -109,6 +113,10 @@ public final class SensorLogic {
                 NEXT_PENDING_COMPARE.remove(world);
 
         if (next != null && !next.isEmpty()) {
+            System.out.println(
+                    "[SENSOR] PROMOTE NEXT -> CURRENT " + next
+            );
+
             CURRENT_PENDING_COMPARE.put(
                     world,
                     next
@@ -160,44 +168,22 @@ public final class SensorLogic {
                         ConnectableRegistry.SIDE_BACK
                 );
 
-        Ref<ChunkStore> chunkRef =
-                world.getChunkStore().getChunkSectionReferenceAtBlock(
+        BlockType blockType =
+                world.getBlockType(
                         observedPosition.x(),
                         observedPosition.y(),
                         observedPosition.z()
                 );
 
-        String blockId = "";
+        String blockStateId =
+                blockType == null
+                        ? ""
+                        : blockType.getId();
 
-        String blockStateId = "";
+        String blockId =
+                rawBlockId(blockStateId);
 
-        if (chunkRef != null) {
-            BlockChunk blockChunk =
-                    world.getChunkStore()
-                            .getStore()
-                            .getComponent(
-                                    chunkRef,
-                                    BlockChunk.getComponentType()
-                            );
 
-            if (blockChunk != null) {
-                int numericBlockId =
-                        blockChunk.getBlock(
-                                observedPosition.x(),
-                                observedPosition.y(),
-                                observedPosition.z()
-                        );
-
-                BlockType blockType =
-                        BlockType.getAssetMap().getAsset(numericBlockId);
-
-                if (blockType != null){
-                    blockStateId = blockType.getId();
-                }
-
-                blockId = rawBlockId(blockStateId);
-            }
-        }
 
         Nodes.Node observedNode =
                 Nodes.get(world, observedPosition);
@@ -227,6 +213,10 @@ public final class SensorLogic {
             World world,
             Vector3i sensorPosition
     ) {
+        System.out.println(
+                "[SENSOR] QUEUED NEXT " + sensorPosition
+        );
+
         NEXT_PENDING_COMPARE
                 .computeIfAbsent(
                         world,
@@ -239,11 +229,20 @@ public final class SensorLogic {
             World world,
             Vector3i sensorPosition
     ) {
+        System.out.println(
+                "[SENSOR] COMPARE NOW " + sensorPosition
+        );
+
         Nodes.Node sensor = Nodes.get(world, sensorPosition);
+
+        System.out.println(
+                "[SENSOR] sensorNode=" + sensor
+        );
 
         if (sensor == null
                 || !NodeTypes.GRAVIUM_SENSOR.blockId().equals(sensor.blockId())
                 || sensor.effectiveState() != SignalState.PUSH) {
+            System.out.println("[SENSOR] ABORT sensor=nul or wrong blockid or state");
             return;
         }
 
@@ -252,6 +251,9 @@ public final class SensorLogic {
 
         SensorSnapshots.SensorSnapshot newSnapshot =
                 captureSnapshot(world, sensorPosition);
+
+        System.out.println("[SENSOR] OLD=" + oldSnapshot);
+        System.out.println("[SENSOR] NEW=" + newSnapshot);
 
         if (oldSnapshot == null) {
             SensorSnapshots.put(
@@ -301,6 +303,11 @@ public final class SensorLogic {
             World world,
             Vector3i observedPosition
     ) {
+
+        System.out.println(
+                "[SENSOR] searching observers of " + observedPosition
+        );
+
         for (Vector3i neighbor :
                 ConnectableNeighborResolver.positionsAround(observedPosition)) {
 
@@ -310,6 +317,11 @@ public final class SensorLogic {
 
             Nodes.Node possibleSensor =
                     Nodes.get(world, neighbor);
+
+            System.out.println(
+                    "[SENSOR] neighbor=" + neighbor
+                            + " node=" + possibleSensor
+            );
 
             if (possibleSensor == null
                     || !NodeTypes.GRAVIUM_SENSOR.blockId()
@@ -324,7 +336,18 @@ public final class SensorLogic {
                             ConnectableRegistry.SIDE_BACK
                     );
 
+            System.out.println(
+                    "[SENSOR] FOUND SENSOR at=" + neighbor
+                            + " sensor observes=" + sensorObservedPosition
+                            + " expected=" + observedPosition
+            );
+
             if (sensorObservedPosition.equals(observedPosition)) {
+
+                System.out.println(
+                        "[SENSOR] MATCH -> queue compare " + neighbor
+                );
+
                 compareSnapshot(
                         world,
                         neighbor
@@ -555,24 +578,29 @@ public final class SensorLogic {
         public void execute(
                 @Nonnull TriggerContext context
         ) {
-            Vector3d blockPosition =
-                    context.getBlockPosition();
 
-            if (blockPosition == null) {
-                return;
-            }
+            System.out.println("[SENSOR] EFFECT FIRED event=" + context.getEventType());
 
             World world =
                     context.getStore()
                             .getExternalData()
                             .getWorld();
 
+            System.out.println("[SENSOR] world=" + world.getName());
+
+            Vector3d volumePosition =
+                    context.getVolume().getPosition();
+
+            System.out.println("[SENSOR] volumePosition=" + volumePosition);
+
             Vector3i position =
                     new Vector3i(
-                            (int) Math.floor(blockPosition.x()),
-                            (int) Math.floor(blockPosition.y()),
-                            (int) Math.floor(blockPosition.z())
+                            (int) Math.floor(volumePosition.x()),
+                            (int) Math.floor(volumePosition.y()),
+                            (int) Math.floor(volumePosition.z())
                     );
+
+            System.out.println("[SENSOR] derived observedPosition=" + position);
 
             SensorLogic.compareSensorsObserving(
                     world,
