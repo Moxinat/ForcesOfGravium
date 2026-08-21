@@ -248,7 +248,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
                 ConnectableNeighborResolver.adjacentPositionForLocalSide(
                         world,
                         position,
-                        ConnectableRegistry.SIDE_FRONT
+                        ConnectableRegistry.SIDE_BACK
                 );
 
         context.sendMessage(

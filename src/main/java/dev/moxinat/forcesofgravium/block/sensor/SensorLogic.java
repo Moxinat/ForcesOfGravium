@@ -21,6 +21,11 @@ import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
+import com.hypixel.hytale.builtin.triggervolumes.effect.TriggerContext;
+import com.hypixel.hytale.builtin.triggervolumes.effect.TriggerEffect;
+import com.hypixel.hytale.builtin.triggervolumes.effect.TriggerEventType;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import javax.annotation.Nonnull;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -73,8 +78,6 @@ public final class SensorLogic {
             }
 
             case PUSH -> {
-                SensorSnapshots.SensorSnapshot oldSnapshot =
-                        SensorSnapshots.get(world, position);
 
                 registerTriggerVolume(world, position);
 
@@ -384,12 +387,29 @@ public final class SensorLogic {
                 new Vector3d(0.5, 1.0, 0.5)
         );
 
+        SensorBlockChangeEffect blockPlacedEffect =
+                new SensorBlockChangeEffect();
+
+        blockPlacedEffect.setEventType(
+                TriggerEventType.BLOCK_PLACED
+        );
+
+        SensorBlockChangeEffect blockBrokenEffect =
+                new SensorBlockChangeEffect();
+
+        blockBrokenEffect.setEventType(
+                TriggerEventType.BLOCK_BROKEN
+        );
+
         VolumeEntry volume = new VolumeEntry(
                 volumeId,
                 world.getName(),
                 volumePosition,
                 shape,
-                List.of(),
+                List.of(
+                        blockPlacedEffect,
+                        blockBrokenEffect
+                ),
                 EnumSet.of(
                         EntityTargetType.PLAYER,
                         EntityTargetType.NPC,
@@ -519,5 +539,53 @@ public final class SensorLogic {
                     forwardNeighbor
             );
         }
+    }
+
+    public static final class SensorBlockChangeEffect
+            extends TriggerEffect {
+
+        public static final BuilderCodec<SensorBlockChangeEffect> CODEC =
+                BuilderCodec.builder(
+                        SensorBlockChangeEffect.class,
+                        SensorBlockChangeEffect::new,
+                        TriggerEffect.BASE_CODEC
+                ).build();
+
+        @Override
+        public void execute(
+                @Nonnull TriggerContext context
+        ) {
+            Vector3d blockPosition =
+                    context.getBlockPosition();
+
+            if (blockPosition == null) {
+                return;
+            }
+
+            World world =
+                    context.getStore()
+                            .getExternalData()
+                            .getWorld();
+
+            Vector3i position =
+                    new Vector3i(
+                            (int) Math.floor(blockPosition.x()),
+                            (int) Math.floor(blockPosition.y()),
+                            (int) Math.floor(blockPosition.z())
+                    );
+
+            SensorLogic.compareSensorsObserving(
+                    world,
+                    position
+            );
+        }
+    }
+
+    public static void registerTriggerEffects() {
+        TriggerVolumesPlugin.get().registerEffectType(
+                "FoGSensorBlockChange",
+                SensorBlockChangeEffect.class,
+                SensorBlockChangeEffect.CODEC
+        );
     }
 }
