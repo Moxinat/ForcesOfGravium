@@ -22,10 +22,7 @@ import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
 
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class SensorLogic {
@@ -33,10 +30,10 @@ public final class SensorLogic {
     private SensorLogic() {
     }
 
-    private static final Map<World, Set<Vector3i>> CURRENT_PENDING_PUSH =
+    private static final Map<World, Set<Vector3i>> CURRENT_PENDING_COMPARE =
             new ConcurrentHashMap<>();
 
-    private static final Map<World, Set<Vector3i>> NEXT_PENDING_PUSH =
+    private static final Map<World, Set<Vector3i>> NEXT_PENDING_COMPARE =
             new ConcurrentHashMap<>();
 
     public static void handleStateChange(
@@ -81,56 +78,38 @@ public final class SensorLogic {
 
                 registerTriggerVolume(world, position);
 
-                if (oldSnapshot == null) {
-                    NEXT_PENDING_PUSH
-                            .computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet())
-                            .add(new Vector3i(position));
-                    return;
-                }
+                NEXT_PENDING_COMPARE
+                        .computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet())
+                        .add(new Vector3i(position));
             }
 
             case PULL -> {
-                unregisterTriggerVolume(world, position);
             }
         }
     }
 
     public static void tickWorld(World world) {
-        Set<Vector3i> current = CURRENT_PENDING_PUSH.remove(world);
+
+        Set<Vector3i> current =
+                CURRENT_PENDING_COMPARE.remove(world);
 
         if (current != null) {
             for (Vector3i position : current) {
-                Nodes.Node sensor = Nodes.get(world, position);
-
-                if (sensor == null
-                        || !NodeTypes.GRAVIUM_SENSOR.blockId().equals(sensor.blockId())
-                        || sensor.effectiveState() != SignalState.PUSH) {
-                    continue;
-                }
-
-                SensorSnapshots.SensorSnapshot oldSnapshot =
-                        SensorSnapshots.get(world, position);
-
-                SensorSnapshots.SensorSnapshot newSnapshot =
-                        captureSnapshot(world, position);
-
-                if (oldSnapshot != null
-                        && !oldSnapshot.equals(newSnapshot)) {
-                    handleSnapshotChanged(world, position);
-                }
-
-                SensorSnapshots.put(
+                compareSnapshotNow(
                         world,
-                        position,
-                        newSnapshot
+                        position
                 );
             }
         }
 
-        Set<Vector3i> next = NEXT_PENDING_PUSH.remove(world);
+        Set<Vector3i> next =
+                NEXT_PENDING_COMPARE.remove(world);
 
         if (next != null && !next.isEmpty()) {
-            CURRENT_PENDING_PUSH.put(world, next);
+            CURRENT_PENDING_COMPARE.put(
+                    world,
+                    next
+            );
         }
     }
 
@@ -175,7 +154,7 @@ public final class SensorLogic {
                 ConnectableNeighborResolver.adjacentPositionForLocalSide(
                         world,
                         sensorPosition,
-                        ConnectableRegistry.SIDE_FRONT
+                        ConnectableRegistry.SIDE_BACK
                 );
 
         Ref<ChunkStore> chunkRef =
@@ -186,6 +165,8 @@ public final class SensorLogic {
                 );
 
         String blockId = "";
+
+        String blockStateId = "";
 
         if (chunkRef != null) {
             BlockChunk blockChunk =
@@ -207,9 +188,11 @@ public final class SensorLogic {
                 BlockType blockType =
                         BlockType.getAssetMap().getAsset(numericBlockId);
 
-                if (blockType != null) {
-                    blockId = blockType.getId();
+                if (blockType != null){
+                    blockStateId = blockType.getId();
                 }
+
+                blockId = rawBlockId(blockStateId);
             }
         }
 
@@ -228,11 +211,146 @@ public final class SensorLogic {
 
         return new SensorSnapshots.SensorSnapshot(
                 blockId,
+                blockStateId,
+                false,
                 nodeSnapshot,
                 null,        // containerItemCount später
                 0,           // entityCount später
                 false        // playerPresent später
         );
+    }
+
+    public static void compareSnapshot(
+            World world,
+            Vector3i sensorPosition
+    ) {
+        NEXT_PENDING_COMPARE
+                .computeIfAbsent(
+                        world,
+                        ignored -> ConcurrentHashMap.newKeySet()
+                )
+                .add(new Vector3i(sensorPosition));
+    }
+
+    public static void compareSnapshotNow(
+            World world,
+            Vector3i sensorPosition
+    ) {
+        Nodes.Node sensor = Nodes.get(world, sensorPosition);
+
+        if (sensor == null
+                || !NodeTypes.GRAVIUM_SENSOR.blockId().equals(sensor.blockId())
+                || sensor.effectiveState() != SignalState.PUSH) {
+            return;
+        }
+
+        SensorSnapshots.SensorSnapshot oldSnapshot =
+                SensorSnapshots.get(world, sensorPosition);
+
+        SensorSnapshots.SensorSnapshot newSnapshot =
+                captureSnapshot(world, sensorPosition);
+
+        if (oldSnapshot == null) {
+            SensorSnapshots.put(
+                    world,
+                    sensorPosition,
+                    newSnapshot
+            );
+            return;
+        }
+
+        boolean changed =
+                !oldSnapshot.blockId().equals(newSnapshot.blockId())
+                        || !Objects.equals(
+                        oldSnapshot.node(),
+                        newSnapshot.node()
+                )
+                        || !Objects.equals(
+                        oldSnapshot.containerItemCount(),
+                        newSnapshot.containerItemCount()
+                )
+                        || oldSnapshot.entityCount() != newSnapshot.entityCount()
+                        || oldSnapshot.playerPresent() != newSnapshot.playerPresent();
+
+        // später zusätzlich:
+        //
+        // || (
+        //      oldSnapshot.blockUsed()
+        //      && !oldSnapshot.blockStateId()
+        //              .equals(newSnapshot.blockStateId())
+        // )
+
+        if (changed) {
+            handleSnapshotChanged(
+                    world,
+                    sensorPosition
+            );
+        }
+
+        SensorSnapshots.put(
+                world,
+                sensorPosition,
+                newSnapshot
+        );
+    }
+
+    public static void compareSensorsObserving(
+            World world,
+            Vector3i observedPosition
+    ) {
+        for (Vector3i neighbor :
+                ConnectableNeighborResolver.positionsAround(observedPosition)) {
+
+            if (neighbor.equals(observedPosition)) {
+                continue;
+            }
+
+            Nodes.Node possibleSensor =
+                    Nodes.get(world, neighbor);
+
+            if (possibleSensor == null
+                    || !NodeTypes.GRAVIUM_SENSOR.blockId()
+                    .equals(possibleSensor.blockId())) {
+                continue;
+            }
+
+            Vector3i sensorObservedPosition =
+                    ConnectableNeighborResolver.adjacentPositionForLocalSide(
+                            world,
+                            neighbor,
+                            ConnectableRegistry.SIDE_BACK
+                    );
+
+            if (sensorObservedPosition.equals(observedPosition)) {
+                compareSnapshot(
+                        world,
+                        neighbor
+                );
+            }
+        }
+    }
+
+    private static String rawBlockId(String blockId) {
+        BlockType blockType =
+                BlockType.getAssetMap().getAsset(blockId);
+
+        if (blockType == null || !blockType.isState()) {
+            return blockId;
+        }
+
+        for (BlockType candidate :
+                BlockType.getAssetMap().getAssetMap().values()) {
+
+            if (candidate.isState()) {
+                continue;
+            }
+
+            if (candidate.getStateForBlock(blockId) != null) {
+                return candidate.getId();
+            }
+        }
+
+        return blockId;
     }
 
     private static void registerTriggerVolume(
@@ -336,12 +454,12 @@ public final class SensorLogic {
                 position
         );
 
-        Set<Vector3i> current = CURRENT_PENDING_PUSH.get(world);
+        Set<Vector3i> current = CURRENT_PENDING_COMPARE.get(world);
         if (current != null) {
             current.remove(position);
         }
 
-        Set<Vector3i> next = NEXT_PENDING_PUSH.get(world);
+        Set<Vector3i> next = NEXT_PENDING_COMPARE.get(world);
         if (next != null) {
             next.remove(position);
         }

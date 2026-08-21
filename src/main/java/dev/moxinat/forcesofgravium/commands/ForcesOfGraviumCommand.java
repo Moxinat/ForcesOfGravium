@@ -12,7 +12,10 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.data.Nodes;
+import dev.moxinat.forcesofgravium.data.SensorSnapshots;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
 
@@ -47,6 +50,9 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         }
         if (args.length - i >= 2 && "rotation".equalsIgnoreCase(args[i])) {
             return handleDebug(context, args, i, false);
+        }
+        if (args.length - i >= 2 && "sensor".equalsIgnoreCase(args[i])) {
+            return handleSensorDebug(context, args, i);
         }
 
         context.sendMessage(Message.raw("Usage: /fog node here|under|<x y z> | /fog rotation here|under|<x y z> | /fog saveinfo | /fog saveworld"));
@@ -102,6 +108,62 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         return future;
     }
 
+    private CompletableFuture<Void> handleSensorDebug(
+            CommandContext context,
+            String[] args,
+            int i
+    ) {
+        PlayerCommandState state = playerState(context);
+
+        if (state == null) {
+            context.sendMessage(
+                    Message.raw("This command requires a player sender.")
+            );
+            return CompletableFuture.completedFuture(null);
+        }
+
+        Supplier<Vector3i> target =
+                resolveTarget(
+                        context,
+                        state.ref(),
+                        args,
+                        i,
+                        "sensor"
+                );
+
+        if (target == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        CompletableFuture<Void> future =
+                new CompletableFuture<>();
+
+        state.world().execute(() -> {
+            try {
+                Vector3i position = target.get();
+
+                sendSensorDebug(
+                        context,
+                        state.world(),
+                        position
+                );
+            } catch (Exception exception) {
+                context.sendMessage(
+                        Message.raw(
+                                "Sensor debug failed: "
+                                        + exception.getClass().getSimpleName()
+                                        + ": "
+                                        + exception.getMessage()
+                        )
+                );
+            } finally {
+                future.complete(null);
+            }
+        });
+
+        return future;
+    }
+
     private @Nullable Supplier<Vector3i> resolveTarget(CommandContext context, Ref<EntityStore> ref, String[] args, int i, String name) {
         String target = args[i + 1];
         if ("here".equalsIgnoreCase(target)) return () -> playerBlockPosition(ref);
@@ -144,6 +206,109 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         context.sendMessage(Message.raw("Rotation debug at " + formatPosition(p)));
         context.sendMessage(Message.raw("block=" + (block != null ? block.getId() : "null")));
         context.sendMessage(Message.raw("storedRotation=" + stored));
+    }
+
+    private void sendSensorDebug(
+            CommandContext context,
+            World world,
+            Vector3i position
+    ) {
+        Nodes.Node sensor =
+                Nodes.get(world, position);
+
+        if (sensor == null) {
+            context.sendMessage(
+                    Message.raw(
+                            "No FoG node at "
+                                    + formatPosition(position)
+                    )
+            );
+            return;
+        }
+
+        context.sendMessage(
+                Message.raw(
+                        "Sensor at "
+                                + formatPosition(position)
+                )
+        );
+
+        context.sendMessage(
+                Message.raw(
+                        "effectiveState="
+                                + sensor.effectiveState()
+                                + " invertEnabled="
+                                + sensor.invertEnabled()
+                                + " passing="
+                                + sensor.passing()
+                )
+        );
+
+        Vector3i observedPosition =
+                ConnectableNeighborResolver.adjacentPositionForLocalSide(
+                        world,
+                        position,
+                        ConnectableRegistry.SIDE_FRONT
+                );
+
+        context.sendMessage(
+                Message.raw(
+                        "observing="
+                                + formatPosition(observedPosition)
+                )
+        );
+
+        Nodes.Node observedNode =
+                Nodes.get(world, observedPosition);
+
+        context.sendMessage(
+                Message.raw(
+                        "currentObservedNode="
+                                + observedNode
+                )
+        );
+
+        SensorSnapshots.SensorSnapshot snapshot =
+                SensorSnapshots.get(
+                        world,
+                        position
+                );
+
+        if (snapshot == null) {
+            context.sendMessage(
+                    Message.raw("snapshot=null")
+            );
+            return;
+        }
+
+        context.sendMessage(
+                Message.raw(
+                        "snapshot blockId="
+                                + snapshot.blockId()
+                                + " blockStateId="
+                                + snapshot.blockStateId()
+                                + " blockUsed="
+                                + snapshot.blockUsed()
+                )
+        );
+
+        context.sendMessage(
+                Message.raw(
+                        "snapshot node="
+                                + snapshot.node()
+                )
+        );
+
+        context.sendMessage(
+                Message.raw(
+                        "containerItemCount="
+                                + snapshot.containerItemCount()
+                                + " entityCount="
+                                + snapshot.entityCount()
+                                + " playerPresent="
+                                + snapshot.playerPresent()
+                )
+        );
     }
 
     private static Vector3i playerBlockPosition(Ref<EntityStore> ref) {

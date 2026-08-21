@@ -2,6 +2,7 @@ package dev.moxinat.forcesofgravium.dispatcher;
 
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.inverter.InverterStateCalculator;
+import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
@@ -95,6 +96,11 @@ public final class NodeControlDispatcher {
             default -> {
             }
         }
+
+        SensorLogic.compareSensorsObserving(
+                world,
+                targetPosition
+        );
 
         ConnectableVisualDispatcher.refreshAt(
                 world,

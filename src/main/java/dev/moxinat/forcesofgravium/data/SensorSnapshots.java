@@ -58,6 +58,8 @@ public final class SensorSnapshots {
 
     public record SensorSnapshot(
             @Nonnull String blockId,
+            String blockStateId,
+            boolean blockUsed,
             @Nullable NodeSnapshot node,
             @Nullable Integer containerItemCount,
             int entityCount,
