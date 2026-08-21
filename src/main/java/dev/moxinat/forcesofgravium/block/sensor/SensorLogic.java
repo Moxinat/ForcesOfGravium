@@ -182,7 +182,44 @@ public final class SensorLogic {
         String blockId =
                 rawBlockId(blockStateId);
 
+        TriggerVolumeManager manager =
+                world.getEntityStore()
+                        .getStore()
+                        .getResource(
+                                TriggerVolumesPlugin.get()
+                                        .getManagerResourceType()
+                        );
 
+        VolumeEntry volume =
+                manager.getVolume(
+                        triggerVolumeId(sensorPosition)
+                );
+
+        int entityCount = 0;
+        boolean playerPresent = false;
+
+        if (volume != null) {
+            var trackedEntities =
+                    volume.getTrackedEntities();
+
+            entityCount =
+                    trackedEntities.size();
+
+            Store<EntityStore> store =
+                    world.getEntityStore().getStore();
+
+            for (var entityRef : trackedEntities.values()) {
+
+                if (store.getComponent(
+                        entityRef,
+                        Player.getComponentType()
+                ) != null) {
+
+                    playerPresent = true;
+                    break;
+                }
+            }
+        }
 
         Nodes.Node observedNode =
                 Nodes.get(world, observedPosition);
@@ -203,8 +240,8 @@ public final class SensorLogic {
                 false,
                 nodeSnapshot,
                 null,        // containerItemCount später
-                0,           // entityCount später
-                false        // playerPresent später
+                entityCount,
+                playerPresent
         );
     }
 
@@ -381,6 +418,21 @@ public final class SensorLogic {
         blockBrokenEffect.setEventType(
                 TriggerEventType.BLOCK_BROKEN
         );
+
+        SensorBlockChangeEffect entityEnterEffect =
+                new SensorBlockChangeEffect();
+
+        entityEnterEffect.setEventType(
+                TriggerEventType.ENTER
+        );
+
+        SensorBlockChangeEffect entityExitEffect =
+                new SensorBlockChangeEffect();
+
+        entityExitEffect.setEventType(
+                TriggerEventType.EXIT
+        );
+
 /*
         SensorBlockUsedEffect blockUsedEffect =
                 new SensorBlockUsedEffect();
@@ -398,7 +450,9 @@ public final class SensorLogic {
                 shape,
                 List.of(
                         blockPlacedEffect,
-                        blockBrokenEffect
+                        blockBrokenEffect,
+                        entityEnterEffect,
+                        entityExitEffect
                 ),
                 EnumSet.of(
                         EntityTargetType.PLAYER,
