@@ -2,7 +2,7 @@ repositories {
     // Any external repositories besides: MavenLocal, MavenCentral, HytaleMaven, and CurseMaven
 }
 
-val hytaleServerVersion = "0.5.7"
+val hytaleServerVersion = "0.5.9"
 
 configurations.configureEach {
     resolutionStrategy.force("com.hypixel.hytale:Server:$hytaleServerVersion")

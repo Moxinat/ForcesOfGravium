@@ -5,11 +5,16 @@ import com.hypixel.hytale.builtin.triggervolumes.TriggerVolumesPlugin;
 import com.hypixel.hytale.builtin.triggervolumes.manager.TriggerVolumeManager;
 import com.hypixel.hytale.builtin.triggervolumes.manager.VolumeEntry;
 import com.hypixel.hytale.builtin.triggervolumes.shape.BoxShape;
-import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.ArchetypeChunk;
+import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.query.Query;
+import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
-import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.SensorSnapshots;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
@@ -253,15 +258,9 @@ public final class SensorLogic {
                         newSnapshot.containerItemCount()
                 )
                         || oldSnapshot.entityCount() != newSnapshot.entityCount()
-                        || oldSnapshot.playerPresent() != newSnapshot.playerPresent();
-
-        // später zusätzlich:
-        //
-        // || (
-        //      oldSnapshot.blockUsed()
-        //      && !oldSnapshot.blockStateId()
-        //              .equals(newSnapshot.blockStateId())
-        // )
+                        || oldSnapshot.playerPresent() != newSnapshot.playerPresent()
+                        || (oldSnapshot.blockUsed() && !oldSnapshot.blockStateId()
+                            .equals(newSnapshot.blockStateId()));
 
         if (changed) {
             handleSnapshotChanged(
@@ -382,6 +381,15 @@ public final class SensorLogic {
         blockBrokenEffect.setEventType(
                 TriggerEventType.BLOCK_BROKEN
         );
+/*
+        SensorBlockUsedEffect blockUsedEffect =
+                new SensorBlockUsedEffect();
+
+        blockUsedEffect.setEventType(
+                TriggerEventType.BLOCK_USED
+        );
+
+ */
 
         VolumeEntry volume = new VolumeEntry(
                 volumeId,
@@ -443,6 +451,67 @@ public final class SensorLogic {
         encoded.reverse();
 
         return (value < 0 ? "n" : "p") + encoded;
+    }
+
+    public static void handleBlockUsed(
+            World world,
+            Vector3i observedPosition
+    ) {
+        for (Vector3i neighbor :
+                ConnectableNeighborResolver.positionsAround(observedPosition)) {
+
+            if (neighbor.equals(observedPosition)) {
+                continue;
+            }
+
+            Nodes.Node sensor =
+                    Nodes.get(world, neighbor);
+
+            if (sensor == null
+                    || !NodeTypes.GRAVIUM_SENSOR.blockId()
+                    .equals(sensor.blockId())) {
+                continue;
+            }
+
+            Vector3i sensorObservedPosition =
+                    ConnectableNeighborResolver.adjacentPositionForLocalSide(
+                            world,
+                            neighbor,
+                            ConnectableRegistry.SIDE_BACK
+                    );
+
+            if (!sensorObservedPosition.equals(observedPosition)) {
+                continue;
+            }
+
+            SensorSnapshots.SensorSnapshot snapshot =
+                    SensorSnapshots.get(world, neighbor);
+
+            if (snapshot == null) {
+                continue;
+            }
+
+            SensorSnapshots.put(
+                    world,
+                    neighbor,
+                    new SensorSnapshots.SensorSnapshot(
+                            snapshot.blockId(),
+                            snapshot.blockStateId(),
+                            true,
+                            snapshot.node(),
+                            snapshot.containerItemCount(),
+                            snapshot.entityCount(),
+                            snapshot.playerPresent()
+                    )
+            );
+
+            if (sensor.effectiveState() == SignalState.PUSH) {
+                compareSnapshot(
+                        world,
+                        neighbor
+                );
+            }
+        }
     }
 
     public static void handleBroken(
@@ -560,11 +629,87 @@ public final class SensorLogic {
         }
     }
 
+    public static final class SensorBlockUsedEffect
+            extends TriggerEffect {
+
+        public static final BuilderCodec<SensorBlockUsedEffect> CODEC =
+                BuilderCodec.builder(
+                        SensorBlockUsedEffect.class,
+                        SensorBlockUsedEffect::new,
+                        TriggerEffect.BASE_CODEC
+                ).build();
+
+        @Override
+        public void execute(
+                @Nonnull TriggerContext context
+        ) {
+            World world =
+                    context.getStore()
+                            .getExternalData()
+                            .getWorld();
+
+            Vector3d volumePosition =
+                    context.getVolume().getPosition();
+
+            Vector3i observedPosition =
+                    new Vector3i(
+                            (int) Math.floor(volumePosition.x()),
+                            (int) Math.floor(volumePosition.y()),
+                            (int) Math.floor(volumePosition.z())
+                    );
+
+            SensorLogic.handleBlockUsed(
+                    world,
+                    observedPosition
+            );
+        }
+    }
+
     public static void registerTriggerEffects() {
         TriggerVolumesPlugin.get().registerEffectType(
                 "FoGSensorBlockChange",
                 SensorBlockChangeEffect.class,
                 SensorBlockChangeEffect.CODEC
         );
+
+        TriggerVolumesPlugin.get().registerEffectType(
+                "FoGSensorBlockUsed",
+                SensorBlockUsedEffect.class,
+                SensorBlockUsedEffect.CODEC
+        );
+    }
+
+    //temp until trigger volumes can handle block use in update 6
+    public static final class BlockUseSystem
+            extends EntityEventSystem<EntityStore, UseBlockEvent.Post> {
+
+        public BlockUseSystem() {
+            super(UseBlockEvent.Post.class);
+        }
+
+        @Override
+        public @Nonnull Query<EntityStore> getQuery() {
+            return Player.getComponentType();
+        }
+
+        @Override
+        public void handle(
+                int index,
+                @Nonnull ArchetypeChunk<EntityStore> chunk,
+                @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer,
+                @Nonnull UseBlockEvent.Post event
+        ) {
+            World world =
+                    store.getExternalData().getWorld();
+
+            Vector3i observedPosition =
+                    new Vector3i(event.getTargetBlock());
+
+            handleBlockUsed(
+                    world,
+                    observedPosition
+            );
+        }
     }
 }

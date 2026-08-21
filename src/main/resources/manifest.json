@@ -16,6 +16,6 @@
         "Hytale:TriggerVolumes": "*"
     },
     "OptionalDependencies": {},
-    "ServerVersion": "0.5.0",
+    "ServerVersion": "0.5.9",
     "Main": "dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin"
 }
