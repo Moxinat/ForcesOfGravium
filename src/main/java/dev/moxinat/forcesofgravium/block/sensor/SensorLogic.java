@@ -13,8 +13,12 @@ import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
+import com.hypixel.hytale.server.core.modules.block.components.ItemContainerBlock;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.SensorSnapshots;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
@@ -182,6 +186,35 @@ public final class SensorLogic {
         String blockId =
                 rawBlockId(blockStateId);
 
+        Integer containerItemCount = null;
+        ItemContainerBlock itemContainerBlock =
+                GraviumSiphonLogic.itemContainerBlockAt(
+                        world,
+                        observedPosition
+                );
+
+        if (itemContainerBlock != null) {
+            ItemContainer itemContainer =
+                    itemContainerBlock.getItemContainer();
+
+            if (itemContainer != null) {
+                int itemCount = 0;
+
+                for (short slot = 0;
+                     slot < itemContainer.getCapacity();
+                     slot++) {
+                    ItemStack stack =
+                            itemContainer.getItemStack(slot);
+
+                    if (!ItemStack.isEmpty(stack)) {
+                        itemCount += stack.getQuantity();
+                    }
+                }
+
+                containerItemCount = itemCount;
+            }
+        }
+
         TriggerVolumeManager manager =
                 world.getEntityStore()
                         .getStore()
@@ -239,7 +272,7 @@ public final class SensorLogic {
                 blockStateId,
                 false,
                 nodeSnapshot,
-                null,        // containerItemCount später
+                containerItemCount,
                 entityCount,
                 playerPresent
         );
