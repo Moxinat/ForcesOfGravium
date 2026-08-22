@@ -10,6 +10,7 @@ import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
+import com.hypixel.hytale.event.EventRegistration;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
@@ -48,6 +49,9 @@ public final class SensorLogic {
             new ConcurrentHashMap<>();
 
     private static final Map<World, Set<Vector3i>> NEXT_PENDING_COMPARE =
+            new ConcurrentHashMap<>();
+
+    private static final Map<World, Map<Vector3i, EventRegistration<?, ?>>> CONTAINER_CHANGE_LISTENERS =
             new ConcurrentHashMap<>();
 
     public static void handleStateChange(
@@ -89,6 +93,7 @@ public final class SensorLogic {
             case PUSH -> {
 
                 registerTriggerVolume(world, position);
+                refreshContainerListener(world, position);
 
                 NEXT_PENDING_COMPARE
                         .computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet())
@@ -158,6 +163,64 @@ public final class SensorLogic {
                     forwardNeighbor
             );
         }
+    }
+
+    private static void refreshContainerListener(
+            World world,
+            Vector3i sensorPosition
+    ) {
+        Map<Vector3i, EventRegistration<?, ?>> listeners =
+                CONTAINER_CHANGE_LISTENERS.computeIfAbsent(
+                        world,
+                        ignored -> new ConcurrentHashMap<>()
+                );
+
+        Vector3i sensorKey =
+                new Vector3i(sensorPosition);
+
+        EventRegistration<?, ?> previousRegistration =
+                listeners.remove(sensorKey);
+
+        if (previousRegistration != null) {
+            previousRegistration.unregister();
+        }
+
+        Vector3i observedPosition =
+                ConnectableNeighborResolver.adjacentPositionForLocalSide(
+                        world,
+                        sensorPosition,
+                        ConnectableRegistry.SIDE_BACK
+                );
+
+        ItemContainerBlock itemContainerBlock =
+                GraviumSiphonLogic.itemContainerBlockAt(
+                        world,
+                        observedPosition
+                );
+
+        if (itemContainerBlock == null) {
+            return;
+        }
+
+        ItemContainer itemContainer =
+                itemContainerBlock.getItemContainer();
+
+        if (itemContainer == null) {
+            return;
+        }
+
+        EventRegistration<?, ?> registration =
+                itemContainer.registerChangeEvent(
+                        event -> compareSnapshot(
+                                world,
+                                sensorKey
+                        )
+                );
+
+        listeners.put(
+                sensorKey,
+                registration
+        );
     }
 
     private static SensorSnapshots.SensorSnapshot captureSnapshot(
