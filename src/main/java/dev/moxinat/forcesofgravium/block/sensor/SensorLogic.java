@@ -351,8 +351,7 @@ public final class SensorLogic {
                         : new SensorSnapshots.NodeSnapshot(
                         observedNode.effectiveState(),
                         observedNode.invertEnabled(),
-                        observedNode.passing(),
-                        observedNode.energyDelta()
+                        observedNode.passing()
                 );
 
         return new SensorSnapshots.SensorSnapshot(
