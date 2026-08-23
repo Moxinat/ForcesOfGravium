@@ -99,7 +99,8 @@ public final class NodeControlDispatcher {
 
         SensorLogic.compareSensorsObserving(
                 world,
-                targetPosition
+                targetPosition,
+                false
         );
 
         ConnectableVisualDispatcher.refreshAt(
