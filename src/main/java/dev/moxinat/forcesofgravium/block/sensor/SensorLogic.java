@@ -88,6 +88,7 @@ public final class SensorLogic {
             case OFF -> {
                 SensorSnapshots.remove(world, position);
                 unregisterTriggerVolume(world, position);
+                removeContainerListener(world, position);
             }
 
             case PUSH -> {
@@ -169,6 +170,11 @@ public final class SensorLogic {
             World world,
             Vector3i sensorPosition
     ) {
+        removeContainerListener(
+                world,
+                sensorPosition
+        );
+
         Map<Vector3i, EventRegistration<?, ?>> listeners =
                 CONTAINER_CHANGE_LISTENERS.computeIfAbsent(
                         world,
@@ -177,13 +183,6 @@ public final class SensorLogic {
 
         Vector3i sensorKey =
                 new Vector3i(sensorPosition);
-
-        EventRegistration<?, ?> previousRegistration =
-                listeners.remove(sensorKey);
-
-        if (previousRegistration != null) {
-            previousRegistration.unregister();
-        }
 
         Vector3i observedPosition =
                 ConnectableNeighborResolver.adjacentPositionForLocalSide(
@@ -221,6 +220,32 @@ public final class SensorLogic {
                 sensorKey,
                 registration
         );
+    }
+
+    private static void removeContainerListener(
+            World world,
+            Vector3i sensorPosition
+    ) {
+        Map<Vector3i, EventRegistration<?, ?>> listeners =
+                CONTAINER_CHANGE_LISTENERS.get(world);
+
+        if (listeners == null) {
+            return;
+        }
+
+        EventRegistration<?, ?> registration =
+                listeners.remove(sensorPosition);
+
+        if (registration != null) {
+            registration.unregister();
+        }
+
+        if (listeners.isEmpty()) {
+            CONTAINER_CHANGE_LISTENERS.remove(
+                    world,
+                    listeners
+            );
+        }
     }
 
     private static SensorSnapshots.SensorSnapshot captureSnapshot(
@@ -669,6 +694,7 @@ public final class SensorLogic {
             Vector3i position
     ) {
         unregisterTriggerVolume(world, position);
+        removeContainerListener(world, position);
 
         SensorSnapshots.remove(
                 world,
