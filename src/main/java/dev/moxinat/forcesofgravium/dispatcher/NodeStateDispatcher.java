@@ -4,8 +4,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
-import dev.moxinat.forcesofgravium.registry.NodeTypes;
-import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -35,7 +33,8 @@ public final class NodeStateDispatcher {
 
         SensorLogic.compareSensorsObserving(
                 world,
-                position
+                position,
+                false
         );
     }
 }
