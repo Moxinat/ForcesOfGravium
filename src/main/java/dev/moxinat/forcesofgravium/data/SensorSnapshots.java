@@ -70,8 +70,7 @@ public final class SensorSnapshots {
     public record NodeSnapshot(
             @Nonnull SignalState effectiveState,
             boolean invertEnabled,
-            boolean passing,
-            int energyDelta
+            boolean passing
     ) {
     }
 
