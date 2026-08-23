@@ -436,7 +436,8 @@ public final class SensorLogic {
 
     public static void compareSensorsObserving(
             World world,
-            Vector3i observedPosition
+            Vector3i observedPosition,
+            boolean refreshContainerListeners
     ) {
 
         for (Vector3i neighbor :
@@ -463,6 +464,13 @@ public final class SensorLogic {
                     );
 
             if (sensorObservedPosition.equals(observedPosition)) {
+
+                if (refreshContainerListeners) {
+                    refreshContainerListener(
+                            world,
+                            neighbor
+                    );
+                }
 
                 compareSnapshot(
                         world,
@@ -798,9 +806,14 @@ public final class SensorLogic {
                             (int) Math.floor(volumePosition.z())
                     );
 
+            TriggerEventType eventType =
+                    context.getEventType();
+
             SensorLogic.compareSensorsObserving(
                     world,
-                    position
+                    position,
+                    eventType == TriggerEventType.BLOCK_PLACED
+                            || eventType == TriggerEventType.BLOCK_BROKEN
             );
         }
     }
