@@ -29,10 +29,6 @@ public class ForcesOfGraviumEvents {
         ));
     }
 
-    public static void onShutdown(ShutdownEvent event) {
-        WorldSaveFileService.saveLoadedWorlds();
-    }
-
     private static Message getDisplayName(Player player) {
         Ref<EntityStore> entityRef = player.getReference();
         if (entityRef != null && entityRef.isValid()) {

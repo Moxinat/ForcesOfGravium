@@ -1,7 +1,6 @@
 package dev.moxinat.forcesofgravium;
 
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
-import com.hypixel.hytale.server.core.event.events.ShutdownEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import dev.moxinat.forcesofgravium.block.button.ButtonInteractionSystem;
@@ -12,6 +11,7 @@ import dev.moxinat.forcesofgravium.block.windgen.WindGeneratorInteractionSystem;
 import dev.moxinat.forcesofgravium.commands.ForcesOfGraviumCommand;
 import dev.moxinat.forcesofgravium.lifecycle.ForcesOfGraviumEvents;
 import dev.moxinat.forcesofgravium.lifecycle.*;
+import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
 import javax.annotation.Nonnull;
 
@@ -27,7 +27,6 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
             new ForcesOfGraviumCommand("fog", "Main command for ForcesOfGravium")
         );
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ForcesOfGraviumEvents::onPlayerReady);
-        this.getEventRegistry().registerGlobal(ShutdownEvent.class, ForcesOfGraviumEvents::onShutdown);
         this.getEntityStoreRegistry().registerSystem(new ButtonInteractionSystem());
         this.getEntityStoreRegistry().registerSystem(new CurveCasedGravityPowderRotationSystem.UseSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlaceSystem());
@@ -38,5 +37,12 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.BlockUseSystem()); //temp
 
         SensorLogic.registerTriggerEffects();
+    }
+
+    @Override
+    protected void shutdown() {
+        System.out.println("[FoG] PLUGIN SHUTDOWN");
+
+        WorldSaveFileService.saveLoadedWorlds();
     }
 }

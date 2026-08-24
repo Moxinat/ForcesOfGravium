@@ -187,11 +187,6 @@ public final class WorldSaveFileService {
                     networkId
             );
         }
-
-        System.out.println(
-                "[FoG LOAD] loaded nodes="
-                        + Nodes.sizeForWorld(world)
-        );
     }
 
     private static void loadPropagation(
@@ -268,14 +263,6 @@ public final class WorldSaveFileService {
             LAST_SAVE_ATTEMPT_MILLIS.put(key, now);
 
             try {
-                System.out.println(
-                        "[FoG SAVE] world=" + world.getName()
-                                + " nodes=" + Nodes.sizeForWorld(world)
-                                + " force=" + force
-                );
-
-                Thread.dumpStack();
-
                 writeSaveFile(world, createSaveDocument(world));
                 LAST_SAVE_ERROR.remove(key);
             } catch (Exception exception) {
