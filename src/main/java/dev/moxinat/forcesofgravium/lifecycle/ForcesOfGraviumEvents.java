@@ -3,8 +3,8 @@ package dev.moxinat.forcesofgravium.lifecycle;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.event.events.ShutdownEvent;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.event.events.ShutdownEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.modules.entity.component.DisplayNameComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -27,6 +27,11 @@ public class ForcesOfGraviumEvents {
                 getDisplayName(player),
                 Message.raw(" to ForcesOfGravium.")
         ));
+    }
+
+    public static void onShutdown(ShutdownEvent event) {
+        System.out.println("[FoG] SHUTDOWN SAVE TRIGGERED");
+        WorldSaveFileService.saveLoadedWorlds();
     }
 
     private static Message getDisplayName(Player player) {
