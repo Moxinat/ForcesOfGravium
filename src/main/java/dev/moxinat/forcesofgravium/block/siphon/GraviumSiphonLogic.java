@@ -261,14 +261,29 @@ public final class GraviumSiphonLogic {
         return SiphonMoveResult.DROPPED;
     }
 
-    private static void consumeOneWorldItem(@Nonnull WorldItemSource source, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        ItemStack stack = Objects.requireNonNull(source.item().getItemStack(), "stack");
-        if (stack.getQuantity() <= 1) {
-            commandBuffer.removeEntity(source.ref(), RemoveReason.REMOVE);
+    private static void consumeOneWorldItem(
+            @Nonnull WorldItemSource source,
+            @Nonnull CommandBuffer<EntityStore> commandBuffer
+    ) {
+        ItemStack stack = source.item().getItemStack();
+
+        if (ItemStack.isEmpty(stack)) {
             return;
         }
 
-        source.item().setItemStack(stack.withQuantity(stack.getQuantity() - 1));
+        if (stack.getQuantity() <= 1) {
+            source.item().setItemStack(ItemStack.EMPTY);
+
+            commandBuffer.tryRemoveEntity(
+                    source.ref(),
+                    RemoveReason.REMOVE
+            );
+            return;
+        }
+
+        source.item().setItemStack(
+                stack.withQuantity(stack.getQuantity() - 1)
+        );
     }
 
     private static @Nonnull SiphonMoveResult dropOneItem(
