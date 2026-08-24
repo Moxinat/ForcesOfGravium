@@ -306,7 +306,6 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
                                 + " entityCount="
                                 + snapshot.entityCount()
                                 + " playerPresent="
-                                + snapshot.playerPresent()
                 )
         );
     }

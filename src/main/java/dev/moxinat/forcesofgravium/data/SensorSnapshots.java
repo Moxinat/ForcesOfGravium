@@ -62,8 +62,7 @@ public final class SensorSnapshots {
             boolean blockUsed,
             @Nullable NodeSnapshot node,
             @Nullable Integer containerItemCount,
-            int entityCount,
-            boolean playerPresent
+            int entityCount
     ) {
     }
 

@@ -317,7 +317,6 @@ public final class SensorLogic {
                 );
 
         int entityCount = 0;
-        boolean playerPresent = false;
 
         if (volume != null) {
             var trackedEntities =
@@ -328,18 +327,6 @@ public final class SensorLogic {
 
             Store<EntityStore> store =
                     world.getEntityStore().getStore();
-
-            for (var entityRef : trackedEntities.values()) {
-
-                if (store.getComponent(
-                        entityRef,
-                        Player.getComponentType()
-                ) != null) {
-
-                    playerPresent = true;
-                    break;
-                }
-            }
         }
 
         Nodes.Node observedNode =
@@ -360,8 +347,7 @@ public final class SensorLogic {
                 false,
                 nodeSnapshot,
                 containerItemCount,
-                entityCount,
-                playerPresent
+                entityCount
         );
     }
 
@@ -415,7 +401,6 @@ public final class SensorLogic {
                         newSnapshot.containerItemCount()
                 )
                         || oldSnapshot.entityCount() != newSnapshot.entityCount()
-                        || oldSnapshot.playerPresent() != newSnapshot.playerPresent()
                         || (oldSnapshot.blockUsed() && !oldSnapshot.blockStateId()
                             .equals(newSnapshot.blockStateId()));
 
@@ -682,8 +667,7 @@ public final class SensorLogic {
                             true,
                             snapshot.node(),
                             snapshot.containerItemCount(),
-                            snapshot.entityCount(),
-                            snapshot.playerPresent()
+                            snapshot.entityCount()
                     )
             );
 
@@ -807,6 +791,15 @@ public final class SensorLogic {
 
             TriggerEventType eventType =
                     context.getEventType();
+
+            System.out.println(
+                    "[SENSOR TV] event="
+                            + context.getEventType()
+                            + " entity="
+                            + context.getEntityRef()
+                            + " tracked="
+                            + context.getVolume().getTrackedEntities().size()
+            );
 
             SensorLogic.compareSensorsObserving(
                     world,
