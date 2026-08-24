@@ -14,6 +14,9 @@ import dev.moxinat.forcesofgravium.lifecycle.*;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class ForcesOfGraviumPlugin extends JavaPlugin {
 
@@ -42,6 +45,15 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
     @Override
     protected void shutdown() {
         System.out.println("[FoG] PLUGIN SHUTDOWN");
+
+        try {
+            Files.writeString(
+                    Path.of("fog-shutdown-test.txt"),
+                    "shutdown called"
+            );
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         WorldSaveFileService.saveLoadedWorlds();
     }
