@@ -144,7 +144,7 @@
         },
         {
           "time": 110,
-          "delta": {"x": 0.02037, "y": 0.01439, "z": -0.00282, "w": 0.99969},
+          "delta": {"x": 0.02037, "y": 0.01439, "z": -0.00282, "w": 0.99968},
           "interpolationType": "linear"
         },
         {
@@ -170,28 +170,28 @@
           "interpolationType": "linear"
         },
         {
-          "time": 5,
+          "time": 10,
           "delta": {"x": 0, "y": 4.475, "z": 0},
           "interpolationType": "linear"
         },
         {
-          "time": 8,
-          "delta": {"x": 0, "y": 4.88, "z": 0},
+          "time": 11,
+          "delta": {"x": 0, "y": 5.88, "z": 1},
           "interpolationType": "linear"
         },
         {
-          "time": 10,
-          "delta": {"x": 0, "y": 5.375, "z": 0.375},
+          "time": 12,
+          "delta": {"x": 0, "y": 5.375, "z": 1.375},
           "interpolationType": "linear"
         },
         {
           "time": 13,
-          "delta": {"x": 0, "y": 5.3, "z": 0.375},
+          "delta": {"x": 0, "y": 5.3, "z": 1.375},
           "interpolationType": "linear"
         },
         {
           "time": 15,
-          "delta": {"x": 0, "y": 5.3, "z": 0.375},
+          "delta": {"x": 0, "y": 5.3, "z": 1.375},
           "interpolationType": "linear"
         }
       ],
@@ -203,12 +203,12 @@
           "interpolationType": "linear"
         },
         {
-          "time": 5,
+          "time": 10,
           "delta": {"x": 1, "y": 0.25, "z": 1},
           "interpolationType": "linear"
         },
         {
-          "time": 10,
+          "time": 13,
           "delta": {"x": 0.9, "y": 0.1, "z": 0.9},
           "interpolationType": "linear"
         },

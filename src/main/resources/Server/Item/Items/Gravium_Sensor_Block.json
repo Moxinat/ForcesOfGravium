@@ -40,7 +40,6 @@
       "Definitions": {
         "Off": {
           "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
-          "CustomAnimation": "Blocks/Gravium_Sensor/Push_Close.blockyanim",
           "CustomModelTexture": [
             {
               "Texture": "BlockTextures/Sensor_Block_Off.png",
@@ -49,7 +48,7 @@
           ]
         },
 
-        "Push": {
+        "PushOpen": {
           "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
           "CustomModelAnimation": "Blocks/Gravium_Sensor/Push_Open.blockyanim",
           "CustomModelTexture": [
@@ -60,9 +59,53 @@
           ]
         },
 
-        "Pull": {
+        "Push": {
+          "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
+          "CustomModelAnimation": "Blocks/Gravium_Sensor/Push_Idle.blockyanim",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Sensor_Block_Push.png",
+              "Weight": 1
+            }
+          ]
+        },
+
+        "PushClose": {
+          "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
+          "CustomModelAnimation": "Blocks/Gravium_Sensor/Push_Close.blockyanim",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Sensor_Block_Push.png",
+              "Weight": 1
+            }
+          ]
+        },
+
+        "PullOpen": {
           "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
           "CustomModelAnimation": "Blocks/Gravium_Sensor/Pull_Open.blockyanim",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Sensor_Block_Pull.png",
+              "Weight": 1
+            }
+          ]
+        },
+
+        "Pull": {
+          "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
+          "CustomModelAnimation": "Blocks/Gravium_Sensor/Pull_Idle.blockyanim",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Sensor_Block_Pull.png",
+              "Weight": 1
+            }
+          ]
+        },
+
+        "PullClose": {
+          "CustomModel": "Blocks/Gravium_Sensor/Sensor_Block.blockymodel",
+          "CustomModelAnimation": "Blocks/Gravium_Sensor/Pull_Close.blockyanim",
           "CustomModelTexture": [
             {
               "Texture": "BlockTextures/Sensor_Block_Pull.png",
