@@ -181,17 +181,17 @@
         },
         {
           "time": 10,
-          "delta": {"x": 0, "y": 5.375, "z": 0},
+          "delta": {"x": 0, "y": 5.375, "z": 0.375},
           "interpolationType": "linear"
         },
         {
-          "time": 12,
-          "delta": {"x": 0, "y": 5.3, "z": 0},
+          "time": 13,
+          "delta": {"x": 0, "y": 5.3, "z": 0.375},
           "interpolationType": "linear"
         },
         {
           "time": 15,
-          "delta": {"x": 0, "y": 5.3, "z": 0},
+          "delta": {"x": 0, "y": 5.3, "z": 0.375},
           "interpolationType": "linear"
         }
       ],
