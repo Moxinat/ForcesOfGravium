@@ -761,6 +761,8 @@ public final class SensorLogic {
         if (next != null) {
             next.remove(position);
         }
+
+        SensorBlockRefresher.handleBroken(world, position);
     }
 
     private static void updatePassing(
@@ -859,15 +861,6 @@ public final class SensorLogic {
 
             TriggerEventType eventType =
                     context.getEventType();
-
-            System.out.println(
-                    "[SENSOR TV] event="
-                            + context.getEventType()
-                            + " entity="
-                            + context.getEntityRef()
-                            + " tracked="
-                            + context.getVolume().getTrackedEntities().size()
-            );
 
             SensorLogic.compareSensorsObserving(
                     world,

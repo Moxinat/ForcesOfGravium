@@ -130,6 +130,18 @@ public final class SensorBlockRefresher {
             Vector3i position,
             String stateName
     ) {
+        System.out.println(
+                "[SENSOR SET STATE] before"
+                        + " pos=" + position
+                        + " requested=" + stateName
+                        + " currentBlock="
+                        + world.getBlockType(
+                        position.x(),
+                        position.y(),
+                        position.z()
+                ).getId()
+        );
+
         BlockType baseType = BlockType.fromString(
                 NodeTypes.GRAVIUM_SENSOR.blockId()
         );
@@ -150,9 +162,12 @@ public final class SensorBlockRefresher {
         }
 
         chunk.setBlockInteractionState(
-                position,
+                position.x(),
+                position.y(),
+                position.z(),
                 baseType,
-                stateName
+                stateName,
+                true
         );
     }
 
@@ -172,20 +187,17 @@ public final class SensorBlockRefresher {
             return;
         }
 
-        SignalState currentState =
-                node.effectiveState();
-
-        BlockType worldBlock = world.getBlockType(
-                position.x(),
-                position.y(),
-                position.z()
+        System.out.println(
+                "[SENSOR REFRESH] pos=" + position
+                        + " current=" + node.effectiveState()
+                        + " remembered="
+                        + LAST_STATE
+                        .getOrDefault(world, Map.of())
+                        .get(position)
         );
 
-        if (worldBlock == null
-                || NodeTypes.find(worldBlock.getId()).orElse(null)
-                != NodeTypes.GRAVIUM_SENSOR) {
-            return;
-        }
+        SignalState currentState =
+                node.effectiveState();
 
         Map<Vector3i, SignalState> worldStates =
                 LAST_STATE.computeIfAbsent(
@@ -284,6 +296,33 @@ public final class SensorBlockRefresher {
                                 : "Off",
                         PULL_CLOSE_TICKS
                 );
+            }
+        }
+    }
+
+    public static void handleBroken(
+            World world,
+            Vector3i position
+    ) {
+        Map<Vector3i, PendingAnimation> pending =
+                PENDING.get(world);
+
+        if (pending != null) {
+            pending.remove(position);
+
+            if (pending.isEmpty()) {
+                PENDING.remove(world, pending);
+            }
+        }
+
+        Map<Vector3i, SignalState> states =
+                LAST_STATE.get(world);
+
+        if (states != null) {
+            states.remove(position);
+
+            if (states.isEmpty()) {
+                LAST_STATE.remove(world, states);
             }
         }
     }

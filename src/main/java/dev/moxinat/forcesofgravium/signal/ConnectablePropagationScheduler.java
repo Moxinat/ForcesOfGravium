@@ -67,6 +67,14 @@ public final class ConnectablePropagationScheduler {
 
         if (node.effectiveState() != previousEffectiveState) {
 
+            System.out.println(
+                    "[ADOPT] pos=" + position
+                            + " block=" + node.blockId()
+                            + " previous=" + previousEffectiveState
+                            + " current=" + node.effectiveState()
+            );
+
+
             NodeStateDispatcher.dispatch(world, position);
 
             ConnectableVisualDispatcher.refreshAt(world, position);
