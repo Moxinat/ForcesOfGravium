@@ -5,6 +5,7 @@
   },
   "ItemLevel": 10,
   "MaxStack": 100,
+  "Icon": "Icons/ItemsGenerated/Gravium_Sensor_Block.png",
   "Categories": [
     "ForcesOfGraviumCategory.items"
   ],
