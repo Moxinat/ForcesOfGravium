@@ -571,8 +571,8 @@ public final class SensorLogic {
         );
 
         BoxShape shape = new BoxShape(
-                new Vector3d(-0.5, 0.0, -0.5),
-                new Vector3d(0.5, 1.0, 0.5)
+                new Vector3d(-0.48, 0.02, -0.48),
+                new Vector3d(0.48, 0.98, 0.48)
         );
 
         SensorBlockChangeEffect blockPlacedEffect =
