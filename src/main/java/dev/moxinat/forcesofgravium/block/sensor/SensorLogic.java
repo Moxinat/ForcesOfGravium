@@ -5,11 +5,12 @@ import com.hypixel.hytale.builtin.triggervolumes.TriggerVolumesPlugin;
 import com.hypixel.hytale.builtin.triggervolumes.manager.TriggerVolumeManager;
 import com.hypixel.hytale.builtin.triggervolumes.manager.VolumeEntry;
 import com.hypixel.hytale.builtin.triggervolumes.shape.BoxShape;
-import com.hypixel.hytale.component.ArchetypeChunk;
-import com.hypixel.hytale.component.CommandBuffer;
-import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.*;
 import com.hypixel.hytale.component.query.Query;
+import com.hypixel.hytale.component.spatial.SpatialResource;
 import com.hypixel.hytale.component.system.EntityEventSystem;
+import com.hypixel.hytale.component.system.RefSystem;
+import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.event.EventRegistration;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -17,6 +18,9 @@ import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.modules.block.components.ItemContainerBlock;
+import com.hypixel.hytale.server.core.modules.entity.EntityModule;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
@@ -53,6 +57,12 @@ public final class SensorLogic {
 
     private static final Map<World, Map<Vector3i, EventRegistration<?, ?>>> CONTAINER_CHANGE_LISTENERS =
             new ConcurrentHashMap<>();
+
+    private static final Map<World, Map<Ref<EntityStore>, Vector3i>> ITEM_POSITIONS =
+            new ConcurrentHashMap<>();
+
+    private static final Query<EntityStore> ITEM_QUERY =
+            Query.and(ItemComponent.getComponentType(), TransformComponent.getComponentType());
 
     public static void handleStateChange(
             World world,
@@ -204,10 +214,6 @@ public final class SensorLogic {
         ItemContainer itemContainer =
                 itemContainerBlock.getItemContainer();
 
-        if (itemContainer == null) {
-            return;
-        }
-
         EventRegistration<?, ?> registration =
                 itemContainer.registerChangeEvent(
                         event -> compareSnapshot(
@@ -285,7 +291,6 @@ public final class SensorLogic {
             ItemContainer itemContainer =
                     itemContainerBlock.getItemContainer();
 
-            if (itemContainer != null) {
                 int itemCount = 0;
 
                 for (short slot = 0;
@@ -300,7 +305,7 @@ public final class SensorLogic {
                 }
 
                 containerItemCount = itemCount;
-            }
+
         }
 
         TriggerVolumeManager manager =
@@ -316,17 +321,69 @@ public final class SensorLogic {
                         triggerVolumeId(sensorPosition)
                 );
 
-        int entityCount = 0;
+        Store<EntityStore> store =
+                world.getEntityStore().getStore();
 
-        if (volume != null) {
-            var trackedEntities =
-                    volume.getTrackedEntities();
+        int entityCount =
+                volume == null
+                        ? 0
+                        : volume.getTrackedEntities().size();
 
-            entityCount =
-                    trackedEntities.size();
+        var itemSpatialResource =
+                store.getResource(
+                        EntityModule.get()
+                                .getItemSpatialResourceType()
+                );
 
-            Store<EntityStore> store =
-                    world.getEntityStore().getStore();
+        List<Ref<EntityStore>> itemRefs =
+                SpatialResource.getThreadLocalReferenceList();
+
+        itemRefs.clear();
+
+        itemSpatialResource
+                .getSpatialStructure()
+                .collectBox(
+                        new Vector3d(
+                                observedPosition.x(),
+                                observedPosition.y(),
+                                observedPosition.z()
+                        ),
+                        new Vector3d(
+                                observedPosition.x() + 1.0,
+                                observedPosition.y() + 1.0,
+                                observedPosition.z() + 1.0
+                        ),
+                        itemRefs
+                );
+
+        for (Ref<EntityStore> itemRef : itemRefs) {
+            if (!itemRef.isValid()) {
+                continue;
+            }
+
+            TransformComponent transform =
+                    store.getComponent(
+                            itemRef,
+                            TransformComponent.getComponentType()
+                    );
+
+            ItemComponent item =
+                    store.getComponent(
+                            itemRef,
+                            ItemComponent.getComponentType()
+                    );
+
+            if (transform == null
+                    || item == null
+                    || ItemStack.isEmpty(item.getItemStack())) {
+                continue;
+            }
+
+            if (observedPosition.equals(
+                    blockPosition(transform.getPosition())
+            )) {
+                entityCount++;
+            }
         }
 
         Nodes.Node observedNode =
@@ -570,8 +627,7 @@ public final class SensorLogic {
                 EnumSet.of(
                         EntityTargetType.PLAYER,
                         EntityTargetType.NPC,
-                        EntityTargetType.PROJECTILE,
-                        EntityTargetType.ITEM_DROP
+                        EntityTargetType.PROJECTILE
                 ),
                 true
         );
@@ -624,6 +680,10 @@ public final class SensorLogic {
             World world,
             Vector3i observedPosition
     ) {
+        if (GraviumSiphonLogic.itemContainerBlockAt(world, observedPosition) != null) {
+            return;
+        }
+
         for (Vector3i neighbor :
                 ConnectableNeighborResolver.positionsAround(observedPosition)) {
 
@@ -759,6 +819,14 @@ public final class SensorLogic {
         }
     }
 
+    private static Vector3i blockPosition(Vector3d position) {
+        return new Vector3i(
+                (int) Math.floor(position.x()),
+                (int) Math.floor(position.y()),
+                (int) Math.floor(position.z())
+        );
+    }
+
     public static final class SensorBlockChangeEffect
             extends TriggerEffect {
 
@@ -890,6 +958,182 @@ public final class SensorLogic {
             handleBlockUsed(
                     world,
                     observedPosition
+            );
+        }
+    }
+
+    public static final class ItemTrackingSystem
+            extends EntityTickingSystem<EntityStore> {
+
+        @Override
+        public @Nonnull Query<EntityStore> getQuery() {
+            return ITEM_QUERY;
+        }
+
+        @Override
+        public boolean isParallel(
+                int archetypeChunkSize,
+                int taskCount
+        ) {
+            return false;
+        }
+
+        @Override
+        public void tick(
+                float dt,
+                int index,
+                @Nonnull ArchetypeChunk<EntityStore> chunk,
+                @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer
+        ) {
+            TransformComponent transform =
+                    chunk.getComponent(
+                            index,
+                            TransformComponent.getComponentType()
+                    );
+
+            if (transform == null) {
+                return;
+            }
+
+            World world =
+                    store.getExternalData().getWorld();
+
+            Ref<EntityStore> ref =
+                    chunk.getReferenceTo(index);
+
+            Vector3i currentPosition =
+                    blockPosition(transform.getPosition());
+
+            Map<Ref<EntityStore>, Vector3i> positions =
+                    ITEM_POSITIONS.computeIfAbsent(
+                            world,
+                            ignored -> new ConcurrentHashMap<>()
+                    );
+
+            Vector3i previousPosition =
+                    positions.put(
+                            ref,
+                            currentPosition
+                    );
+
+            // Defensive fallback in case the lifecycle system
+            // did not see this entity being added.
+            if (previousPosition == null) {
+                compareSensorsObserving(
+                        world,
+                        currentPosition,
+                        false
+                );
+                return;
+            }
+
+            if (previousPosition.equals(currentPosition)) {
+                return;
+            }
+
+            compareSensorsObserving(
+                    world,
+                    previousPosition,
+                    false
+            );
+
+            compareSensorsObserving(
+                    world,
+                    currentPosition,
+                    false
+            );
+        }
+    }
+
+    public static final class ItemLifecycleSystem
+            extends RefSystem<EntityStore> {
+
+        @Override
+        public @Nonnull Query<EntityStore> getQuery() {
+            return ITEM_QUERY;
+        }
+
+        @Override
+        public void onEntityAdded(
+                @Nonnull Ref<EntityStore> ref,
+                @Nonnull AddReason reason,
+                @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer
+        ) {
+            TransformComponent transform =
+                    store.getComponent(
+                            ref,
+                            TransformComponent.getComponentType()
+                    );
+
+            if (transform == null) {
+                return;
+            }
+
+            World world =
+                    store.getExternalData().getWorld();
+
+            Vector3i position =
+                    blockPosition(transform.getPosition());
+
+            ITEM_POSITIONS
+                    .computeIfAbsent(
+                            world,
+                            ignored -> new ConcurrentHashMap<>()
+                    )
+                    .put(
+                            ref,
+                            position
+                    );
+
+            compareSensorsObserving(
+                    world,
+                    position,
+                    false
+            );
+        }
+
+        @Override
+        public void onEntityRemove(
+                @Nonnull Ref<EntityStore> ref,
+                @Nonnull RemoveReason reason,
+                @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer
+        ) {
+            World world =
+                    store.getExternalData().getWorld();
+
+            Map<Ref<EntityStore>, Vector3i> positions =
+                    ITEM_POSITIONS.get(world);
+
+            if (positions == null) {
+                return;
+            }
+
+            Vector3i position =
+                    positions.remove(ref);
+
+            if (positions.isEmpty()) {
+                ITEM_POSITIONS.remove(
+                        world,
+                        positions
+                );
+            }
+
+            if (position == null) {
+                return;
+            }
+
+            // Chunk unloading is not an actual gameplay removal.
+            if (reason == RemoveReason.UNLOAD) {
+                return;
+            }
+
+            compareSensorsObserving(
+                    world,
+                    position,
+                    false
             );
         }
     }

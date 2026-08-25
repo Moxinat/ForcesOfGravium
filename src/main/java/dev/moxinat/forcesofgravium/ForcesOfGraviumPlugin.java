@@ -40,6 +40,8 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new WindGeneratorInteractionSystem());
         this.getEntityStoreRegistry().registerSystem(new SensorRotationSystem.UseSystem());
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.BlockUseSystem()); //temp
+        this.getEntityStoreRegistry().registerSystem(new SensorLogic.ItemLifecycleSystem());
+        this.getEntityStoreRegistry().registerSystem(new SensorLogic.ItemTrackingSystem());
 
         SensorLogic.registerTriggerEffects();
     }

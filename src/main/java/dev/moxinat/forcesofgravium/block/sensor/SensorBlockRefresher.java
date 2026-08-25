@@ -175,6 +175,18 @@ public final class SensorBlockRefresher {
         SignalState currentState =
                 node.effectiveState();
 
+        BlockType worldBlock = world.getBlockType(
+                position.x(),
+                position.y(),
+                position.z()
+        );
+
+        if (worldBlock == null
+                || NodeTypes.find(worldBlock.getId()).orElse(null)
+                != NodeTypes.GRAVIUM_SENSOR) {
+            return;
+        }
+
         Map<Vector3i, SignalState> worldStates =
                 LAST_STATE.computeIfAbsent(
                         world,
