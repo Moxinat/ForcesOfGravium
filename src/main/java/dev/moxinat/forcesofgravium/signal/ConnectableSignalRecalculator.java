@@ -17,6 +17,20 @@ public final class ConnectableSignalRecalculator {
     private ConnectableSignalRecalculator() {
     }
 
+    private static final class RecomputeFrame {
+        private final Vector3i startPosition;
+        private final ArrayDeque<Vector3i> backwardsStack = new ArrayDeque<>();
+        private final Set<Vector3i> backwardsVisited = new LinkedHashSet<>();
+
+        private SignalState resolvedState = SignalState.OFF;
+        private Vector3i waitingForInverter;
+
+        private RecomputeFrame(Vector3i startPosition) {
+            this.startPosition = new Vector3i(startPosition);
+            this.backwardsStack.push(new Vector3i(startPosition));
+        }
+    }
+
     public static void recompute(
             @Nonnull World world,
             @Nonnull Vector3i position
@@ -34,17 +48,72 @@ public final class ConnectableSignalRecalculator {
         // Find the current instant state at this position.
         // -------------------------
 
-        ArrayDeque<Vector3i> backwardsStack = new ArrayDeque<>();
-        Set<Vector3i> backwardsVisited = new LinkedHashSet<>();
+        ArrayDeque<RecomputeFrame> recomputeStack = new ArrayDeque<>();
+        Set<Vector3i> recomputing = new LinkedHashSet<>();
 
-        backwardsStack.push(position);
+        RecomputeFrame rootFrame = new RecomputeFrame(position);
+
+        recomputeStack.push(rootFrame);
+        recomputing.add(position);
 
         SignalState resolvedState = SignalState.OFF;
 
-        while (!backwardsStack.isEmpty()) {
-            Vector3i currentPosition = backwardsStack.pop();
+        while (!recomputeStack.isEmpty()) {
+            RecomputeFrame frame = recomputeStack.peek();
 
-            if (!backwardsVisited.add(currentPosition)) {
+            // We previously paused this frame because an inverter first had to
+            // recompute its own input. That inverter is now resolved.
+            if (frame.waitingForInverter != null) {
+                Vector3i inverterPosition = frame.waitingForInverter;
+                frame.waitingForInverter = null;
+
+                Node inverterNode = Nodes.get(world, inverterPosition);
+                if (inverterNode == null) {
+                    continue;
+                }
+
+                SignalState output = inverterNode.instantState().inverted();
+
+                if (output == SignalState.PUSH) {
+                    frame.resolvedState = SignalState.PUSH;
+                    frame.backwardsStack.clear();
+                } else if (output == SignalState.PULL) {
+                    frame.resolvedState = SignalState.PULL;
+                }
+
+                continue;
+            }
+
+            // This frame has completely searched backwards.
+            if (frame.backwardsStack.isEmpty()) {
+                recomputeStack.pop();
+                recomputing.remove(frame.startPosition);
+
+                // Child frames represent inverter dependencies.
+                // Their instant state must be updated before the parent can use them.
+                if (!frame.startPosition.equals(position)) {
+                    Node dependencyNode = Nodes.get(world, frame.startPosition);
+
+                    if (dependencyNode != null
+                            && dependencyNode.instantState() != frame.resolvedState) {
+
+                        dependencyNode = dependencyNode
+                                .withInstantState(frame.resolvedState)
+                                .withDirty(true);
+
+                        Nodes.put(world, dependencyNode);
+                    }
+                } else {
+                    // Root result is handled by the existing SET START NODE section.
+                    resolvedState = frame.resolvedState;
+                }
+
+                continue;
+            }
+
+            Vector3i currentPosition = frame.backwardsStack.pop();
+
+            if (!frame.backwardsVisited.add(currentPosition)) {
                 continue;
             }
 
@@ -53,25 +122,27 @@ public final class ConnectableSignalRecalculator {
                 continue;
             }
 
-            // The start node itself is never treated as a boundary.
-            if (!currentPosition.equals(position)) {
+            // The start node of this frame itself is never treated as a boundary.
+            if (!currentPosition.equals(frame.startPosition)) {
 
-                // An enabled inverter is a known boundary.
-                // Its instant state represents its input,
-                // so its output is the inverted instant state.
                 if (currentNode.invertEnabled()) {
-                    SignalState output = currentNode.instantState().inverted();
 
-                    if (output == SignalState.PUSH) {
-                        resolvedState = SignalState.PUSH;
-                        break;
+                    // If this inverter is already being recomputed higher in the
+                    // dependency stack, following it would create a recompute cycle.
+                    // It therefore cannot act as a valid boundary for this path.
+                    if (recomputing.contains(currentPosition)) {
+                        continue;
                     }
 
-                    if (output == SignalState.PULL) {
-                        resolvedState = SignalState.PULL;
-                    }
+                    // Pause the current frame and resolve the inverter first.
+                    frame.waitingForInverter = currentPosition;
 
-                    // Never search behind an enabled inverter.
+                    RecomputeFrame dependencyFrame =
+                            new RecomputeFrame(currentPosition);
+
+                    recomputeStack.push(dependencyFrame);
+                    recomputing.add(currentPosition);
+
                     continue;
                 }
 
@@ -80,14 +151,14 @@ public final class ConnectableSignalRecalculator {
                     SignalState output = currentNode.instantState();
 
                     if (output == SignalState.PUSH) {
-                        resolvedState = SignalState.PUSH;
-                        break;
+                        frame.resolvedState = SignalState.PUSH;
+                        frame.backwardsStack.clear();
+                        continue;
                     }
 
                     if (output == SignalState.PULL) {
-                        resolvedState = SignalState.PULL;
+                        frame.resolvedState = SignalState.PULL;
                     }
-
                 }
             }
 
@@ -97,8 +168,8 @@ public final class ConnectableSignalRecalculator {
                             currentPosition
                     )) {
 
-                if (!backwardsVisited.contains(backwardNeighbor)) {
-                    backwardsStack.push(backwardNeighbor);
+                if (!frame.backwardsVisited.contains(backwardNeighbor)) {
+                    frame.backwardsStack.push(backwardNeighbor);
                 }
             }
         }
