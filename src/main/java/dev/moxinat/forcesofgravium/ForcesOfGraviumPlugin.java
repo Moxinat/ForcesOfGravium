@@ -27,8 +27,8 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
             new ForcesOfGraviumCommand("fog", "Main command for ForcesOfGravium")
         );
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ForcesOfGraviumEvents::onPlayerReady);
-        this.getEventRegistry().register(
-                (short) (ShutdownEvent.SHUTDOWN_WORLDS - 1),
+        this.getEventRegistry().registerGlobal(
+                (short) (ShutdownEvent.DISCONNECT_PLAYERS - 1),
                 ShutdownEvent.class,
                 ForcesOfGraviumEvents::onShutdown
         );

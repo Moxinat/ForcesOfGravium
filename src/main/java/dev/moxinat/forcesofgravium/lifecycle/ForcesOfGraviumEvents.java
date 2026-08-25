@@ -12,6 +12,10 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 public class ForcesOfGraviumEvents {
 
     public static void onPlayerReady(PlayerReadyEvent event) {
@@ -30,7 +34,6 @@ public class ForcesOfGraviumEvents {
     }
 
     public static void onShutdown(ShutdownEvent event) {
-        System.out.println("[FoG] SHUTDOWN SAVE TRIGGERED");
         WorldSaveFileService.saveLoadedWorlds();
     }
 
