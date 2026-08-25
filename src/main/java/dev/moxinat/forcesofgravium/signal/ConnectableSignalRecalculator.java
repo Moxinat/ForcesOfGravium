@@ -97,6 +97,12 @@ public final class ConnectableSignalRecalculator {
                     if (dependencyNode != null
                             && dependencyNode.instantState() != frame.resolvedState) {
 
+                        ConnectablePropagationScheduler
+                                .cancelPendingAdoption(
+                                        world,
+                                        frame.startPosition
+                                );
+
                         dependencyNode = dependencyNode
                                 .withInstantState(frame.resolvedState)
                                 .withDirty(true);
@@ -184,6 +190,12 @@ public final class ConnectableSignalRecalculator {
         }
 
         if (startNode.instantState() != resolvedState) {
+
+            ConnectablePropagationScheduler.cancelPendingAdoption(
+                    world,
+                    position
+            );
+
             startNode = startNode
                     .withInstantState(resolvedState)
                     .withDirty(true);
@@ -229,6 +241,12 @@ public final class ConnectableSignalRecalculator {
             }
 
             if (currentNode.instantState() != forwardState) {
+
+                ConnectablePropagationScheduler.cancelPendingAdoption(
+                        world,
+                        currentPosition
+                );
+
                 currentNode = currentNode
                         .withInstantState(forwardState)
                         .withDirty(true);

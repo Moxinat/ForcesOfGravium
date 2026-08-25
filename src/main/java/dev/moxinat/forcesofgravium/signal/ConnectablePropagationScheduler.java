@@ -117,6 +117,31 @@ public final class ConnectablePropagationScheduler {
         }
     }
 
+    public static void cancelPendingAdoption(
+            World world,
+            Vector3i position
+    ) {
+        Set<Vector3i> current = CURRENT_WAVE.get(world);
+
+        if (current != null) {
+            current.remove(position);
+
+            if (current.isEmpty()) {
+                CURRENT_WAVE.remove(world, current);
+            }
+        }
+
+        Set<Vector3i> next = NEXT_WAVE.get(world);
+
+        if (next != null) {
+            next.remove(position);
+
+            if (next.isEmpty()) {
+                NEXT_WAVE.remove(world, next);
+            }
+        }
+    }
+
     private static @Nonnull Set<Vector3i> copyPositions(
             Set<Vector3i> positions
     ) {
