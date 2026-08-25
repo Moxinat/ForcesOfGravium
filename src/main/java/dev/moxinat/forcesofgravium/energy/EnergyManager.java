@@ -59,6 +59,28 @@ public final class EnergyManager {
         }
     }
 
+    public static int remainingEnergy(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        Nodes.Node node = Nodes.get(world, position);
+
+        if (node == null || node.networkId() == Nodes.Node.NO_NETWORK) {
+            return 0;
+        }
+
+        long networkId = node.networkId();
+        int energy = 0;
+
+        for (Nodes.Node networkNode : Nodes.snapshotForWorld(world).values()) {
+            if (networkNode.networkId() == networkId) {
+                energy += networkNode.energyDelta();
+            }
+        }
+
+        return energy;
+    }
+
     public static void tickWorld(@Nonnull World world) {
         Map<Long, FailureState> failingNetworks = FAILING_NETWORKS.get(world);
 
