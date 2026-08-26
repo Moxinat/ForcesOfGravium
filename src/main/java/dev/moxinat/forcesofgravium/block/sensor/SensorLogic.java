@@ -1260,6 +1260,11 @@ public final class SensorLogic {
 
             Vector3i position = node.position();
 
+            SensorBlockRefresher.restoreAt(
+                    world,
+                    position
+            );
+
             if (node.effectiveState() == SignalState.OFF) {
                 continue;
             }

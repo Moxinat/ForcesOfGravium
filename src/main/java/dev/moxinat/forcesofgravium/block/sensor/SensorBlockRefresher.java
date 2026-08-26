@@ -306,4 +306,54 @@ public final class SensorBlockRefresher {
             }
         }
     }
+
+    public static void restoreAt(
+            World world,
+            Vector3i position
+    ) {
+        Nodes.Node node = Nodes.get(
+                world,
+                position
+        );
+
+        if (node == null
+                || !NodeTypes.GRAVIUM_SENSOR.blockId()
+                .equals(node.blockId())) {
+            return;
+        }
+
+        // Any animation that existed before shutdown is irrelevant now.
+        Map<Vector3i, PendingAnimation> pending =
+                PENDING.get(world);
+
+        if (pending != null) {
+            pending.remove(position);
+
+            if (pending.isEmpty()) {
+                PENDING.remove(world, pending);
+            }
+        }
+
+        SignalState state = node.effectiveState();
+
+        LAST_STATE
+                .computeIfAbsent(
+                        world,
+                        ignored -> new ConcurrentHashMap<>()
+                )
+                .put(
+                        new Vector3i(position),
+                        state
+                );
+
+        setState(
+                world,
+                position,
+                switch (state) {
+                    case OFF -> "Off";
+                    case PUSH -> "Push";
+                    case PULL -> "Pull";
+                }
+        );
+    }
 }
