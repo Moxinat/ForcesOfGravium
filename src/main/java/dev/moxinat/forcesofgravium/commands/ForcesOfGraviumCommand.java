@@ -1,18 +1,18 @@
 package dev.moxinat.forcesofgravium.commands;
 
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.Nodes;
-import dev.moxinat.forcesofgravium.data.SensorSnapshots;
+import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
@@ -55,7 +55,11 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             return handleSensorDebug(context, args, i);
         }
 
-        context.sendMessage(Message.raw("Usage: /fog node here|under|<x y z> | /fog rotation here|under|<x y z> | /fog saveinfo | /fog saveworld"));
+        context.sendMessage(Message.raw("Usage: /fog node here|under|<x y z>"
+                + " | /fog rotation here|under|<x y z>"
+                + " | /fog sensor here|under|<x y z>"
+                + " | /fog saveinfo"
+                + " | /fog saveworld"));
         return CompletableFuture.completedFuture(null);
     }
 
@@ -268,44 +272,69 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
                 )
         );
 
-        SensorSnapshots.SensorSnapshot snapshot =
-                SensorSnapshots.get(
+        SensorComponent component =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE,
                         world,
-                        position
+                        position.x(),
+                        position.y(),
+                        position.z()
                 );
 
-        if (snapshot == null) {
+        if (component == null) {
             context.sendMessage(
-                    Message.raw("snapshot=null")
+                    Message.raw("sensorComponent=null")
             );
             return;
         }
 
         context.sendMessage(
                 Message.raw(
-                        "snapshot blockId="
-                                + snapshot.blockId()
-                                + " blockStateId="
-                                + snapshot.blockStateId()
-                                + " blockUsed="
-                                + snapshot.blockUsed()
+                        "hasSnapshot="
+                                + component.hasSnapshot()
                 )
         );
 
+        if (!component.hasSnapshot()) {
+            return;
+        }
+
         context.sendMessage(
                 Message.raw(
-                        "snapshot node="
-                                + snapshot.node()
+                        "snapshot blockId="
+                                + component.blockId()
+                                + " blockStateId="
+                                + component.blockStateId()
+                                + " blockUsed="
+                                + component.blockUsed()
                 )
         );
+
+        if (component.hasNodeSnapshot()) {
+            context.sendMessage(
+                    Message.raw(
+                            "snapshot node effectiveState="
+                                    + component.nodeEffectiveState()
+                                    + " invertEnabled="
+                                    + component.nodeInvertEnabled()
+                                    + " passing="
+                                    + component.nodePassing()
+                    )
+            );
+        } else {
+            context.sendMessage(
+                    Message.raw("snapshot node=null")
+            );
+        }
 
         context.sendMessage(
                 Message.raw(
                         "containerItemCount="
-                                + snapshot.containerItemCount()
+                                + (component.hasContainerItemCount()
+                                ? component.containerItemCount()
+                                : "null")
                                 + " entityCount="
-                                + snapshot.entityCount()
-                                + " playerPresent="
+                                + component.entityCount()
                 )
         );
     }

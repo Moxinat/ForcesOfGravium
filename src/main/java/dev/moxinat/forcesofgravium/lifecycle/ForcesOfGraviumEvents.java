@@ -10,11 +10,8 @@ import com.hypixel.hytale.server.core.modules.entity.component.DisplayNameCompon
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 public class ForcesOfGraviumEvents {
 
@@ -26,6 +23,9 @@ public class ForcesOfGraviumEvents {
         }
 
         WorldSaveFileService.ensureLoaded(world);
+
+        SensorLogic.restoreRuntimeState(world);
+
         world.sendMessage(Message.join(
                 Message.raw("Welcome "),
                 getDisplayName(player),

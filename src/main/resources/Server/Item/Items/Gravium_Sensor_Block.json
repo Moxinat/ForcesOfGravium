@@ -31,6 +31,24 @@
       "IsUsable": true
     },
 
+    "BlockEntity": {
+      "Components": {
+        "forcesofgravium:sensor": {
+          "HasSnapshot": false,
+          "BlockId": "",
+          "BlockStateId": "",
+          "BlockUsed": false,
+          "HasNodeSnapshot": false,
+          "NodeEffectiveState": "OFF",
+          "NodeInvertEnabled": false,
+          "NodePassing": false,
+          "HasContainerItemCount": false,
+          "ContainerItemCount": 0,
+          "EntityCount": 0
+        }
+      }
+    },
+
     "Gathering": {
       "Breaking": {
         "GatherType": "Rocks"
