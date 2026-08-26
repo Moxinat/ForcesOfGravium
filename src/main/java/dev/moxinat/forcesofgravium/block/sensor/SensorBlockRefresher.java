@@ -130,17 +130,6 @@ public final class SensorBlockRefresher {
             Vector3i position,
             String stateName
     ) {
-        System.out.println(
-                "[SENSOR SET STATE] before"
-                        + " pos=" + position
-                        + " requested=" + stateName
-                        + " currentBlock="
-                        + world.getBlockType(
-                        position.x(),
-                        position.y(),
-                        position.z()
-                ).getId()
-        );
 
         BlockType baseType = BlockType.fromString(
                 NodeTypes.GRAVIUM_SENSOR.blockId()
@@ -186,15 +175,6 @@ public final class SensorBlockRefresher {
                 .equals(node.blockId())) {
             return;
         }
-
-        System.out.println(
-                "[SENSOR REFRESH] pos=" + position
-                        + " current=" + node.effectiveState()
-                        + " remembered="
-                        + LAST_STATE
-                        .getOrDefault(world, Map.of())
-                        .get(position)
-        );
 
         SignalState currentState =
                 node.effectiveState();

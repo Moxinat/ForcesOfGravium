@@ -17,15 +17,18 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.modules.block.components.ItemContainerBlock;
 import com.hypixel.hytale.server.core.modules.entity.EntityModule;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
 import dev.moxinat.forcesofgravium.data.Nodes;
-import dev.moxinat.forcesofgravium.data.SensorSnapshots;
+import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.registry.NodeTypes;
@@ -64,6 +67,45 @@ public final class SensorLogic {
     private static final Query<EntityStore> ITEM_QUERY =
             Query.and(ItemComponent.getComponentType(), TransformComponent.getComponentType());
 
+    private static SensorComponent getComponent(
+            World world,
+            Vector3i position
+    ) {
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
+    }
+
+    private static void putComponent(
+            World world,
+            Vector3i position,
+            SensorComponent component
+    ) {
+        Ref<ChunkStore> blockRef =
+                BlockModule.getBlockEntity(
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
+
+        if (blockRef == null) {
+            return;
+        }
+
+        world.getChunkStore()
+                .getStore()
+                .putComponent(
+                        blockRef,
+                        ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE,
+                        component
+                );
+    }
+
     public static void handleStateChange(
             World world,
             Vector3i position
@@ -96,7 +138,20 @@ public final class SensorLogic {
     ) {
         switch (state) {
             case OFF -> {
-                SensorSnapshots.remove(world, position);
+                SensorComponent component =
+                        getComponent(world, position);
+
+                if (component != null) {
+                    SensorComponent updated = component.clone();
+                    updated.clearSnapshot();
+
+                    putComponent(
+                            world,
+                            position,
+                            updated
+                    );
+                }
+
                 unregisterTriggerVolume(world, position);
                 removeContainerListener(world, position);
             }
@@ -254,7 +309,7 @@ public final class SensorLogic {
         }
     }
 
-    private static SensorSnapshots.SensorSnapshot captureSnapshot(
+    private static SensorComponent captureSnapshot(
             World world,
             Vector3i sensorPosition
     ) {
@@ -389,23 +444,44 @@ public final class SensorLogic {
         Nodes.Node observedNode =
                 Nodes.get(world, observedPosition);
 
-        SensorSnapshots.NodeSnapshot nodeSnapshot =
-                observedNode == null
-                        ? null
-                        : new SensorSnapshots.NodeSnapshot(
-                        observedNode.effectiveState(),
-                        observedNode.invertEnabled(),
-                        observedNode.passing()
-                );
+        SensorComponent component =
+                new SensorComponent();
 
-        return new SensorSnapshots.SensorSnapshot(
+        boolean hasNodeSnapshot =
+                observedNode != null;
+
+        SignalState nodeEffectiveState =
+                observedNode == null
+                        ? SignalState.OFF
+                        : observedNode.effectiveState();
+
+        boolean nodeInvertEnabled =
+                observedNode != null
+                        && observedNode.invertEnabled();
+
+        boolean nodePassing =
+                observedNode != null
+                        && observedNode.passing();
+
+        boolean hasContainerItemCount =
+                containerItemCount != null;
+
+        component.setSnapshot(
                 blockId,
                 blockStateId,
                 false,
-                nodeSnapshot,
-                containerItemCount,
+                hasNodeSnapshot,
+                nodeEffectiveState,
+                nodeInvertEnabled,
+                nodePassing,
+                hasContainerItemCount,
+                containerItemCount == null
+                        ? 0
+                        : containerItemCount,
                 entityCount
         );
+
+        return component;
     }
 
     public static void compareSnapshot(
@@ -432,14 +508,24 @@ public final class SensorLogic {
             return;
         }
 
-        SensorSnapshots.SensorSnapshot oldSnapshot =
-                SensorSnapshots.get(world, sensorPosition);
-
-        SensorSnapshots.SensorSnapshot newSnapshot =
-                captureSnapshot(world, sensorPosition);
+        SensorComponent oldSnapshot =
+                getComponent(
+                        world,
+                        sensorPosition
+                );
 
         if (oldSnapshot == null) {
-            SensorSnapshots.put(
+            return;
+        }
+
+        SensorComponent newSnapshot =
+                captureSnapshot(
+                        world,
+                        sensorPosition
+                );
+
+        if (!oldSnapshot.hasSnapshot()) {
+            putComponent(
                     world,
                     sensorPosition,
                     newSnapshot
@@ -447,19 +533,46 @@ public final class SensorLogic {
             return;
         }
 
+        boolean nodeChanged =
+                oldSnapshot.hasNodeSnapshot()
+                        != newSnapshot.hasNodeSnapshot();
+
+        if (!nodeChanged && oldSnapshot.hasNodeSnapshot()) {
+            nodeChanged =
+                    oldSnapshot.nodeEffectiveState()
+                            != newSnapshot.nodeEffectiveState()
+                            || oldSnapshot.nodeInvertEnabled()
+                            != newSnapshot.nodeInvertEnabled()
+                            || oldSnapshot.nodePassing()
+                            != newSnapshot.nodePassing();
+        }
+
+        boolean containerChanged =
+                oldSnapshot.hasContainerItemCount()
+                        != newSnapshot.hasContainerItemCount();
+
+        if (!containerChanged
+                && oldSnapshot.hasContainerItemCount()) {
+
+            containerChanged =
+                    oldSnapshot.containerItemCount()
+                            != newSnapshot.containerItemCount();
+        }
+
         boolean changed =
-                !oldSnapshot.blockId().equals(newSnapshot.blockId())
-                        || !Objects.equals(
-                        oldSnapshot.node(),
-                        newSnapshot.node()
-                )
-                        || !Objects.equals(
-                        oldSnapshot.containerItemCount(),
-                        newSnapshot.containerItemCount()
-                )
-                        || oldSnapshot.entityCount() != newSnapshot.entityCount()
-                        || (oldSnapshot.blockUsed() && !oldSnapshot.blockStateId()
-                            .equals(newSnapshot.blockStateId()));
+                !oldSnapshot.blockId()
+                        .equals(newSnapshot.blockId())
+
+                        || nodeChanged
+
+                        || containerChanged
+
+                        || oldSnapshot.entityCount()
+                        != newSnapshot.entityCount()
+
+                        || (oldSnapshot.blockUsed()
+                        && !oldSnapshot.blockStateId()
+                        .equals(newSnapshot.blockStateId()));
 
         if (changed) {
             handleSnapshotChanged(
@@ -468,7 +581,7 @@ public final class SensorLogic {
             );
         }
 
-        SensorSnapshots.put(
+        putComponent(
                 world,
                 sensorPosition,
                 newSnapshot
@@ -711,24 +824,26 @@ public final class SensorLogic {
                 continue;
             }
 
-            SensorSnapshots.SensorSnapshot snapshot =
-                    SensorSnapshots.get(world, neighbor);
+            SensorComponent component =
+                    getComponent(
+                            world,
+                            neighbor
+                    );
 
-            if (snapshot == null) {
+            if (component == null
+                    || !component.hasSnapshot()) {
                 continue;
             }
 
-            SensorSnapshots.put(
+            SensorComponent updated =
+                    component.clone();
+
+            updated.setBlockUsed(true);
+
+            putComponent(
                     world,
                     neighbor,
-                    new SensorSnapshots.SensorSnapshot(
-                            snapshot.blockId(),
-                            snapshot.blockStateId(),
-                            true,
-                            snapshot.node(),
-                            snapshot.containerItemCount(),
-                            snapshot.entityCount()
-                    )
+                    updated
             );
 
             if (sensor.effectiveState() == SignalState.PUSH) {
@@ -746,11 +861,6 @@ public final class SensorLogic {
     ) {
         unregisterTriggerVolume(world, position);
         removeContainerListener(world, position);
-
-        SensorSnapshots.remove(
-                world,
-                position
-        );
 
         Set<Vector3i> current = CURRENT_PENDING_COMPARE.get(world);
         if (current != null) {
