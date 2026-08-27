@@ -4,10 +4,15 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
+import com.hypixel.hytale.server.core.asset.type.particle.config.ParticleSystem;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.ParticleUtil;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
@@ -21,6 +26,8 @@ import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -54,12 +61,17 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         if (args.length - i >= 2 && "sensor".equalsIgnoreCase(args[i])) {
             return handleSensorDebug(context, args, i);
         }
+        if (args.length - i >= 2
+                && "particle".equalsIgnoreCase(args[i])) {
+            return handleParticle(context, args, i);
+        }
 
         context.sendMessage(Message.raw("Usage: /fog node here|under|<x y z>"
                 + " | /fog rotation here|under|<x y z>"
                 + " | /fog sensor here|under|<x y z>"
                 + " | /fog saveinfo"
                 + " | /fog saveworld"));
+
         return CompletableFuture.completedFuture(null);
     }
 
@@ -337,6 +349,75 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
                                 + component.entityCount()
                 )
         );
+    }
+
+    private CompletableFuture<Void> handleParticle(
+            CommandContext context,
+            String[] args,
+            int i
+    ) {
+        PlayerCommandState state = playerState(context);
+
+        if (state == null) {
+            context.sendMessage(
+                    Message.raw("This command requires a player sender.")
+            );
+            return CompletableFuture.completedFuture(null);
+        }
+
+        String particleId = args[i + 1];
+
+        ParticleSystem particleSystem =
+                ParticleSystem.getAssetMap().getAsset(particleId);
+
+        if (particleSystem == null) {
+            context.sendMessage(
+                    Message.raw("Particle NOT FOUND: " + particleId)
+            );
+            return CompletableFuture.completedFuture(null);
+        }
+
+        context.sendMessage(
+                Message.raw("Particle FOUND: " + particleId)
+        );
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        state.world().execute(() -> {
+            try {
+                TransformComponent transform =
+                        state.ref().getStore().getComponent(
+                                state.ref(),
+                                TransformComponent.getComponentType()
+                        );
+
+                Vector3d position = transform.getPosition();
+
+                ParticleUtil.spawnParticleEffect(
+                        particleId,
+                        position,
+                        List.of(state.ref()),
+                        state.ref().getStore()
+                );
+
+                context.sendMessage(
+                        Message.raw("Spawned particle: " + particleId)
+                );
+            } catch (Exception exception) {
+                context.sendMessage(
+                        Message.raw(
+                                "Particle spawn failed: "
+                                        + exception.getClass().getSimpleName()
+                                        + ": "
+                                        + exception.getMessage()
+                        )
+                );
+            } finally {
+                future.complete(null);
+            }
+        });
+
+        return future;
     }
 
     private static Vector3i playerBlockPosition(Ref<EntityStore> ref) {

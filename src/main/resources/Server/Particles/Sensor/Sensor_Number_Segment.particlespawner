@@ -1,0 +1,80 @@
+{
+  "RenderMode": "BlendAdd",
+  "Shape": "Cube",
+
+  "EmitOffset": {
+    "X": {
+      "Min": -0.09,
+      "Max": 0.09
+    },
+    "Y": {
+      "Min": 0,
+      "Max": 0
+    },
+    "Z": {
+      "Min": 0,
+      "Max": 0
+    }
+  },
+
+  "TotalParticles": {
+    "Min": 100,
+    "Max": 100
+  },
+
+  "MaxConcurrentParticles": 100,
+  "SpawnBurst": true,
+
+  "ParticleLifeSpan": {
+    "Min": 5.0,
+    "Max": 5.0
+  },
+
+  "LightInfluence": 0.0,
+
+  "InitialVelocity": {
+    "Yaw": {
+      "Min": 0,
+      "Max": 0
+    },
+    "Pitch": {
+      "Min": 0,
+      "Max": 0
+    },
+    "Speed": {
+      "Min": 0,
+      "Max": 0
+    }
+  },
+
+  "Particle": {
+    "Texture": "Particles/Textures/Basic/Ball2.png",
+
+    "Animation": {
+      "0": {
+        "Opacity": 1.0,
+        "Color": "#ff2020"
+      },
+      "100": {
+        "Opacity": 1.0,
+        "Color": "#ff2020"
+      }
+    },
+
+    "InitialAnimationFrame": {
+      "Scale": {
+        "X": {
+          "Min": 0.01,
+          "Max": 0.01
+        },
+        "Y": {
+          "Min": 0.01,
+          "Max": 0.01
+        }
+      },
+
+      "Color": "#ff2020",
+      "Opacity": 1.0
+    }
+  }
+}
