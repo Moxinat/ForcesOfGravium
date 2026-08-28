@@ -10,6 +10,7 @@ import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.data.Nodes;
@@ -29,7 +30,6 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
@@ -401,30 +401,25 @@ public final class GraviumSiphonLogic {
         return world.getChunkStore().getStore().getComponent(blockEntityRef, ProcessingBenchBlock.getComponentType());
     }
 
-    private static @Nullable Ref<ChunkStore> blockEntityRefAt(@Nonnull World world, @Nonnull Vector3i position) {
+    private static @Nullable Ref<ChunkStore> blockEntityRefAt(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(position, "position");
 
-        Vector3i basePosition = baseBlockPosition(world, position);
-        ChunkStore chunkStore = world.getChunkStore();
-        Ref<ChunkStore> chunkRef = chunkStore.getChunkReference(
-                ChunkUtil.indexChunkFromBlock(basePosition.x(), basePosition.z())
-        );
-        if (chunkRef == null) {
-            return null;
-        }
+        Vector3i basePosition =
+                baseBlockPosition(
+                        world,
+                        position
+                );
 
-        Store<ChunkStore> store = chunkStore.getStore();
-        BlockComponentChunk blockComponents = store.getComponent(chunkRef, BlockComponentChunk.getComponentType());
-        if (blockComponents == null) {
-            return null;
-        }
-
-        return blockComponents.getEntityReference(ChunkUtil.indexBlockInColumn(
+        return BlockModule.getBlockEntity(
+                world,
                 basePosition.x(),
                 basePosition.y(),
                 basePosition.z()
-        ));
+        );
     }
 
     @SuppressWarnings("deprecation")
