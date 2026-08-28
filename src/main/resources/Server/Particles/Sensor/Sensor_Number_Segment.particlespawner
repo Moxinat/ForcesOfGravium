@@ -3,7 +3,7 @@
   "Shape": "Sphere",
 
   "EmitOffset": {
-    "X": { "Min": -0.05, "Max": 0.05 },
+    "X": { "Min": -0.025, "Max": 0.025 },
     "Y": { "Min": 0, "Max": 0 },
     "Z": { "Min": 0, "Max": 0 }
   },
@@ -45,11 +45,11 @@
     "Texture": "Particles/Textures/clean_square.png",
 
     "FrameSize": {
-        "Width": 16,
-        "Height": 16
-      },
+      "Width": 16,
+      "Height": 16
+    },
 
-      "ScaleRatioConstraint": "OneToOne",
+    "ScaleRatioConstraint": "OneToOne",
 
     "Animation": {
       "0": {
@@ -65,12 +65,12 @@
     "InitialAnimationFrame": {
       "Scale": {
         "X": {
-          "Min": 0.04,
-          "Max": 0.04
+          "Min": 0.02,
+          "Max": 0.02
         },
         "Y": {
-          "Min": 0.04,
-          "Max": 0.04
+          "Min": 0.02,
+          "Max": 0.02
         }
       },
 
