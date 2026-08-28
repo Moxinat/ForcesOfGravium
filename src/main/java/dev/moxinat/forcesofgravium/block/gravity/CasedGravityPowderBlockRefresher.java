@@ -1,9 +1,12 @@
 package dev.moxinat.forcesofgravium.block.gravity;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
+import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
@@ -83,26 +86,44 @@ public final class CasedGravityPowderBlockRefresher {
             return;
         }
 
-        BlockAccessor chunk =
-                world.getChunk(
-                        ChunkUtil.indexChunkFromBlock(
-                                x,
-                                z
-                        )
+        ChunkStore chunkStore = world.getChunkStore();
+
+        Ref<ChunkStore> sectionRef =
+                chunkStore.getChunkSectionReferenceAtBlock(
+                        x,
+                        y,
+                        z
                 );
 
-        if (chunk == null) {
+        if (sectionRef == null) {
             return;
         }
 
-        chunk.placeBlock(
+        BlockType targetType =
+                BlockType.fromString(blockKey);
+
+        if (targetType == null) {
+            return;
+        }
+
+        int blockId =
+                BlockType.getAssetMap().getIndex(blockKey);
+
+        if (blockId < 0) {
+            return;
+        }
+
+        BlockOperations.setBlock(
+                chunkStore,
+                sectionRef,
                 x,
                 y,
                 z,
-                blockKey,
-                node.rotation(),
+                blockId,
+                targetType,
+                node.rotation().index(),
                 0,
-                false
+                0
         );
     }
 
