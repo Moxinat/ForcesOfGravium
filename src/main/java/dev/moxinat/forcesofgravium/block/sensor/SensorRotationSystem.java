@@ -7,14 +7,14 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.math.Axis;
-import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
@@ -93,15 +93,20 @@ public final class SensorRotationSystem {
                             LOCAL_INTERACTION_ROTATION_AXIS
                     );
 
-            BlockAccessor blockAccessor =
-                    world.getChunk(
-                            ChunkUtil.indexChunkFromBlock(
-                                    position.x(),
-                                    position.z()
-                            )
+            ChunkStore chunkStore = world.getChunkStore();
+            Ref<ChunkStore> sectionRef =
+                    chunkStore.getChunkSectionReferenceAtBlock(
+                            position.x(),
+                            position.y(),
+                            position.z()
                     );
 
-            if (blockAccessor == null) {
+            if (sectionRef == null) {
+                return;
+            }
+
+            int blockId = BlockType.getAssetMap().getIndex(blockType.getId());
+            if (blockId < 0) {
                 return;
             }
 
@@ -145,7 +150,6 @@ public final class SensorRotationSystem {
                 }
             }
 
-            // Remove old topology
             Nodes.remove(
                     world,
                     position
@@ -157,7 +161,6 @@ public final class SensorRotationSystem {
                     formerNetworkNeighbors
             );
 
-            // Apply rotation
             Nodes.put(
                     world,
                     node
@@ -165,29 +168,29 @@ public final class SensorRotationSystem {
                             .withNetworkId(Nodes.Node.NO_NETWORK)
             );
 
-            blockAccessor.placeBlock(
+            BlockOperations.setBlock(
+                    chunkStore,
+                    sectionRef,
                     position.x(),
                     position.y(),
                     position.z(),
-                    blockType.getId(),
-                    nextRotation,
+                    blockId,
+                    blockType,
+                    nextRotation.index(),
                     0,
-                    false
+                    0
             );
 
-            // Reconnect
             ConnectableNetworkManager.onNodePlaced(
                     world,
                     position
             );
 
-            // Recalculate new topology
             ConnectableSignalRecalculator.recompute(
                     world,
                     position
             );
 
-            // Recalculate outputs lost through rotation
             for (Vector3i formerForwardNeighbor :
                     formerForwardNeighbors) {
 
@@ -197,7 +200,6 @@ public final class SensorRotationSystem {
                 );
             }
 
-            // Start changed effective waves
             for (Map.Entry<Vector3i, SignalState> entry :
                     oldInstantStates.entrySet()) {
 
