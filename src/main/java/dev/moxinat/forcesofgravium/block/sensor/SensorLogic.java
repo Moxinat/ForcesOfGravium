@@ -22,6 +22,7 @@ import com.hypixel.hytale.server.core.modules.block.components.ItemContainerBloc
 import com.hypixel.hytale.server.core.modules.entity.EntityModule;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
+import com.hypixel.hytale.server.core.universe.world.ParticleUtil;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -51,6 +52,8 @@ public final class SensorLogic {
 
     private SensorLogic() {
     }
+
+    private static final double NUMBER_SPACING = 0.08;
 
     private static final Map<World, Set<Vector3i>> CURRENT_PENDING_COMPARE =
             new ConcurrentHashMap<>();
@@ -306,6 +309,78 @@ public final class SensorLogic {
             Vector3d position,
             int number
     ) {
+        String digits =
+                Integer.toString(Math.max(0, number));
+
+        int digitCount =
+                digits.length();
+
+        double startOffset =
+                -((digitCount - 1) * NUMBER_SPACING) / 2.0;
+
+        Vector3i observedPosition =
+                blockPosition(position);
+
+        int directionX =
+                observedPosition.x() - sensorPosition.x();
+
+        int directionY =
+                observedPosition.y() - sensorPosition.y();
+
+        int directionZ =
+                observedPosition.z() - sensorPosition.z();
+
+        float yaw = 0.0F;
+        float pitch = 0.0F;
+        float roll = 0.0F;
+
+        if (directionX > 0) {
+            yaw = (float) (Math.PI / 2.0);
+        } else if (directionX < 0) {
+            yaw = (float) (-Math.PI / 2.0);
+        } else if (directionZ < 0) {
+            yaw = (float) Math.PI;
+        } else if (directionY > 0) {
+            pitch = (float) (-Math.PI / 2.0);
+        } else if (directionY < 0) {
+            pitch = (float) (Math.PI / 2.0);
+        }
+
+        Vector3d numberAxis =
+                new Vector3d(1.0, 0.0, 0.0)
+                        .rotateY(yaw)
+                        .rotateX(pitch)
+                        .rotateZ(roll);
+
+        Store<EntityStore> store =
+                world.getEntityStore().getStore();
+
+        for (int i = 0; i < digitCount; i++) {
+            int digit =
+                    digits.charAt(i) - '0';
+
+            double offset =
+                    startOffset + i * NUMBER_SPACING;
+
+            Vector3d digitPosition =
+                    new Vector3d(position)
+                            .add(
+                                    numberAxis.x * offset,
+                                    numberAxis.y * offset,
+                                    numberAxis.z * offset
+                            );
+
+            ParticleUtil.spawnParticleEffect(
+                    "Sensor_Number_" + digit,
+                    digitPosition,
+                    yaw,
+                    pitch,
+                    roll,
+                    1.0F,
+                    0.0F,
+                    store
+            );
+        }
     }
 
     private static void removeNumberUpdateSensor(
