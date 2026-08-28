@@ -6,7 +6,7 @@ import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 
 public final class InverterBlockRefresher {
 
@@ -51,7 +51,7 @@ public final class InverterBlockRefresher {
         String stateName =
                 stateName(node);
 
-        BlockAccessor chunk =
+        WorldChunk chunk =
                 world.getChunk(
                         ChunkUtil.indexChunkFromBlock(
                                 x,
