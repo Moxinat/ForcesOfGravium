@@ -7,13 +7,14 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.math.Axis;
-import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
@@ -74,21 +75,22 @@ public final class CurveCasedGravityPowderRotationSystem {
                             LOCAL_INTERACTION_ROTATION_AXIS
                     );
 
-            BlockAccessor blockAccessor =
-                    world.getChunk(
-                            ChunkUtil.indexChunkFromBlock(
-                                    position.x(),
-                                    position.z()
-                            )
+            ChunkStore chunkStore = world.getChunkStore();
+            Ref<ChunkStore> sectionRef =
+                    chunkStore.getChunkSectionReferenceAtBlock(
+                            position.x(),
+                            position.y(),
+                            position.z()
                     );
 
-            if (blockAccessor == null) {
+            if (sectionRef == null) {
                 return;
             }
 
-            // -------------------------
-            // SNAPSHOT OLD STATE
-            // -------------------------
+            int blockId = BlockType.getAssetMap().getIndex(blockType.getId());
+            if (blockId < 0) {
+                return;
+            }
 
             long oldNetworkId = node.networkId();
 
@@ -130,10 +132,6 @@ public final class CurveCasedGravityPowderRotationSystem {
                 }
             }
 
-            // -------------------------
-            // REMOVE OLD TOPOLOGY
-            // -------------------------
-
             Nodes.remove(
                     world,
                     position
@@ -145,10 +143,6 @@ public final class CurveCasedGravityPowderRotationSystem {
                     formerNetworkNeighbors
             );
 
-            // -------------------------
-            // APPLY NEW ROTATION
-            // -------------------------
-
             Nodes.put(
                     world,
                     node
@@ -156,36 +150,29 @@ public final class CurveCasedGravityPowderRotationSystem {
                             .withNetworkId(Nodes.Node.NO_NETWORK)
             );
 
-            blockAccessor.placeBlock(
+            BlockOperations.setBlock(
+                    chunkStore,
+                    sectionRef,
                     position.x(),
                     position.y(),
                     position.z(),
-                    blockType.getId(),
-                    nextRotation,
+                    blockId,
+                    blockType,
+                    nextRotation.index(),
                     0,
-                    false
+                    0
             );
-
-            // -------------------------
-            // RECONNECT NETWORK
-            // -------------------------
 
             ConnectableNetworkManager.onNodePlaced(
                     world,
                     position
             );
 
-            // -------------------------
-            // RECALCULATE SIGNAL
-            // -------------------------
-
             ConnectableSignalRecalculator.recompute(
                     world,
                     position
             );
 
-            // Old outputs may no longer be connected to the curve,
-            // so they cannot be reached by the recompute above anymore.
             for (Vector3i formerForwardNeighbor :
                     formerForwardNeighbors) {
 
@@ -194,10 +181,6 @@ public final class CurveCasedGravityPowderRotationSystem {
                         formerForwardNeighbor
                 );
             }
-
-            // -------------------------
-            // START EFFECTIVE WAVES
-            // -------------------------
 
             for (Map.Entry<Vector3i, SignalState> entry :
                     oldInstantStates.entrySet()) {
@@ -239,4 +222,3 @@ public final class CurveCasedGravityPowderRotationSystem {
         }
     }
 }
-
