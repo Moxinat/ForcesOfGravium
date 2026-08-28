@@ -20,8 +20,8 @@
   "LinearFiltering": false,
 
   "ParticleLifeSpan": {
-    "Min": 5.0,
-    "Max": 5.0
+    "Min": 1.0,
+    "Max": 1.0
   },
 
   "LightInfluence": 0.0,
