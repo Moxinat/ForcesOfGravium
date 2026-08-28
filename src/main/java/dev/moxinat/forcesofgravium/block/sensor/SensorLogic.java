@@ -64,6 +64,9 @@ public final class SensorLogic {
     private static final Map<World, Map<Ref<EntityStore>, Vector3i>> ITEM_POSITIONS =
             new ConcurrentHashMap<>();
 
+    private static final Map<World, Set<Vector3i>> NUMBER_UPDATE_SENSORS =
+            new ConcurrentHashMap<>();
+
     private static final Query<EntityStore> ITEM_QUERY =
             Query.and(ItemComponent.getComponentType(), TransformComponent.getComponentType());
 
@@ -141,6 +144,8 @@ public final class SensorLogic {
     ) {
         switch (state) {
             case OFF -> {
+                removeNumberUpdateSensor(world, position);
+
                 SensorComponent component =
                         getComponent(world, position);
 
@@ -160,6 +165,7 @@ public final class SensorLogic {
             }
 
             case PUSH -> {
+                removeNumberUpdateSensor(world, position);
 
                 registerTriggerVolume(world, position);
                 refreshContainerListener(world, position);
@@ -170,6 +176,13 @@ public final class SensorLogic {
             }
 
             case PULL -> {
+                NUMBER_UPDATE_SENSORS
+                        .computeIfAbsent(
+                                world,
+                                ignored -> ConcurrentHashMap.newKeySet()
+                        )
+                        .add(new Vector3i(position));
+
                 Vector3i observedPosition =
                         ConnectableNeighborResolver.adjacentPositionForLocalSide(
                                 world,
@@ -216,6 +229,98 @@ public final class SensorLogic {
                     world,
                     next
             );
+        }
+
+        if (world.getTick() % 30L == 0L) {
+            updateNumbers(world);
+        }
+    }
+
+    private static void updateNumbers(World world) {
+        Set<Vector3i> sensors =
+                NUMBER_UPDATE_SENSORS.get(world);
+
+        if (sensors == null || sensors.isEmpty()) {
+            return;
+        }
+
+        for (Vector3i sensorPosition : Set.copyOf(sensors)) {
+            Nodes.Node sensor =
+                    Nodes.get(world, sensorPosition);
+
+            if (sensor == null
+                    || !NodeTypes.GRAVIUM_SENSOR.blockId().equals(sensor.blockId())
+                    || sensor.effectiveState() != SignalState.PULL) {
+                sensors.remove(sensorPosition);
+                continue;
+            }
+
+            Vector3i observedPosition =
+                    ConnectableNeighborResolver.adjacentPositionForLocalSide(
+                            world,
+                            sensorPosition,
+                            ConnectableRegistry.SIDE_BACK
+                    );
+
+            BlockType observedBlock =
+                    world.getBlockType(
+                            observedPosition.x(),
+                            observedPosition.y(),
+                            observedPosition.z()
+                    );
+
+            if (observedBlock != null
+                    && !BlockType.EMPTY_KEY.equals(observedBlock.getId())) {
+                continue;
+            }
+
+            int energy =
+                    EnergyManager.remainingEnergy(
+                            world,
+                            sensorPosition
+                    );
+
+            Vector3d center =
+                    new Vector3d(
+                            observedPosition.x() + 0.5,
+                            observedPosition.y() + 0.5,
+                            observedPosition.z() + 0.5
+                    );
+
+            showNumbers(
+                    world,
+                    center,
+                    energy
+            );
+        }
+
+        if (sensors.isEmpty()) {
+            NUMBER_UPDATE_SENSORS.remove(world, sensors);
+        }
+    }
+
+    private static void showNumbers(
+            World world,
+            Vector3d position,
+            int number
+    ) {
+    }
+
+    private static void removeNumberUpdateSensor(
+            World world,
+            Vector3i position
+    ) {
+        Set<Vector3i> sensors =
+                NUMBER_UPDATE_SENSORS.get(world);
+
+        if (sensors == null) {
+            return;
+        }
+
+        sensors.remove(position);
+
+        if (sensors.isEmpty()) {
+            NUMBER_UPDATE_SENSORS.remove(world, sensors);
         }
     }
 
@@ -882,6 +987,7 @@ public final class SensorLogic {
     ) {
         unregisterTriggerVolume(world, position);
         removeContainerListener(world, position);
+        removeNumberUpdateSensor(world, position);
 
         Set<Vector3i> current = CURRENT_PENDING_COMPARE.get(world);
         if (current != null) {
@@ -1294,12 +1400,18 @@ public final class SensorLogic {
                     position
             );
 
-            // Only PUSH actively compares.
             if (node.effectiveState() == SignalState.PUSH) {
                 compareSnapshot(
                         world,
                         position
                 );
+            } else if (node.effectiveState() == SignalState.PULL) {
+                NUMBER_UPDATE_SENSORS
+                        .computeIfAbsent(
+                                world,
+                                ignored -> ConcurrentHashMap.newKeySet()
+                        )
+                        .add(new Vector3i(position));
             }
         }
     }
