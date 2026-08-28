@@ -289,6 +289,7 @@ public final class SensorLogic {
 
             showNumbers(
                     world,
+                    sensorPosition,
                     center,
                     energy
             );
@@ -301,6 +302,7 @@ public final class SensorLogic {
 
     private static void showNumbers(
             World world,
+            Vector3i sensorPosition,
             Vector3d position,
             int number
     ) {
