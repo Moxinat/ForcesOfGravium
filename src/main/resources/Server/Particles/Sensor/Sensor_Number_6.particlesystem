@@ -22,6 +22,14 @@
     {
       "SpawnerId": "Sensor_Number_Segment",
       "PositionOffset": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      }
+    },
+    {
+      "SpawnerId": "Sensor_Number_Segment",
+      "PositionOffset": {
         "X": -0.05,
         "Y": -0.05,
         "Z": 0.0
@@ -31,36 +39,24 @@
       }
     },
     {
-          "SpawnerId": "Sensor_Number_Segment",
-          "PositionOffset": {
-            "X": 0.05,
-            "Y": 0.05,
-            "Z": 0.0
-          },
-          "RotationOffset": {
-            "Roll": 90
-          }
+      "SpawnerId": "Sensor_Number_Segment",
+      "PositionOffset": {
+        "X": 0.05,
+        "Y": -0.05,
+        "Z": 0.0
+      },
+      "RotationOffset": {
+        "Roll": 90
+      }
     },
     {
-          "SpawnerId": "Sensor_Number_Segment",
-          "PositionOffset": {
-            "X": 0.05,
-            "Y": -0.05,
-            "Z": 0.0
-          },
-          "RotationOffset": {
-            "Roll": 90
-          }
-    },
-    {
-          "SpawnerId": "Sensor_Number_Segment",
-          "PositionOffset": {
-            "X": 0.0,
-            "Y": -0.1,
-            "Z": 0.0
-          }
+      "SpawnerId": "Sensor_Number_Segment",
+      "PositionOffset": {
+        "X": 0.0,
+        "Y": -0.1,
+        "Z": 0.0
+      }
     }
   ],
-
   "CullDistance": 50
 }

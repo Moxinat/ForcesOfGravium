@@ -1,20 +1,11 @@
 {
-  "RenderMode": "BlendAdd",
-  "Shape": "Cube",
+  "RenderMode": "BlendLinear",
+  "Shape": "Sphere",
 
   "EmitOffset": {
-    "X": {
-      "Min": -0.09,
-      "Max": 0.09
-    },
-    "Y": {
-      "Min": 0,
-      "Max": 0
-    },
-    "Z": {
-      "Min": 0,
-      "Max": 0
-    }
+    "X": { "Min": -0.05, "Max": 0.05 },
+    "Y": { "Min": 0, "Max": 0 },
+    "Z": { "Min": 0, "Max": 0 }
   },
 
   "TotalParticles": {
@@ -24,6 +15,9 @@
 
   "MaxConcurrentParticles": 100,
   "SpawnBurst": true,
+  "ParticleRotationInfluence": "Billboard",
+  "ParticleRotateWithSpawner": false,
+  "LinearFiltering": false,
 
   "ParticleLifeSpan": {
     "Min": 5.0,
@@ -50,6 +44,13 @@
   "Particle": {
     "Texture": "Particles/Textures/clean_square.png",
 
+    "FrameSize": {
+        "Width": 16,
+        "Height": 16
+      },
+
+      "ScaleRatioConstraint": "OneToOne",
+
     "Animation": {
       "0": {
         "Opacity": 1.0,
@@ -64,12 +65,12 @@
     "InitialAnimationFrame": {
       "Scale": {
         "X": {
-          "Min": 0.1,
-          "Max": 0.1
+          "Min": 0.04,
+          "Max": 0.04
         },
         "Y": {
-          "Min": 0.1,
-          "Max": 0.1
+          "Min": 0.04,
+          "Max": 0.04
         }
       },
 
