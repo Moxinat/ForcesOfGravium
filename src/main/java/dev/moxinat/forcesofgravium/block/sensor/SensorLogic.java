@@ -184,8 +184,8 @@ public final class SensorLogic {
                                 observedPosition.z()
                         );
 
-                if (observedBlock == null
-                        || BlockType.EMPTY_KEY.equals(observedBlock.getId())) {
+                if (observedBlock != null
+                        && !BlockType.EMPTY_KEY.equals(observedBlock.getId())) {
                     return;
                 }
             }
