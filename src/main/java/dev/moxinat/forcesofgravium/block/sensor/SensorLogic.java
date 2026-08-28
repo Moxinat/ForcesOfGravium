@@ -170,6 +170,24 @@ public final class SensorLogic {
             }
 
             case PULL -> {
+                Vector3i observedPosition =
+                        ConnectableNeighborResolver.adjacentPositionForLocalSide(
+                                world,
+                                position,
+                                ConnectableRegistry.SIDE_BACK
+                        );
+
+                BlockType observedBlock =
+                        world.getBlockType(
+                                observedPosition.x(),
+                                observedPosition.y(),
+                                observedPosition.z()
+                        );
+
+                if (observedBlock == null
+                        || BlockType.EMPTY_KEY.equals(observedBlock.getId())) {
+                    return;
+                }
             }
         }
     }
