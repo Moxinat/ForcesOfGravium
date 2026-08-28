@@ -3,7 +3,7 @@ package dev.moxinat.forcesofgravium.block.sensor;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.accessor.BlockAccessor;
+import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.signal.SignalState;
@@ -139,7 +139,7 @@ public final class SensorBlockRefresher {
             return;
         }
 
-        BlockAccessor chunk = world.getChunk(
+        WorldChunk chunk = world.getChunk(
                 ChunkUtil.indexChunkFromBlock(
                         position.x(),
                         position.z()
@@ -322,7 +322,6 @@ public final class SensorBlockRefresher {
             return;
         }
 
-        // Any animation that existed before shutdown is irrelevant now.
         Map<Vector3i, PendingAnimation> pending =
                 PENDING.get(world);
 
