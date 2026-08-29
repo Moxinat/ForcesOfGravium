@@ -53,7 +53,7 @@ public final class SensorLogic {
     private SensorLogic() {
     }
 
-    private static final double NUMBER_SPACING = 0.08;
+    private static final double NUMBER_SPACING = 0.12;
 
     private static final Map<World, Set<Vector3i>> CURRENT_PENDING_COMPARE =
             new ConcurrentHashMap<>();
@@ -382,7 +382,7 @@ public final class SensorLogic {
                     yaw,
                     pitch,
                     roll,
-                    1.0F,
+                    1.5F,
                     0.0F,
                     store
             );
