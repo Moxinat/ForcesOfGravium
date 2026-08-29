@@ -321,6 +321,12 @@ public final class SensorLogic {
         Vector3i observedPosition =
                 blockPosition(position);
 
+        position.add(
+                (sensorPosition.x() - observedPosition.x()) * 0.25,
+                (sensorPosition.y() - observedPosition.y()) * 0.25,
+                (sensorPosition.z() - observedPosition.z()) * 0.25
+        );
+
         int directionX =
                 observedPosition.x() - sensorPosition.x();
 
@@ -962,7 +968,8 @@ public final class SensorLogic {
                 world.getEntityStore()
                         .getStore()
                         .getResource(
-                                TriggerVolumesPlugin.get().getManagerResourceType()
+                                TriggerVolumesPlugin.get()
+                                        .getManagerResourceType()
                         );
 
         if (manager.hasVolume(triggerVolumeId(sensorPosition))) {
