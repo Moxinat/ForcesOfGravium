@@ -12,6 +12,7 @@ import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.block.sensor.SensorRotationSystem;
 import dev.moxinat.forcesofgravium.block.windgen.WindGeneratorInteractionSystem;
 import dev.moxinat.forcesofgravium.commands.ForcesOfGraviumCommand;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.lifecycle.ForcesOfGraviumEvents;
 import dev.moxinat.forcesofgravium.lifecycle.*;
@@ -25,9 +26,25 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
     }
 
     public static ComponentType<ChunkStore, SensorComponent> SENSOR_COMPONENT_TYPE;
+    public static ComponentType<ChunkStore, NodeComponent> NODE_COMPONENT_TYPE;
 
     @Override
     protected void setup() {
+        NODE_COMPONENT_TYPE =
+                this.getChunkStoreRegistry().registerComponent(
+                        NodeComponent.class,
+                        "forcesofgravium:node",
+                        NodeComponent.CODEC
+                );
+
+        SENSOR_COMPONENT_TYPE =
+                this.getChunkStoreRegistry().registerComponent(
+                        SensorComponent.class,
+                        "forcesofgravium:sensor",
+                        SensorComponent.CODEC
+                );
+
+
         this.getCommandRegistry().registerCommand(
             new ForcesOfGraviumCommand("fog", "Main command for ForcesOfGravium")
         );
@@ -49,12 +66,5 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.ItemTrackingSystem());
 
         SensorLogic.registerTriggerEffects();
-
-        SENSOR_COMPONENT_TYPE =
-                this.getChunkStoreRegistry().registerComponent(
-                        SensorComponent.class,
-                        "forcesofgravium:sensor",
-                        SensorComponent.CODEC
-                );
     }
 }
