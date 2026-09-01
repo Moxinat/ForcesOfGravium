@@ -7,15 +7,13 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.asset.type.particle.config.ParticleSystem;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.ParticleUtil;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
@@ -27,7 +25,6 @@ import org.joml.Vector3i;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -200,19 +197,85 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         }
     }
 
-    private void sendNodeDebug(CommandContext context, World world, Vector3i p) {
-        Nodes.Node n = Nodes.get(world, p);
-        if (n == null) {
-            context.sendMessage(Message.raw("No FoG node at " + formatPosition(p) + "."));
+    private void sendNodeDebug(
+            CommandContext context,
+            World world,
+            Vector3i position
+    ) {
+        NodeComponent node =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
+
+        if (node == null) {
+            context.sendMessage(
+                    Message.raw(
+                            "No NodeComponent at "
+                                    + formatPosition(position)
+                    )
+            );
             return;
         }
-        context.sendMessage(Message.raw("Node at " + formatPosition(p) + " blockId=" + n.blockId()));
-        context.sendMessage(Message.raw("signalInputSides=" + n.signalInputSides() + " signalOutputSides=" + n.signalOutputSides() + " controlInputSides=" + n.controlInputSides()));
-        context.sendMessage(Message.raw("invertEnabled=" + n.invertEnabled() + " passing=" + n.passing()));
-        context.sendMessage(Message.raw("rotation=" + n.rotation()));
-        context.sendMessage(Message.raw("previousInstantState=" + n.previousInstantState() + " instantState=" + n.instantState()));
-        context.sendMessage(Message.raw("previousEffectiveState=" + n.previousEffectiveState() + " effectiveState=" + n.effectiveState()));
-        context.sendMessage(Message.raw("dirty=" + n.dirty() + " energyDelta=" + n.energyDelta() + " networkId=" + n.networkId()));
+
+        context.sendMessage(
+                Message.raw(
+                        "NodeComponent at "
+                                + formatPosition(position)
+                )
+        );
+
+        context.sendMessage(
+                Message.raw(
+                        "signalInputSides="
+                                + node.signalInputSides()
+                                + " signalOutputSides="
+                                + node.signalOutputSides()
+                                + " controlInputSides="
+                                + node.controlInputSides()
+                )
+        );
+
+        context.sendMessage(
+                Message.raw(
+                        "previousInstantState="
+                                + node.previousInstantState()
+                                + " instantState="
+                                + node.instantState()
+                )
+        );
+
+        context.sendMessage(
+                Message.raw(
+                        "previousEffectiveState="
+                                + node.previousEffectiveState()
+                                + " effectiveState="
+                                + node.effectiveState()
+                )
+        );
+
+        context.sendMessage(
+                Message.raw(
+                        "dirty="
+                                + node.dirty()
+                                + " invertEnabled="
+                                + node.invertEnabled()
+                                + " passing="
+                                + node.passing()
+                )
+        );
+
+        context.sendMessage(
+                Message.raw(
+                        "energyDelta="
+                                + node.energyDelta()
+                                + " networkId="
+                                + node.networkId()
+                )
+        );
     }
 
     private void sendRotationDebug(CommandContext context, World world, Vector3i p) {

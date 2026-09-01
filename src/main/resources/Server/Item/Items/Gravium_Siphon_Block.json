@@ -23,6 +23,24 @@
     ],
     "Group": "Stone",
     "Flags": {},
+    "BlockEntity": {
+      "Components": {
+        "forcesofgravium:node": {
+          "SignalInputSides": 60,
+          "SignalOutputSides": 0,
+          "ControlInputSides": 0,
+          "PreviousInstantState": "Off",
+          "InstantState": "Off",
+          "PreviousEffectiveState": "Off",
+          "EffectiveState": "Off",
+          "Dirty": false,
+          "InvertEnabled": false,
+          "Passing": false,
+          "EnergyDelta": -1,
+          "NetworkId": 0
+        }
+      }
+    },
     "Gathering": {
       "Breaking": {
         "GatherType": "Rocks"

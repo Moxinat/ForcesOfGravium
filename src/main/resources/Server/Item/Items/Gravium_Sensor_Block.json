@@ -45,6 +45,20 @@
           "HasContainerItemCount": false,
           "ContainerItemCount": 0,
           "EntityCount": 0
+        },
+        "forcesofgravium:node": {
+          "SignalInputSides": 16,
+          "SignalOutputSides": 1,
+          "ControlInputSides": 0,
+          "PreviousInstantState": "Off",
+          "InstantState": "Off",
+          "PreviousEffectiveState": "Off",
+          "EffectiveState": "Off",
+          "Dirty": false,
+          "InvertEnabled": false,
+          "Passing": true,
+          "EnergyDelta": 0,
+          "NetworkId": 0
         }
       }
     },
