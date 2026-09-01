@@ -1,7 +1,6 @@
 package dev.moxinat.forcesofgravium.block.siphon;
 
 import com.hypixel.hytale.component.Ref;
-import dev.moxinat.forcesofgravium.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;

@@ -1,12 +1,16 @@
 package dev.moxinat.forcesofgravium.spatial;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
-import dev.moxinat.forcesofgravium.data.Nodes;
-import dev.moxinat.forcesofgravium.data.Nodes.Node;
 
 import javax.annotation.Nonnull;
 import java.util.LinkedHashSet;
@@ -36,14 +40,14 @@ public final class ConnectableNeighborResolver {
             return false;
         }
 
-        Node firstNode = Nodes.get(world, first);
-        Node secondNode = Nodes.get(world, second);
+        NodeComponent firstNode = nodeAt(world, first);
+        NodeComponent secondNode = nodeAt(world, second);
         if (firstNode == null || secondNode == null) {
             return false;
         }
 
-        int firstLocalSide = localSideForWorldSide(firstNode.rotation(), firstToSecond);
-        int secondLocalSide = localSideForWorldSide(secondNode.rotation(), firstToSecond.opposite());
+        int firstLocalSide = localSideForWorldSide(rotationFor(world, first), firstToSecond);
+        int secondLocalSide = localSideForWorldSide(rotationFor(world, second), firstToSecond.opposite());
 
         boolean firstOutputsToSecond = firstNode.canOutputSignalTo(firstLocalSide)
                 && (secondNode.canReceiveSignalFrom(secondLocalSide)
@@ -74,8 +78,8 @@ public final class ConnectableNeighborResolver {
             Vector3i sourcePosition,
             Vector3i targetPosition
     ) {
-        Node source = Nodes.get(world, sourcePosition);
-        Node target = Nodes.get(world, targetPosition);
+        NodeComponent source = nodeAt(world, sourcePosition);
+        NodeComponent target = nodeAt(world, targetPosition);
 
         if (source == null || target == null) {
             return false;
@@ -89,10 +93,16 @@ public final class ConnectableNeighborResolver {
         }
 
         int sourceLocalSide =
-                localSideForWorldSide(source.rotation(), sourceToTarget);
+                localSideForWorldSide(
+                        rotationFor(world, sourcePosition),
+                        sourceToTarget
+                );
 
         int targetLocalSide =
-                localSideForWorldSide(target.rotation(), sourceToTarget.opposite());
+                localSideForWorldSide(
+                        rotationFor(world, targetPosition),
+                        sourceToTarget.opposite()
+                );
 
         return source.canOutputSignalTo(sourceLocalSide)
                 && target.canReceiveSignalFrom(targetLocalSide);
@@ -111,8 +121,8 @@ public final class ConnectableNeighborResolver {
             @Nonnull Vector3i sourcePosition,
             @Nonnull Vector3i targetPosition
     ) {
-        Node source = Nodes.get(world, sourcePosition);
-        Node target = Nodes.get(world, targetPosition);
+        NodeComponent source = nodeAt(world, sourcePosition);
+        NodeComponent target = nodeAt(world, targetPosition);
 
         if (source == null || target == null) {
             return false;
@@ -127,13 +137,13 @@ public final class ConnectableNeighborResolver {
 
         int sourceLocalSide =
                 localSideForWorldSide(
-                        source.rotation(),
+                        rotationFor(world, sourcePosition),
                         sourceToTarget
                 );
 
         int targetLocalSide =
                 localSideForWorldSide(
-                        target.rotation(),
+                        rotationFor(world, targetPosition),
                         sourceToTarget.opposite()
                 );
 
@@ -248,9 +258,52 @@ public final class ConnectableNeighborResolver {
         };
     }
 
-    public static RotationTuple rotationFor(World world, Vector3i position) {
-        Node node = Nodes.get(world, position);
-        return node == null ? RotationTuple.NONE : node.rotation();
+    public static RotationTuple rotationFor(
+            World world,
+            Vector3i position
+    ) {
+        Ref<ChunkStore> blockRef =
+                BlockModule.getBlockEntity(
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
+
+        if (blockRef == null || !blockRef.isValid()) {
+            return RotationTuple.NONE;
+        }
+
+        BlockModule.BlockStateInfo blockStateInfo =
+                blockRef.getStore().getComponent(
+                        blockRef,
+                        BlockModule.BlockStateInfo.getComponentType()
+                );
+
+        if (blockStateInfo == null) {
+            return RotationTuple.NONE;
+        }
+
+        Ref<ChunkStore> sectionRef =
+                blockStateInfo.getSectionRef();
+
+        if (!sectionRef.isValid()) {
+            return RotationTuple.NONE;
+        }
+
+        BlockSection blockSection =
+                sectionRef.getStore().getComponent(
+                        sectionRef,
+                        BlockSection.getComponentType()
+                );
+
+        if (blockSection == null) {
+            return RotationTuple.NONE;
+        }
+
+        return blockSection.getRotation(
+                blockStateInfo.getIndex()
+        );
     }
 
     public static WorldSide worldSideForLocalSide(RotationTuple rotation, int localSideMask) {
@@ -297,6 +350,19 @@ public final class ConnectableNeighborResolver {
             return new Vector3d(0, -1, 0);
         }
         throw new IllegalArgumentException("Unknown local side mask: " + localSideMask);
+    }
+
+    private static NodeComponent nodeAt(
+            World world,
+            Vector3i position
+    ) {
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
     }
 
     public enum WorldSide {

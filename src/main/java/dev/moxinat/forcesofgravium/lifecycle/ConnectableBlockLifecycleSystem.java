@@ -6,17 +6,20 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualRefreshScheduler;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.network.ConnectableNetworkManager;
 import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
-import dev.moxinat.forcesofgravium.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.spatial.BlockPlacementRotationSystem;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.BreakBlockEvent;
@@ -65,10 +68,7 @@ public final class ConnectableBlockLifecycleSystem {
 
             String blockId = itemInHand.getItemId();
 
-            NodeTypes.NodeType nodeType = NodeTypes.find(blockId)
-                    .orElse(null);
-
-            if (nodeType == null) {
+            if (!ConnectableRegistry.isConnectableId(blockId)) {
                 return;
             }
 
@@ -105,23 +105,7 @@ public final class ConnectableBlockLifecycleSystem {
                 );
             }
 
-            // Hytale block and Node must use the same final rotation.
             event.setRotation(rotation);
-
-            // -------------------------
-            // CREATE NODE
-            // -------------------------
-
-            Nodes.Node node = Nodes.createWithType(
-                    world,
-                    target,
-                    nodeType
-            );
-
-            Nodes.put(
-                    world,
-                    node.withRotation(rotation)
-            );
 
             // -------------------------
             // NETWORK
@@ -136,8 +120,6 @@ public final class ConnectableBlockLifecycleSystem {
                     world,
                     target
             );
-
-
 
             // -------------------------
             // SIGNAL
@@ -160,10 +142,11 @@ public final class ConnectableBlockLifecycleSystem {
                             target
                     )) {
 
-                Nodes.Node neighbor = Nodes.get(
-                        world,
-                        neighborPosition
-                );
+                NodeComponent neighbor =
+                        nodeAt(
+                                world,
+                                neighborPosition
+                        );
 
                 if (neighbor != null && !neighbor.dirty()) {
                     hasStableBackwardNeighbor = true;
@@ -217,13 +200,21 @@ public final class ConnectableBlockLifecycleSystem {
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
 
-            Nodes.Node brokenNode = Nodes.get(world, target);
+            NodeComponent brokenNode = nodeAt(world, target);
 
             if (brokenNode == null) {
                 return;
             }
 
-            if (NodeTypes.GRAVIUM_SENSOR.blockId().equals(brokenNode.blockId())) {
+            SensorComponent sensor = BlockModule.getComponent(
+                            ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE,
+                            world,
+                            target.x(),
+                            target.y(),
+                            target.z()
+                    );
+
+            if (sensor != null) {
                 SensorLogic.handleBroken(
                         world,
                         target
@@ -253,10 +244,11 @@ public final class ConnectableBlockLifecycleSystem {
                     new LinkedHashMap<>();
 
             for (Vector3i forwardNeighbor : formerForwardNeighbors) {
-                Nodes.Node neighbor = Nodes.get(
-                        world,
-                        forwardNeighbor
-                );
+                NodeComponent neighbor =
+                        nodeAt(
+                                world,
+                                forwardNeighbor
+                        );
 
                 if (neighbor != null) {
                     oldForwardInstantStates.put(
@@ -265,15 +257,6 @@ public final class ConnectableBlockLifecycleSystem {
                     );
                 }
             }
-
-            // -------------------------
-            // REMOVE NODE
-            // -------------------------
-
-            Nodes.remove(
-                    world,
-                    target
-            );
 
             // -------------------------
             // NETWORK
@@ -307,10 +290,8 @@ public final class ConnectableBlockLifecycleSystem {
                         position
                 );
 
-                Nodes.Node recomputedNode = Nodes.get(
-                        world,
-                        position
-                );
+                NodeComponent recomputedNode =
+                        nodeAt(world, position);
 
                 if (recomputedNode == null) {
                     continue;
@@ -329,5 +310,18 @@ public final class ConnectableBlockLifecycleSystem {
             ConnectableVisualDispatcher.refreshTopologyAround(world, target);
 
         }
+    }
+
+    private static NodeComponent nodeAt(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
     }
 }

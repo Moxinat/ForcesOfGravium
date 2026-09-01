@@ -10,7 +10,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.block.sensor.SensorBlockRefresher;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
-import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualRefreshScheduler;
 import dev.moxinat.forcesofgravium.dispatcher.NodeControlDispatcher;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;

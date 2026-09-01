@@ -1,23 +1,22 @@
 package dev.moxinat.forcesofgravium.source;
 
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.SignalRuntimeResource;
+import dev.moxinat.forcesofgravium.data.SourceComponent;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
-import dev.moxinat.forcesofgravium.registry.SourceRegistry;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 
 import javax.annotation.Nonnull;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class SourceActivationScheduler {
-
-    private static final Map<World, Map<Vector3i, Long>> ACTIVE_UNTIL_TICKS = new ConcurrentHashMap<>();
 
     private SourceActivationScheduler() {
     }
@@ -27,41 +26,33 @@ public final class SourceActivationScheduler {
             @Nonnull Vector3i position,
             long ticks
     ) {
-        Nodes.Node node = Nodes.get(world, position);
+        NodeComponent node = nodeAt(world, position);
+        SourceComponent source = sourceAt(world, position);
 
-        if (node == null) {
+        if (node == null || source == null) {
             return;
         }
 
-        int power = SourceRegistry.powerFor(node.blockId());
+        int power = source.power();
 
         if (power <= 0) {
             return;
         }
 
-        node = node
-                .withEnergyDelta(power)
-                .withInstantState(SignalState.PUSH)
-                .withDirty(true);
-
-        Nodes.put(
-                world,
-                node
-        );
+        node.setEnergyDelta(power);
+        node.setInstantState(SignalState.PUSH);
+        node.setDirty(true);
 
         EnergyManager.checkNetwork(
                 world,
                 position
         );
 
-        ACTIVE_UNTIL_TICKS
-                .computeIfAbsent(
-                        world,
-                        ignored -> new ConcurrentHashMap<>()
-                )
+        signalResource(world)
+                .activeSources()
                 .put(
-                        position,
-                        world.getTick() + ticks
+                        new Vector3i(position),
+                        ticks
                 );
 
         for (Vector3i forwardNeighbor :
@@ -82,44 +73,49 @@ public final class SourceActivationScheduler {
         );
     }
 
-    public static void tickWorld(@Nonnull World world) {
-        Map<Vector3i, Long> activeUntilByPosition = ACTIVE_UNTIL_TICKS.get(world);
-        if (activeUntilByPosition == null || activeUntilByPosition.isEmpty()) {
+    public static void tickWorld(
+            @Nonnull World world
+    ) {
+        Map<Vector3i, Long> activeSources =
+                signalResource(world).activeSources();
+
+        if (activeSources.isEmpty()) {
             return;
         }
 
-        long tick = world.getTick();
-        Map<Vector3i, Long> expired = new HashMap<>();
-        for (Map.Entry<Vector3i, Long> entry : Map.copyOf(activeUntilByPosition).entrySet()) {
-            if (entry.getValue() <= tick) {
-                expired.put(entry.getKey(), entry.getValue());
-            }
-        }
+        for (Map.Entry<Vector3i, Long> entry
+                : Map.copyOf(activeSources).entrySet()) {
 
-        for (Map.Entry<Vector3i, Long> entry : expired.entrySet()) {
-            Vector3i position = entry.getKey();
-            if (!activeUntilByPosition.remove(position, entry.getValue())) {
+            Vector3i position =
+                    entry.getKey();
+
+            long remainingTicks =
+                    entry.getValue() - 1;
+
+            if (remainingTicks > 0) {
+                activeSources.put(
+                        position,
+                        remainingTicks
+                );
+
                 continue;
             }
 
-            Nodes.Node node = Nodes.get(
-                    world,
-                    position
-            );
+            activeSources.remove(position);
+
+            NodeComponent node =
+                    nodeAt(
+                            world,
+                            position
+                    );
 
             if (node == null) {
                 continue;
             }
 
-            node = node
-                    .withEnergyDelta(0)
-                    .withInstantState(SignalState.OFF)
-                    .withDirty(true);
-
-            Nodes.put(
-                    world,
-                    node
-            );
+            node.setEnergyDelta(0);
+            node.setInstantState(SignalState.OFF);
+            node.setDirty(true);
 
             EnergyManager.checkNetwork(
                     world,
@@ -143,77 +139,42 @@ public final class SourceActivationScheduler {
                     position
             );
         }
-        if (activeUntilByPosition.isEmpty()) {
-            ACTIVE_UNTIL_TICKS.remove(world, activeUntilByPosition);
-        }
     }
 
-    public static @Nonnull Map<Vector3i, Long> snapshotRemainingTicks(
-            @Nonnull World world
+    private static NodeComponent nodeAt(
+            World world,
+            Vector3i position
     ) {
-        Map<Vector3i, Long> activeUntilByPosition =
-                ACTIVE_UNTIL_TICKS.get(world);
-
-        if (activeUntilByPosition == null
-                || activeUntilByPosition.isEmpty()) {
-            return Map.of();
-        }
-
-        long currentTick = world.getTick();
-
-        Map<Vector3i, Long> remainingTicks =
-                new HashMap<>();
-
-        for (Map.Entry<Vector3i, Long> entry :
-                activeUntilByPosition.entrySet()) {
-
-            long remaining = Math.max(
-                    0L,
-                    entry.getValue() - currentTick
-            );
-
-            remainingTicks.put(
-                    new Vector3i(entry.getKey()),
-                    remaining
-            );
-        }
-
-        return Map.copyOf(remainingTicks);
-    }
-
-    public static void restoreTimedSources(
-            @Nonnull World world,
-            @Nonnull Map<Vector3i, Long> remainingTicks
-    ) {
-        clearWorld(world);
-
-        if (remainingTicks.isEmpty()) {
-            return;
-        }
-
-        long currentTick = world.getTick();
-
-        Map<Vector3i, Long> activeUntilByPosition =
-                new ConcurrentHashMap<>();
-
-        for (Map.Entry<Vector3i, Long> entry :
-                remainingTicks.entrySet()) {
-
-            activeUntilByPosition.put(
-                    new Vector3i(entry.getKey()),
-                    currentTick + entry.getValue()
-            );
-        }
-
-        ACTIVE_UNTIL_TICKS.put(
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
                 world,
-                activeUntilByPosition
+                position.x(),
+                position.y(),
+                position.z()
         );
     }
 
-    public static void clearWorld(
+    private static SignalRuntimeResource signalResource(
             @Nonnull World world
     ) {
-        ACTIVE_UNTIL_TICKS.remove(world);
+        return world
+                .getChunkStore()
+                .getStore()
+                .getResource(
+                        ForcesOfGraviumPlugin.SIGNAL_RESOURCE_TYPE
+                );
+    }
+
+    private static SourceComponent sourceAt(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.SOURCE_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
     }
 }

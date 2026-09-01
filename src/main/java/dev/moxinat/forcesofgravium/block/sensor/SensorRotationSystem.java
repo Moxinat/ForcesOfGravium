@@ -19,7 +19,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.network.ConnectableNetworkManager;
-import dev.moxinat.forcesofgravium.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
 import dev.moxinat.forcesofgravium.signal.SignalState;

@@ -1,9 +1,10 @@
 package dev.moxinat.forcesofgravium.signal;
 
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
-import dev.moxinat.forcesofgravium.data.Nodes;
-import dev.moxinat.forcesofgravium.data.Nodes.Node;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -38,7 +39,7 @@ public final class ConnectableSignalRecalculator {
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(position, "position");
 
-        Node startNode = Nodes.get(world, position);
+        NodeComponent startNode = nodeAt(world, position);
         if (startNode == null) {
             return;
         }
@@ -67,7 +68,7 @@ public final class ConnectableSignalRecalculator {
                 Vector3i inverterPosition = frame.waitingForInverter;
                 frame.waitingForInverter = null;
 
-                Node inverterNode = Nodes.get(world, inverterPosition);
+                NodeComponent inverterNode = nodeAt(world, inverterPosition);
                 if (inverterNode == null) {
                     continue;
                 }
@@ -92,22 +93,19 @@ public final class ConnectableSignalRecalculator {
                 // Child frames represent inverter dependencies.
                 // Their instant state must be updated before the parent can use them.
                 if (!frame.startPosition.equals(position)) {
-                    Node dependencyNode = Nodes.get(world, frame.startPosition);
+                    NodeComponent dependencyNode =
+                            nodeAt(world, frame.startPosition);
 
                     if (dependencyNode != null
                             && dependencyNode.instantState() != frame.resolvedState) {
 
-                        ConnectablePropagationScheduler
-                                .cancelPendingAdoption(
-                                        world,
-                                        frame.startPosition
-                                );
+                        ConnectablePropagationScheduler.cancelPendingAdoption(
+                                world,
+                                frame.startPosition
+                        );
 
-                        dependencyNode = dependencyNode
-                                .withInstantState(frame.resolvedState)
-                                .withDirty(true);
-
-                        Nodes.put(world, dependencyNode);
+                        dependencyNode.setInstantState(frame.resolvedState);
+                        dependencyNode.setDirty(true);
                     }
                 } else {
                     // Root result is handled by the existing SET START NODE section.
@@ -123,7 +121,7 @@ public final class ConnectableSignalRecalculator {
                 continue;
             }
 
-            Node currentNode = Nodes.get(world, currentPosition);
+            NodeComponent currentNode = nodeAt(world, currentPosition);
             if (currentNode == null) {
                 continue;
             }
@@ -184,7 +182,7 @@ public final class ConnectableSignalRecalculator {
         // SET START NODE
         // -------------------------
 
-        startNode = Nodes.get(world, position);
+        startNode = nodeAt(world, position);
         if (startNode == null) {
             return;
         }
@@ -196,11 +194,8 @@ public final class ConnectableSignalRecalculator {
                     position
             );
 
-            startNode = startNode
-                    .withInstantState(resolvedState)
-                    .withDirty(true);
-
-            Nodes.put(world, startNode);
+            startNode.setInstantState(resolvedState);
+            startNode.setDirty(true);
         }
 
         // The instant state is the state at the node's input.
@@ -235,7 +230,7 @@ public final class ConnectableSignalRecalculator {
                 continue;
             }
 
-            Node currentNode = Nodes.get(world, currentPosition);
+            NodeComponent currentNode = nodeAt(world, currentPosition);
             if (currentNode == null) {
                 continue;
             }
@@ -247,11 +242,8 @@ public final class ConnectableSignalRecalculator {
                         currentPosition
                 );
 
-                currentNode = currentNode
-                        .withInstantState(forwardState)
-                        .withDirty(true);
-
-                Nodes.put(world, currentNode);
+                currentNode.setInstantState(forwardState);
+                currentNode.setDirty(true);
             }
 
             // The inverter itself receives the current signal,
@@ -271,5 +263,18 @@ public final class ConnectableSignalRecalculator {
                 }
             }
         }
+    }
+
+    private static NodeComponent nodeAt(
+            World world,
+            Vector3i position
+    ) {
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
     }
 }

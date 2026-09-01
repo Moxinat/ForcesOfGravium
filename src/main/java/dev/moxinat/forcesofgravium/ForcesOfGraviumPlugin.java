@@ -1,6 +1,7 @@
 package dev.moxinat.forcesofgravium;
 
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.event.events.ShutdownEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
@@ -12,8 +13,7 @@ import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.block.sensor.SensorRotationSystem;
 import dev.moxinat.forcesofgravium.block.windgen.WindGeneratorInteractionSystem;
 import dev.moxinat.forcesofgravium.commands.ForcesOfGraviumCommand;
-import dev.moxinat.forcesofgravium.data.NodeComponent;
-import dev.moxinat.forcesofgravium.data.SensorComponent;
+import dev.moxinat.forcesofgravium.data.*;
 import dev.moxinat.forcesofgravium.lifecycle.ForcesOfGraviumEvents;
 import dev.moxinat.forcesofgravium.lifecycle.*;
 
@@ -27,6 +27,9 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
 
     public static ComponentType<ChunkStore, SensorComponent> SENSOR_COMPONENT_TYPE;
     public static ComponentType<ChunkStore, NodeComponent> NODE_COMPONENT_TYPE;
+    public static ComponentType<ChunkStore, SourceComponent> SOURCE_COMPONENT_TYPE;
+    public static ResourceType<ChunkStore, NetworkResource> NETWORK_RESOURCE_TYPE;
+    public static ResourceType<ChunkStore, SignalRuntimeResource> SIGNAL_RESOURCE_TYPE;
 
     @Override
     protected void setup() {
@@ -42,6 +45,27 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
                         SensorComponent.class,
                         "forcesofgravium:sensor",
                         SensorComponent.CODEC
+                );
+
+        SOURCE_COMPONENT_TYPE =
+                this.getChunkStoreRegistry().registerComponent(
+                        SourceComponent.class,
+                        "forcesofgravium:source",
+                        SourceComponent.CODEC
+                );
+
+        NETWORK_RESOURCE_TYPE =
+                this.getChunkStoreRegistry().registerResource(
+                        NetworkResource.class,
+                        "forcesofgravium:networks",
+                        NetworkResource.CODEC
+                );
+
+        SIGNAL_RESOURCE_TYPE =
+                this.getChunkStoreRegistry().registerResource(
+                        SignalRuntimeResource.class,
+                        "forcesofgravium:signal",
+                        SignalRuntimeResource.CODEC
                 );
 
 

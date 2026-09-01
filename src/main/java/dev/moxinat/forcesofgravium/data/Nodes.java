@@ -3,7 +3,6 @@ package dev.moxinat.forcesofgravium.data;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.signal.SignalState;
-import dev.moxinat.forcesofgravium.registry.NodeTypes.NodeType;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -65,35 +64,6 @@ public final class Nodes {
         );
         put(world, node);
         return node;
-    }
-
-    /**
-     * Creates and stores a node by copying all defaults from a registered NodeType.
-     */
-    public static @Nonnull Node createWithType(
-            @Nonnull World world,
-            @Nonnull Vector3i position,
-            @Nonnull NodeType type
-    ) {
-        Objects.requireNonNull(type, "type");
-        return createNode(
-                world,
-                position,
-                type.blockId(),
-                type.signalInputSides(),
-                type.signalOutputSides(),
-                type.controlInputSides(),
-                type.rotation(),
-                type.previousInstantState(),
-                type.instantState(),
-                type.previousEffectiveState(),
-                type.effectiveState(),
-                type.dirty(),
-                type.invertEnabled(),
-                type.passing(),
-                type.energyDelta(),
-                type.networkId()
-        );
     }
 
     public static void put(@Nonnull World world, @Nonnull Node node) {

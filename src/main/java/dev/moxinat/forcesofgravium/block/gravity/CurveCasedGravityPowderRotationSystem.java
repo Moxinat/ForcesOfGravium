@@ -20,7 +20,6 @@ import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.network.ConnectableNetworkManager;
 import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
-import dev.moxinat.forcesofgravium.registry.NodeTypes;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.data.Nodes;

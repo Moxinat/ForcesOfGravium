@@ -15,8 +15,6 @@ import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
-import dev.moxinat.forcesofgravium.registry.NodeTypes;
-import dev.moxinat.forcesofgravium.registry.SourceRegistry;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;

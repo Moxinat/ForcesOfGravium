@@ -1,22 +1,21 @@
 package dev.moxinat.forcesofgravium.signal;
 
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.SignalRuntimeResource;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.dispatcher.NodeControlDispatcher;
 import dev.moxinat.forcesofgravium.dispatcher.NodeStateDispatcher;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
-import java.util.Map;
+import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class ConnectablePropagationScheduler {
-
-    private static final Map<World, Set<Vector3i>> CURRENT_WAVE = new ConcurrentHashMap<>();
-    private static final Map<World, Set<Vector3i>> NEXT_WAVE = new ConcurrentHashMap<>();
 
     private ConnectablePropagationScheduler() {
     }
@@ -25,28 +24,37 @@ public final class ConnectablePropagationScheduler {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        CURRENT_WAVE
-                .computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet())
-                .add(position);
+        signalResource(world)
+                .currentWave()
+                .add(new Vector3i(position));
     }
 
     public static void tickWorld(@Nonnull World world) {
-        Set<Vector3i> currentWave = CURRENT_WAVE.remove(world);
+        SignalRuntimeResource signal =
+                signalResource(world);
 
-        if (currentWave == null || currentWave.isEmpty()) {
+        if (signal.currentWave().isEmpty()) {
             return;
         }
+
+        Set<Vector3i> currentWave =
+                new LinkedHashSet<>(
+                        signal.currentWave()
+                );
+
+        signal.currentWave().clear();
 
         for (Vector3i position : currentWave) {
             adoptInstantStateAndScheduleNeighbors(world, position);
         }
 
-        Set<Vector3i> nextWave = NEXT_WAVE.remove(world);
+        if (!signal.nextWave().isEmpty()) {
 
-        if (nextWave != null && !nextWave.isEmpty()) {
-            CURRENT_WAVE
-                    .computeIfAbsent(world, ignored -> ConcurrentHashMap.newKeySet())
-                    .addAll(nextWave);
+            signal.currentWave().addAll(
+                    signal.nextWave()
+            );
+
+            signal.nextWave().clear();
         }
     }
 
@@ -54,7 +62,7 @@ public final class ConnectablePropagationScheduler {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(world, position);
+        NodeComponent node = nodeAt(world, position);
 
         if (node == null || !node.dirty()) {
             return;
@@ -62,18 +70,9 @@ public final class ConnectablePropagationScheduler {
 
         SignalState previousEffectiveState = node.effectiveState();
 
-        node = node.adoptInstantState();
-        Nodes.put(world, node);
+        node.adoptInstantState();
 
         if (node.effectiveState() != previousEffectiveState) {
-
-            System.out.println(
-                    "[ADOPT] pos=" + position
-                            + " block=" + node.blockId()
-                            + " previous=" + previousEffectiveState
-                            + " current=" + node.effectiveState()
-            );
-
 
             NodeStateDispatcher.dispatch(world, position);
 
@@ -93,7 +92,6 @@ public final class ConnectablePropagationScheduler {
                 }
             }
 
-            // Control-Reaktionen auf diesen neuen Effective-State.
             for (Vector3i controlNeighbor :
                     ConnectableNeighborResolver.allControlNeighbors(
                             world,
@@ -105,22 +103,18 @@ public final class ConnectablePropagationScheduler {
             }
         }
 
-        // Normale Signal-Wave.
         for (Vector3i signalNeighbor :
                 ConnectableNeighborResolver.allForwardSignalNeighbors(
                         world,
                         position
                 )) {
 
-            Nodes.Node neighbor = Nodes.get(world, signalNeighbor);
+            NodeComponent neighbor = nodeAt(world, signalNeighbor);
 
             if (neighbor != null && neighbor.dirty()) {
-                NEXT_WAVE
-                        .computeIfAbsent(
-                                world,
-                                ignored -> ConcurrentHashMap.newKeySet()
-                        )
-                        .add(signalNeighbor);
+                signalResource(world)
+                        .nextWave()
+                        .add(new Vector3i(signalNeighbor));
             }
         }
     }
@@ -129,92 +123,35 @@ public final class ConnectablePropagationScheduler {
             World world,
             Vector3i position
     ) {
-        Set<Vector3i> current = CURRENT_WAVE.get(world);
+        SignalRuntimeResource signal =
+                signalResource(world);
 
-        if (current != null) {
-            current.remove(position);
-
-            if (current.isEmpty()) {
-                CURRENT_WAVE.remove(world, current);
-            }
-        }
-
-        Set<Vector3i> next = NEXT_WAVE.get(world);
-
-        if (next != null) {
-            next.remove(position);
-
-            if (next.isEmpty()) {
-                NEXT_WAVE.remove(world, next);
-            }
-        }
+        signal.currentWave().remove(position);
+        signal.nextWave().remove(position);
     }
 
-    private static @Nonnull Set<Vector3i> copyPositions(
-            Set<Vector3i> positions
+    private static NodeComponent nodeAt(
+            World world,
+            Vector3i position
     ) {
-        Set<Vector3i> copy =
-                ConcurrentHashMap.newKeySet();
-
-        for (Vector3i position : positions) {
-            copy.add(new Vector3i(position));
-        }
-
-        return copy;
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
     }
 
-    public static void clearWorld(
+    private static SignalRuntimeResource signalResource(
             @Nonnull World world
     ) {
-        CURRENT_WAVE.remove(world);
-        NEXT_WAVE.remove(world);
+        return world
+                .getChunkStore()
+                .getStore()
+                .getResource(
+                        ForcesOfGraviumPlugin.SIGNAL_RESOURCE_TYPE
+                );
     }
-
-    public static @Nonnull Set<Vector3i> snapshotCurrentWave(
-            @Nonnull World world
-    ) {
-        Set<Vector3i> wave = CURRENT_WAVE.get(world);
-
-        if (wave == null) {
-            return Set.of();
-        }
-
-        return Set.copyOf(copyPositions(wave));
-    }
-
-    public static @Nonnull Set<Vector3i> snapshotNextWave(
-            @Nonnull World world
-    ) {
-        Set<Vector3i> wave = NEXT_WAVE.get(world);
-
-        if (wave == null) {
-            return Set.of();
-        }
-
-        return Set.copyOf(copyPositions(wave));
-    }
-
-    public static void restoreWaves(
-            @Nonnull World world,
-            @Nonnull Set<Vector3i> currentWave,
-            @Nonnull Set<Vector3i> nextWave
-    ) {
-        clearWorld(world);
-
-        if (!currentWave.isEmpty()) {
-            CURRENT_WAVE.put(
-                    world,
-                    copyPositions(currentWave)
-            );
-        }
-
-        if (!nextWave.isEmpty()) {
-            NEXT_WAVE.put(
-                    world,
-                    copyPositions(nextWave)
-            );
-        }
-    }
-
 
 }

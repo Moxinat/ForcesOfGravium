@@ -1,46 +1,26 @@
 package dev.moxinat.forcesofgravium.network;
 
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NetworkResource;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayDeque;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class ConnectableNetworkManager {
-
-    private static final Map<String, AtomicLong> NEXT_NETWORK_ID =
-            new ConcurrentHashMap<>();
-
-    private static long nextNetworkId(@Nonnull World world) {
-        AtomicLong counter = NEXT_NETWORK_ID.computeIfAbsent(
-                world.getName(),
-                ignored -> {
-                    long maxId = Nodes.snapshotForWorld(world)
-                            .values()
-                            .stream()
-                            .mapToLong(Nodes.Node::networkId)
-                            .max()
-                            .orElse(0L);
-
-                    return new AtomicLong(maxId + 1);
-                }
-        );
-
-        return counter.getAndIncrement();
-    }
 
     public static void onNodePlaced(
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(world, position);
+        NodeComponent node = nodeAt(world, position);
+        NetworkResource networks = networks(world);
 
         if (node == null) {
             return;
@@ -55,10 +35,10 @@ public class ConnectableNetworkManager {
         LinkedHashSet<Long> neighborNetworkIds = new LinkedHashSet<>();
 
         for (Vector3i neighborPosition : neighbors) {
-            Nodes.Node neighbor = Nodes.get(world, neighborPosition);
+            NodeComponent neighbor = nodeAt(world, neighborPosition);
 
             if (neighbor != null
-                    && neighbor.networkId() != Nodes.Node.NO_NETWORK) {
+                    && neighbor.networkId() != NodeComponent.NO_NETWORK) {
 
                 neighborNetworkIds.add(neighbor.networkId());
             }
@@ -66,12 +46,10 @@ public class ConnectableNetworkManager {
 
         // no Network -> make one
         if (neighborNetworkIds.isEmpty()) {
-            long networkId = nextNetworkId(world);
+            long networkId = networks.createNetwork();
 
-            Nodes.put(
-                    world,
-                    node.withNetworkId(networkId)
-            );
+            networks.addMember(networkId, position);
+            node.setNetworkId(networkId);
 
             return;
         }
@@ -80,30 +58,42 @@ public class ConnectableNetworkManager {
         if (neighborNetworkIds.size() == 1) {
             long networkId = neighborNetworkIds.iterator().next();
 
-            Nodes.put(
-                    world,
-                    node.withNetworkId(networkId)
-            );
+            networks.addMember(networkId, position);
+            node.setNetworkId(networkId);
 
             return;
         }
 
         // more Networks -> merge with new node
-        long targetNetworkId = neighborNetworkIds.iterator().next();
+        long targetNetworkId =
+                neighborNetworkIds.iterator().next();
 
-        for (Vector3i memberPosition :
-                scanFrom(world, position)) {
+        networks.addMember(targetNetworkId, position);
+        node.setNetworkId(targetNetworkId);
 
-            Nodes.Node member = Nodes.get(world, memberPosition);
+        for (long sourceNetworkId : neighborNetworkIds) {
 
-            if (member != null
-                    && member.networkId() != targetNetworkId) {
-
-                Nodes.put(
-                        world,
-                        member.withNetworkId(targetNetworkId)
-                );
+            if (sourceNetworkId == targetNetworkId) {
+                continue;
             }
+
+            for (Vector3i memberPosition :
+                    networks.members(sourceNetworkId)) {
+
+                NodeComponent member =
+                        nodeAt(world, memberPosition);
+
+                if (member != null) {
+                    member.setNetworkId(targetNetworkId);
+
+                    networks.addMember(
+                            targetNetworkId,
+                            memberPosition
+                    );
+                }
+            }
+
+            networks.removeNetwork(sourceNetworkId);
         }
     }
 
@@ -112,20 +102,46 @@ public class ConnectableNetworkManager {
             long oldNetworkId,
             @Nonnull Set<Vector3i> formerNeighbors
     ) {
-        LinkedHashSet<Vector3i> processed = new LinkedHashSet<>();
+        if (oldNetworkId == NodeComponent.NO_NETWORK) {
+            return;
+        }
+
+        NetworkResource networks = networks(world);
+
+        NetworkResource.NetworkData oldNetwork =
+                networks.getNetwork(oldNetworkId);
+
+        if (oldNetwork == null) {
+            return;
+        }
+
+        for (Vector3i oldMember : networks.members(oldNetworkId)) {
+            networks.removeMember(
+                    oldNetworkId,
+                    oldMember
+            );
+        }
+
+
+        LinkedHashSet<Vector3i> processed =
+                new LinkedHashSet<>();
 
         boolean firstComponent = true;
 
+
         for (Vector3i neighborPosition : formerNeighbors) {
+
             if (processed.contains(neighborPosition)) {
                 continue;
             }
 
-            Nodes.Node neighbor = Nodes.get(world, neighborPosition);
+            NodeComponent neighbor =
+                    nodeAt(world, neighborPosition);
 
             if (neighbor == null) {
                 continue;
             }
+
 
             Set<Vector3i> component =
                     scanFrom(
@@ -137,29 +153,42 @@ public class ConnectableNetworkManager {
                 continue;
             }
 
+
             long networkId;
 
             if (firstComponent) {
                 networkId = oldNetworkId;
                 firstComponent = false;
-            } else {
-                networkId = nextNetworkId(world);
             }
+
+            else {
+                networkId = networks.createNetwork();
+            }
+
 
             for (Vector3i memberPosition : component) {
-                Nodes.Node member = Nodes.get(world, memberPosition);
 
-                if (member != null
-                        && member.networkId() != networkId) {
+                NodeComponent member =
+                        nodeAt(world, memberPosition);
 
-                    Nodes.put(
-                            world,
-                            member.withNetworkId(networkId)
-                    );
+                if (member == null) {
+                    continue;
                 }
+
+                member.setNetworkId(networkId);
+
+                networks.addMember(
+                        networkId,
+                        memberPosition
+                );
             }
 
+
             processed.addAll(component);
+        }
+
+        if (firstComponent) {
+            networks.removeNetwork(oldNetworkId);
         }
     }
 
@@ -167,7 +196,7 @@ public class ConnectableNetworkManager {
             @Nonnull World world,
             @Nonnull Vector3i start
     ) {
-        if (Nodes.get(world, start) == null) {
+        if (nodeAt(world, start) == null) {
             return Set.of();
         }
 
@@ -183,7 +212,7 @@ public class ConnectableNetworkManager {
                 continue;
             }
 
-            if (Nodes.get(world, position) == null) {
+            if (nodeAt(world, position) == null) {
                 continue;
             }
 
@@ -200,5 +229,29 @@ public class ConnectableNetworkManager {
         }
 
         return Set.copyOf(visited);
+    }
+
+    private static NetworkResource networks(
+            World world
+    ) {
+        return world
+                .getChunkStore()
+                .getStore()
+                .getResource(
+                        ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
+                );
+    }
+
+    private static NodeComponent nodeAt(
+            World world,
+            Vector3i position
+    ) {
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
     }
 }

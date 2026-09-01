@@ -40,6 +40,9 @@
           "Passing": true,
           "EnergyDelta": 0,
           "NetworkId": 0
+        },
+        "forcesofgravium:source": {
+          "Power": 9999999
         }
       }
     },
