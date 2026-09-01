@@ -1,12 +1,13 @@
 package dev.moxinat.forcesofgravium.lifecycle;
 
-import com.hypixel.hytale.component.ArchetypeChunk;
-import com.hypixel.hytale.component.CommandBuffer;
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.*;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
+import com.hypixel.hytale.component.system.RefChangeSystem;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
+import com.hypixel.hytale.server.core.modules.interaction.components.PlacedByInteractionComponent;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
@@ -32,6 +33,7 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -85,6 +87,19 @@ public final class ConnectableBlockLifecycleSystem {
 
             World world = player.getWorld();
             Vector3i target = new Vector3i(event.getTargetBlock());
+
+            NodeComponent testNode =
+                    BlockModule.getComponent(
+                            ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                            world,
+                            target.x(),
+                            target.y(),
+                            target.z()
+                    );
+
+            System.out.println(
+                    "[PLACE EVENT] NodeComponent = " + testNode
+            );
 
             // -------------------------
             // ROTATION
@@ -163,6 +178,53 @@ public final class ConnectableBlockLifecycleSystem {
             }
 
             ConnectableVisualRefreshScheduler.scheduleTopologyRefresh(world, target);
+        }
+    }
+
+    public static final class PlacedSystem
+            extends RefChangeSystem<ChunkStore, PlacedByInteractionComponent> {
+
+        @Override
+        public @Nonnull ComponentType<ChunkStore, PlacedByInteractionComponent> componentType() {
+            return InteractionModule.get().getPlacedByComponentType();
+        }
+
+        @Override
+        public @Nonnull Query<ChunkStore> getQuery() {
+            return Query.and(
+                    InteractionModule.get().getPlacedByComponentType(),
+                    ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                    BlockModule.BlockStateInfo.getComponentType()
+            );
+        }
+
+        @Override
+        public void onComponentSet(
+                @Nonnull Ref<ChunkStore> ref,
+                @Nullable PlacedByInteractionComponent oldComponent,
+                @Nonnull PlacedByInteractionComponent newComponent,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
+        }
+
+        @Override
+        public void onComponentRemoved(
+                @Nonnull Ref<ChunkStore> ref,
+                @Nonnull PlacedByInteractionComponent component,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
+        }
+
+        @Override
+        public void onComponentAdded(
+                @Nonnull Ref<ChunkStore> ref,
+                @Nonnull PlacedByInteractionComponent component,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
+            // Hier kommt unsere bisherige Post-Placement-Logik hin.
         }
     }
 
