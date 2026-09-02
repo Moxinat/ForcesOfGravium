@@ -2,9 +2,13 @@ package dev.moxinat.forcesofgravium.block.sensor;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
-import dev.moxinat.forcesofgravium.data.Nodes;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.SensorComponent;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import org.joml.Vector3i;
 
@@ -34,6 +38,32 @@ public final class SensorBlockRefresher {
     ) {
     }
 
+    private static NodeComponent nodeAt(
+            World world,
+            Vector3i position
+    ) {
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
+    }
+
+    private static SensorComponent sensorAt(
+            World world,
+            Vector3i position
+    ) {
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
+    }
+
     public static void tickWorld(World world) {
         Map<Vector3i, PendingAnimation> pending =
                 PENDING.get(world);
@@ -58,15 +88,13 @@ public final class SensorBlockRefresher {
                 continue;
             }
 
-            Nodes.Node node = Nodes.get(
-                    world,
-                    position
-            );
+            NodeComponent node =
+                    nodeAt(world, position);
 
-            if (node == null
-                    || !NodeTypes.GRAVIUM_SENSOR
-                    .blockId()
-                    .equals(node.blockId())) {
+            SensorComponent sensor =
+                    sensorAt(world, position);
+
+            if (node == null || sensor == null) {
                 continue;
             }
 
@@ -131,7 +159,7 @@ public final class SensorBlockRefresher {
     ) {
 
         BlockType baseType = BlockType.fromString(
-                NodeTypes.GRAVIUM_SENSOR.blockId()
+                ConnectableRegistry.GRAVIUM_SENSOR_BLOCK_ID
         );
 
         if (baseType == null) {
@@ -163,15 +191,13 @@ public final class SensorBlockRefresher {
             World world,
             Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(
-                world,
-                position
-        );
+        NodeComponent node =
+                nodeAt(world, position);
 
-        if (node == null
-                || !NodeTypes.GRAVIUM_SENSOR
-                .blockId()
-                .equals(node.blockId())) {
+        SensorComponent sensor =
+                sensorAt(world, position);
+
+        if (node == null || sensor == null) {
             return;
         }
 
@@ -304,54 +330,5 @@ public final class SensorBlockRefresher {
                 LAST_STATE.remove(world, states);
             }
         }
-    }
-
-    public static void restoreAt(
-            World world,
-            Vector3i position
-    ) {
-        Nodes.Node node = Nodes.get(
-                world,
-                position
-        );
-
-        if (node == null
-                || !NodeTypes.GRAVIUM_SENSOR.blockId()
-                .equals(node.blockId())) {
-            return;
-        }
-
-        Map<Vector3i, PendingAnimation> pending =
-                PENDING.get(world);
-
-        if (pending != null) {
-            pending.remove(position);
-
-            if (pending.isEmpty()) {
-                PENDING.remove(world, pending);
-            }
-        }
-
-        SignalState state = node.effectiveState();
-
-        LAST_STATE
-                .computeIfAbsent(
-                        world,
-                        ignored -> new ConcurrentHashMap<>()
-                )
-                .put(
-                        new Vector3i(position),
-                        state
-                );
-
-        setState(
-                world,
-                position,
-                switch (state) {
-                    case OFF -> "Off";
-                    case PUSH -> "Push";
-                    case PULL -> "Pull";
-                }
-        );
     }
 }
