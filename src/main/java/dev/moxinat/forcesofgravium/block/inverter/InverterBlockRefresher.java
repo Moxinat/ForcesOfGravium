@@ -1,11 +1,15 @@
 package dev.moxinat.forcesofgravium.block.inverter;
 
-import com.hypixel.hytale.math.util.ChunkUtil;
-import dev.moxinat.forcesofgravium.data.Nodes;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 
 public final class InverterBlockRefresher {
 
@@ -16,15 +20,29 @@ public final class InverterBlockRefresher {
             World world,
             Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(
-                world,
-                position
-        );
+        NodeComponent node =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
 
-        if (node == null
-                || !NodeTypes.INVERTER
-                .blockId()
-                .equals(node.blockId())) {
+        if (node == null) {
+            return;
+        }
+
+        BlockType blockType =
+                world.getBlockType(
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
+
+        if (blockType == null
+                || !ConnectableRegistry.INVERTER_BLOCK_ID
+                .equals(blockType.getId())) {
             return;
         }
 
@@ -32,15 +50,8 @@ public final class InverterBlockRefresher {
         int y = position.y();
         int z = position.z();
 
-        BlockType blockType =
-                world.getBlockType(x, y, z);
-
-        if (blockType == null) {
-            return;
-        }
-
         BlockType baseType = BlockType.fromString(
-                NodeTypes.INVERTER.blockId()
+                ConnectableRegistry.INVERTER_BLOCK_ID
         );
 
         if (baseType == null) {
@@ -50,27 +61,34 @@ public final class InverterBlockRefresher {
         String stateName =
                 stateName(node);
 
-        WorldChunk chunk =
-                world.getChunk(
-                        ChunkUtil.indexChunkFromBlock(
-                                x,
-                                z
-                        )
+        ChunkStore chunkStore =
+                world.getChunkStore();
+
+        Ref<ChunkStore> sectionRef =
+                chunkStore.getChunkSectionReferenceAtBlock(
+                        x,
+                        y,
+                        z
                 );
 
-        if (chunk == null) {
+        if (sectionRef == null) {
             return;
         }
 
-        chunk.setBlockInteractionState(
-                position,
+        BlockOperations.setBlockInteractionState(
+                chunkStore,
+                sectionRef,
+                x,
+                y,
+                z,
                 baseType,
-                stateName
+                stateName,
+                true
         );
     }
 
     private static String stateName(
-            Nodes.Node node
+            NodeComponent node
     ) {
         String prefix = switch (node.effectiveState()) {
             case PUSH -> "Push";

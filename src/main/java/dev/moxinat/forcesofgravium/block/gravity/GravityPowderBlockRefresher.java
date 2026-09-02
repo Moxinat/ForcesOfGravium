@@ -1,6 +1,7 @@
 package dev.moxinat.forcesofgravium.block.gravity;
 
 import com.hypixel.hytale.component.Ref;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
@@ -478,7 +479,7 @@ public final class GravityPowderBlockRefresher {
         );
     }
 
-    private static String modeStateSuffix(Nodes.Node node) {
+    private static String modeStateSuffix(NodeComponent node) {
         return switch (node.effectiveState()) {
             case PUSH -> "Push";
             case PULL -> "Pull";
@@ -515,7 +516,6 @@ public final class GravityPowderBlockRefresher {
     private static void setVisualBlock(
             World world,
             ChunkStore chunkStore,
-            Nodes.Node node,
             Vector3i position,
             String blockKey,
             RotationTuple targetRotation
@@ -556,11 +556,6 @@ public final class GravityPowderBlockRefresher {
                 targetRotation.index(),
                 0,
                 0
-        );
-
-        Nodes.put(
-                world,
-                node.withRotation(targetRotation)
         );
     }
 }
