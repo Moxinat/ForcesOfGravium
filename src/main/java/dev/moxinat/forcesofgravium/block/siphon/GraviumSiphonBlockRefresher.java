@@ -6,7 +6,6 @@ import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SiphonComponent;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
-import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -69,54 +68,32 @@ public final class GraviumSiphonBlockRefresher {
         String stateName = switch (node.effectiveState()) {
             case PUSH -> STATE_POWERED;
             case PULL -> STATE_LOCKED;
-            case OFF -> null;
+            case OFF -> "default";
         };
 
-        String blockKey =
-                stateName == null
-                        ? ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID
-                        : baseType.getBlockKeyForState(stateName);
+        ChunkStore chunkStore =
+                world.getChunkStore();
 
-        if (blockKey == null) {
-            blockKey =
-                    ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID;
-        }
-
-        if (blockKey.equals(blockType.getId())) {
-            return;
-        }
-
-        ChunkStore chunkStore = world.getChunkStore();
         Ref<ChunkStore> sectionRef =
-                chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
+                chunkStore.getChunkSectionReferenceAtBlock(
+                        x,
+                        y,
+                        z
+                );
 
         if (sectionRef == null) {
             return;
         }
 
-        BlockType targetType = BlockType.fromString(blockKey);
-        if (targetType == null) {
-            return;
-        }
-
-        int blockId = BlockType.getAssetMap().getIndex(blockKey);
-        if (blockId < 0) {
-            return;
-        }
-
-        BlockOperations.setBlock(
+        BlockOperations.setBlockInteractionState(
                 chunkStore,
                 sectionRef,
                 x,
                 y,
                 z,
-                blockId,
-                targetType,
-                ConnectableNeighborResolver
-                        .rotationFor(world, position)
-                        .index(),
-                0,
-                0
+                baseType,
+                stateName,
+                true
         );
     }
 

@@ -9,7 +9,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
-import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 
 public final class CasedGravityPowderBlockRefresher {
@@ -81,20 +80,8 @@ public final class CasedGravityPowderBlockRefresher {
             case OFF -> "Off";
         };
 
-        String blockKey =
-                baseType.getBlockKeyForState(
-                        stateName
-                );
-
-        if (blockKey == null) {
-            blockKey = baseBlockId;
-        }
-
-        if (blockKey.equals(currentType.getId())) {
-            return;
-        }
-
-        ChunkStore chunkStore = world.getChunkStore();
+        ChunkStore chunkStore =
+                world.getChunkStore();
 
         Ref<ChunkStore> sectionRef =
                 chunkStore.getChunkSectionReferenceAtBlock(
@@ -107,34 +94,15 @@ public final class CasedGravityPowderBlockRefresher {
             return;
         }
 
-        BlockType targetType =
-                BlockType.fromString(blockKey);
-
-        if (targetType == null) {
-            return;
-        }
-
-        int blockId =
-                BlockType.getAssetMap().getIndex(blockKey);
-
-        if (blockId < 0) {
-            return;
-        }
-
-        BlockOperations.setBlock(
+        BlockOperations.setBlockInteractionState(
                 chunkStore,
                 sectionRef,
                 x,
                 y,
                 z,
-                blockId,
-                targetType,
-                ConnectableNeighborResolver.rotationFor(
-                        world,
-                        position
-                ).index(),
-                0,
-                0
+                baseType,
+                stateName,
+                true
         );
     }
 

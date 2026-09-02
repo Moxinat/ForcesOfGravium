@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
@@ -533,34 +533,71 @@ public final class GravityPowderBlockRefresher {
         int y = position.y();
         int z = position.z();
 
+        Ref<ChunkStore> blockRef =
+                BlockModule.getBlockEntity(
+                        world,
+                        x,
+                        y,
+                        z
+                );
+
+        if (blockRef == null || !blockRef.isValid()) {
+            return;
+        }
+
+        BlockModule.BlockStateInfo blockStateInfo =
+                blockRef.getStore().getComponent(
+                        blockRef,
+                        BlockModule.BlockStateInfo.getComponentType()
+                );
+
+        if (blockStateInfo == null) {
+            return;
+        }
+
         Ref<ChunkStore> sectionRef =
-                chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
+                blockStateInfo.getSectionRef();
 
-        if (sectionRef == null) {
+        if (!sectionRef.isValid()) {
             return;
         }
 
-        BlockType targetType = BlockType.fromString(blockKey);
-        if (targetType == null) {
+        BlockSection blockSection =
+                sectionRef.getStore().getComponent(
+                        sectionRef,
+                        BlockSection.getComponentType()
+                );
+
+        if (blockSection == null) {
             return;
         }
 
-        int blockId = BlockType.getAssetMap().getIndex(blockKey);
+        int blockId =
+                BlockType.getAssetMap().getIndex(
+                        blockKey
+                );
+
         if (blockId < 0) {
             return;
         }
 
-        BlockOperations.setBlock(
-                chunkStore,
-                sectionRef,
-                x,
-                y,
-                z,
+        int index =
+                blockStateInfo.getIndex();
+
+        int filler =
+                blockSection.getFiller(index);
+
+        if (blockSection.get(index) == blockId
+                && blockSection.getRotationIndex(index)
+                == targetRotation.index()) {
+            return;
+        }
+
+        blockSection.set(
+                index,
                 blockId,
-                targetType,
                 targetRotation.index(),
-                0,
-                0
+                filler
         );
     }
 }
