@@ -1,7 +1,5 @@
 package dev.moxinat.forcesofgravium.registry;
 
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
-
 public final class ConnectableRegistry {
 
     public static final String GRAVITY_POWDER_BLOCK_ID = "Gravity_Powder_Default";
@@ -27,6 +25,8 @@ public final class ConnectableRegistry {
     public static final int ALL_SIDES_MASK = SIDE_FRONT | SIDE_BACK | SIDE_RIGHT | SIDE_LEFT | SIDE_TOP | SIDE_BOTTOM;
     public static final int SIDES_EXCEPT_FRONT_BACK_MASK = SIDE_RIGHT | SIDE_LEFT | SIDE_TOP | SIDE_BOTTOM;
 
+    private static final String STATE_MARKER = "_State_";
+
     private ConnectableRegistry() {
     }
 
@@ -44,25 +44,16 @@ public final class ConnectableRegistry {
     }
 
     public static String rawBlockId(String blockId) {
-        BlockType blockType =
-                BlockType.getAssetMap().getAsset(blockId);
-
-        if (blockType == null || !blockType.isState()) {
+        if (blockId == null || !blockId.startsWith("*")) {
             return blockId;
         }
 
-        for (BlockType candidate :
-                BlockType.getAssetMap().getAssetMap().values()) {
+        int stateIndex = blockId.indexOf(STATE_MARKER);
 
-            if (candidate.isState()) {
-                continue;
-            }
-
-            if (candidate.getStateForBlock(blockId) != null) {
-                return candidate.getId();
-            }
+        if (stateIndex <= 1) {
+            return blockId;
         }
 
-        return blockId;
+        return blockId.substring(1, stateIndex);
     }
 }
