@@ -2,7 +2,6 @@ package dev.moxinat.forcesofgravium;
 
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.ResourceType;
-import com.hypixel.hytale.server.core.event.events.ShutdownEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
@@ -17,6 +16,7 @@ import dev.moxinat.forcesofgravium.commands.ForcesOfGraviumCommand;
 import dev.moxinat.forcesofgravium.data.*;
 import dev.moxinat.forcesofgravium.lifecycle.ForcesOfGraviumEvents;
 import dev.moxinat.forcesofgravium.lifecycle.*;
+import dev.moxinat.forcesofgravium.persistence.ChunkLoadSystem;
 
 import javax.annotation.Nonnull;
 
@@ -94,6 +94,7 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.BlockUseSystem()); //temp
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.ItemLifecycleSystem());
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.ItemTrackingSystem());
+        this.getChunkStoreRegistry().registerSystem(new ChunkLoadSystem.SensorLoadSystem());
 
         SensorLogic.registerTriggerEffects();
     }

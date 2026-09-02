@@ -331,4 +331,54 @@ public final class SensorBlockRefresher {
             }
         }
     }
+
+    public static void restoreRuntime(
+            World world,
+            Vector3i position
+    ) {
+        NodeComponent node =
+                nodeAt(world, position);
+
+        SensorComponent sensor =
+                sensorAt(world, position);
+
+        if (node == null || sensor == null) {
+            return;
+        }
+
+        Map<Vector3i, PendingAnimation> pending =
+                PENDING.get(world);
+
+        if (pending != null) {
+            pending.remove(position);
+
+            if (pending.isEmpty()) {
+                PENDING.remove(world, pending);
+            }
+        }
+
+        SignalState state =
+                node.effectiveState();
+
+        LAST_STATE
+                .computeIfAbsent(
+                        world,
+                        ignored ->
+                                new ConcurrentHashMap<>()
+                )
+                .put(
+                        new Vector3i(position),
+                        state
+                );
+
+        setState(
+                world,
+                position,
+                switch (state) {
+                    case OFF -> "Off";
+                    case PUSH -> "Push";
+                    case PULL -> "Pull";
+                }
+        );
+    }
 }

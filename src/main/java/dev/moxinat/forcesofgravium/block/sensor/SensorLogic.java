@@ -1426,4 +1426,81 @@ public final class SensorLogic {
             );
         }
     }
+
+    public static void restoreRuntime(
+            World world,
+            Vector3i position
+    ) {
+        NodeComponent node =
+                nodeAt(world, position);
+
+        SensorComponent sensor =
+                getComponent(world, position);
+
+        if (node == null || sensor == null) {
+            return;
+        }
+
+        // Remove possibly stale runtime state first.
+        unregisterTriggerVolume(world, position);
+        removeContainerListener(world, position);
+        removeNumberUpdateSensor(world, position);
+
+        Set<Vector3i> current =
+                CURRENT_PENDING_COMPARE.get(world);
+
+        if (current != null) {
+            current.remove(position);
+        }
+
+        Set<Vector3i> next =
+                NEXT_PENDING_COMPARE.get(world);
+
+        if (next != null) {
+            next.remove(position);
+        }
+
+        switch (node.effectiveState()) {
+
+            case OFF -> {
+                // No runtime observation while off.
+                // Important: do NOT clear the persisted SensorComponent here.
+            }
+
+            case PUSH -> {
+                registerTriggerVolume(
+                        world,
+                        position
+                );
+
+                refreshContainerListener(
+                        world,
+                        position
+                );
+
+                NEXT_PENDING_COMPARE
+                        .computeIfAbsent(
+                                world,
+                                ignored ->
+                                        ConcurrentHashMap.newKeySet()
+                        )
+                        .add(
+                                new Vector3i(position)
+                        );
+            }
+
+            case PULL -> {
+                NUMBER_UPDATE_SENSORS
+                        .computeIfAbsent(
+                                world,
+                                ignored ->
+                                        ConcurrentHashMap.newKeySet()
+                        )
+                        .add(
+                                new Vector3i(position)
+                        );
+            }
+        }
+    }
+
 }
