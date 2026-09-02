@@ -1,5 +1,7 @@
 package dev.moxinat.forcesofgravium.registry;
 
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+
 public final class ConnectableRegistry {
 
     public static final String GRAVITY_POWDER_BLOCK_ID = "Gravity_Powder_Default";
@@ -37,5 +39,28 @@ public final class ConnectableRegistry {
                 || STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID.equals(blockId)
                 || CURVE_CASED_GRAVITY_POWDER_BLOCK_ID.equals(blockId)
                 || GRAVIUM_SENSOR_BLOCK_ID.equals(blockId);
+    }
+
+    public static String rawBlockId(String blockId) {
+        BlockType blockType =
+                BlockType.getAssetMap().getAsset(blockId);
+
+        if (blockType == null || !blockType.isState()) {
+            return blockId;
+        }
+
+        for (BlockType candidate :
+                BlockType.getAssetMap().getAssetMap().values()) {
+
+            if (candidate.isState()) {
+                continue;
+            }
+
+            if (candidate.getStateForBlock(blockId) != null) {
+                return candidate.getId();
+            }
+        }
+
+        return blockId;
     }
 }

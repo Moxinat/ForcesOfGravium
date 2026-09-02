@@ -26,9 +26,9 @@ public final class NodeStateDispatcher {
         }
 
         String blockId =
-                blockType.getId();
-
-        System.out.println(blockId);
+                ConnectableRegistry.rawBlockId(
+                        blockType.getId()
+                );
 
         switch (blockId) {
             case ConnectableRegistry.GRAVIUM_SENSOR_BLOCK_ID ->
