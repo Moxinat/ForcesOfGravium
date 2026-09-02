@@ -28,7 +28,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
-import dev.moxinat.forcesofgravium.data.Nodes;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -72,15 +72,25 @@ public final class SensorLogic {
     private static final Query<EntityStore> ITEM_QUERY =
             Query.and(ItemComponent.getComponentType(), TransformComponent.getComponentType());
 
-    private static final Set<World> RUNTIME_INITIALIZED =
-            ConcurrentHashMap.newKeySet();
-
     private static SensorComponent getComponent(
             World world,
             Vector3i position
     ) {
         return BlockModule.getComponent(
                 ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
+    }
+
+    private static NodeComponent nodeAt(
+            World world,
+            Vector3i position
+    ) {
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
                 world,
                 position.x(),
                 position.y(),
@@ -118,10 +128,13 @@ public final class SensorLogic {
             World world,
             Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(world, position);
+        NodeComponent node =
+                nodeAt(world, position);
 
-        if (node == null
-                || !NodeTypes.GRAVIUM_SENSOR.blockId().equals(node.blockId())) {
+        SensorComponent sensor =
+                getComponent(world, position);
+
+        if (node == null || sensor == null) {
             return;
         }
 
@@ -247,11 +260,14 @@ public final class SensorLogic {
         }
 
         for (Vector3i sensorPosition : Set.copyOf(sensors)) {
-            Nodes.Node sensor =
-                    Nodes.get(world, sensorPosition);
+            NodeComponent sensor =
+                    nodeAt(world, sensorPosition);
+
+            SensorComponent sensorComponent =
+                    getComponent(world, sensorPosition);
 
             if (sensor == null
-                    || !NodeTypes.GRAVIUM_SENSOR.blockId().equals(sensor.blockId())
+                    || sensorComponent == null
                     || sensor.effectiveState() != SignalState.PULL) {
                 sensors.remove(sensorPosition);
                 continue;
@@ -410,15 +426,15 @@ public final class SensorLogic {
             World world,
             Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(world, position);
+        NodeComponent node =
+                nodeAt(world, position);
 
         if (node == null) {
             return;
         }
 
-        Nodes.put(
-                world,
-                node.withInvertEnabled(!node.invertEnabled())
+        node.setInvertEnabled(
+                !node.invertEnabled()
         );
 
         for (Vector3i forwardNeighbor :
@@ -649,8 +665,8 @@ public final class SensorLogic {
             }
         }
 
-        Nodes.Node observedNode =
-                Nodes.get(world, observedPosition);
+        NodeComponent observedNode =
+                nodeAt(world, observedPosition);
 
         SensorComponent component =
                 new SensorComponent();
@@ -708,13 +724,8 @@ public final class SensorLogic {
             World world,
             Vector3i sensorPosition
     ) {
-        Nodes.Node sensor = Nodes.get(world, sensorPosition);
-
-        if (sensor == null
-                || !NodeTypes.GRAVIUM_SENSOR.blockId().equals(sensor.blockId())
-                || sensor.effectiveState() != SignalState.PUSH) {
-            return;
-        }
+        NodeComponent sensor =
+                nodeAt(world, sensorPosition);
 
         SensorComponent oldSnapshot =
                 getComponent(
@@ -722,7 +733,9 @@ public final class SensorLogic {
                         sensorPosition
                 );
 
-        if (oldSnapshot == null) {
+        if (sensor == null
+                || oldSnapshot == null
+                || sensor.effectiveState() != SignalState.PUSH) {
             return;
         }
 
@@ -809,12 +822,10 @@ public final class SensorLogic {
                 continue;
             }
 
-            Nodes.Node possibleSensor =
-                    Nodes.get(world, neighbor);
+            SensorComponent possibleSensor =
+                    getComponent(world, neighbor);
 
-            if (possibleSensor == null
-                    || !NodeTypes.GRAVIUM_SENSOR.blockId()
-                    .equals(possibleSensor.blockId())) {
+            if (possibleSensor == null) {
                 continue;
             }
 
@@ -1013,12 +1024,16 @@ public final class SensorLogic {
                 continue;
             }
 
-            Nodes.Node sensor =
-                    Nodes.get(world, neighbor);
+            NodeComponent sensor =
+                    nodeAt(world, neighbor);
 
-            if (sensor == null
-                    || !NodeTypes.GRAVIUM_SENSOR.blockId()
-                    .equals(sensor.blockId())) {
+            SensorComponent component =
+                    getComponent(
+                            world,
+                            neighbor
+                    );
+
+            if (sensor == null || component == null) {
                 continue;
             }
 
@@ -1033,14 +1048,7 @@ public final class SensorLogic {
                 continue;
             }
 
-            SensorComponent component =
-                    getComponent(
-                            world,
-                            neighbor
-                    );
-
-            if (component == null
-                    || !component.hasSnapshot()) {
+            if (!component.hasSnapshot()) {
                 continue;
             }
 
@@ -1088,7 +1096,7 @@ public final class SensorLogic {
     private static void updatePassing(
             World world,
             Vector3i position,
-            Nodes.Node node
+            NodeComponent node
     ) {
         boolean shouldPass =
                 node.effectiveState() != SignalState.PULL;
@@ -1106,15 +1114,9 @@ public final class SensorLogic {
                             position
                     );
 
-            Nodes.put(
-                    world,
-                    node.withPassing(false)
-            );
+            node.setPassing(false);
         } else {
-            Nodes.put(
-                    world,
-                    node.withPassing(true)
-            );
+            node.setPassing(true);
 
             forwardNeighbors =
                     ConnectableNeighborResolver.allForwardSignalNeighbors(
@@ -1448,54 +1450,6 @@ public final class SensorLogic {
                     position,
                     false
             );
-        }
-    }
-
-    public static void restoreRuntimeState(World world) {
-
-        if (!RUNTIME_INITIALIZED.add(world)) {
-            return;
-        }
-
-        for (Nodes.Node node :
-                Nodes.snapshotForWorld(world).values()) {
-
-            if (!NodeTypes.GRAVIUM_SENSOR.blockId()
-                    .equals(node.blockId())) {
-                continue;
-            }
-
-            Vector3i position = node.position();
-
-            SensorBlockRefresher.restoreAt(
-                    world,
-                    position
-            );
-
-            if (node.effectiveState() == SignalState.OFF) {
-                continue;
-            }
-
-            // PUSH/PULL sensors may need their runtime
-            // container listener again after restart.
-            refreshContainerListener(
-                    world,
-                    position
-            );
-
-            if (node.effectiveState() == SignalState.PUSH) {
-                compareSnapshot(
-                        world,
-                        position
-                );
-            } else if (node.effectiveState() == SignalState.PULL) {
-                NUMBER_UPDATE_SENSORS
-                        .computeIfAbsent(
-                                world,
-                                ignored -> ConcurrentHashMap.newKeySet()
-                        )
-                        .add(new Vector3i(position));
-            }
         }
     }
 }
