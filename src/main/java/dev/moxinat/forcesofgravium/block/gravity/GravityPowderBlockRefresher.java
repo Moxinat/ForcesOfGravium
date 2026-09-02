@@ -1,17 +1,18 @@
 package dev.moxinat.forcesofgravium.block.gravity;
 
 import com.hypixel.hytale.component.Ref;
-import dev.moxinat.forcesofgravium.data.NodeComponent;
-import dev.moxinat.forcesofgravium.data.Nodes;
-import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
-import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
+import org.joml.Vector3i;
 
 import java.util.Set;
 
@@ -32,15 +33,29 @@ public final class GravityPowderBlockRefresher {
 
     public static void refreshAt(World world, Vector3i position) {
 
-        Nodes.Node node = Nodes.get(
-                world,
-                position
-        );
+        NodeComponent node =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
 
-        if (node == null
-                || !NodeTypes.GRAVITY_POWDER
-                .blockId()
-                .equals(node.blockId())) {
+        if (node == null) {
+            return;
+        }
+
+        BlockType blockType =
+                world.getBlockType(position);
+
+        if (blockType == null
+                || !ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID
+                .equals(
+                        ConnectableRegistry.rawBlockId(
+                                blockType.getId()
+                        )
+                )) {
             return;
         }
 
@@ -150,7 +165,6 @@ public final class GravityPowderBlockRefresher {
             setVisualBlock(
                     world,
                     chunkStore,
-                    node,
                     position,
                     straightBlockKey,
                     targetRotation
@@ -182,7 +196,6 @@ public final class GravityPowderBlockRefresher {
             setVisualBlock(
                     world,
                     chunkStore,
-                    node,
                     position,
                     oneConnectBlockKey,
                     targetRotation
@@ -214,7 +227,6 @@ public final class GravityPowderBlockRefresher {
             setVisualBlock(
                     world,
                     chunkStore,
-                    node,
                     position,
                     fiveCrossBlockKey,
                     targetRotation
@@ -238,7 +250,6 @@ public final class GravityPowderBlockRefresher {
             setVisualBlock(
                     world,
                     chunkStore,
-                    node,
                     position,
                     allConnectBlockKey,
                     targetRotation
@@ -282,7 +293,6 @@ public final class GravityPowderBlockRefresher {
             setVisualBlock(
                     world,
                     chunkStore,
-                    node,
                     position,
                     fourCurveBlockKey,
                     targetRotation
@@ -308,7 +318,6 @@ public final class GravityPowderBlockRefresher {
             setVisualBlock(
                     world,
                     chunkStore,
-                    node,
                     position,
                     crossBlockKey,
                     targetRotation
@@ -356,7 +365,6 @@ public final class GravityPowderBlockRefresher {
             setVisualBlock(
                     world,
                     chunkStore,
-                    node,
                     position,
                     tConnectBlockKey,
                     targetRotation
@@ -392,7 +400,6 @@ public final class GravityPowderBlockRefresher {
             setVisualBlock(
                     world,
                     chunkStore,
-                    node,
                     position,
                     threeDCurveBlockKey,
                     targetRotation
@@ -442,7 +449,6 @@ public final class GravityPowderBlockRefresher {
             setVisualBlock(
                     world,
                     chunkStore,
-                    node,
                     position,
                     curveBlockKey,
                     targetRotation
@@ -472,7 +478,6 @@ public final class GravityPowderBlockRefresher {
         setVisualBlock(
                 world,
                 chunkStore,
-                node,
                 position,
                 defaultBlockKey,
                 targetRotation
