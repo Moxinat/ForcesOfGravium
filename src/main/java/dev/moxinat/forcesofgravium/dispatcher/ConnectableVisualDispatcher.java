@@ -9,7 +9,6 @@ import dev.moxinat.forcesofgravium.block.sensor.SensorBlockRefresher;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonBlockRefresher;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;

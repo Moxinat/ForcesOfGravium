@@ -82,11 +82,6 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
             new ForcesOfGraviumCommand("fog", "Main command for ForcesOfGravium")
         );
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ForcesOfGraviumEvents::onPlayerReady);
-        this.getEventRegistry().registerGlobal(
-                (short) (ShutdownEvent.DISCONNECT_PLAYERS - 1),
-                ShutdownEvent.class,
-                ForcesOfGraviumEvents::onShutdown
-        );
         this.getEntityStoreRegistry().registerSystem(new ButtonInteractionSystem());
         this.getEntityStoreRegistry().registerSystem(new CurveCasedGravityPowderRotationSystem.UseSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlaceSystem());
