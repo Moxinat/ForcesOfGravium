@@ -31,14 +31,16 @@ public final class ConnectableRegistry {
     }
 
     public static boolean isConnectableId(String blockId) {
-        return GRAVITY_POWDER_BLOCK_ID.equals(blockId)
-                || INVERTER_BLOCK_ID.equals(blockId)
-                || WIND_GENERATOR_BLOCK_ID.equals(blockId)
-                || GRAVIUM_SIPHON_BLOCK_ID.equals(blockId)
-                || WOODEN_BUTTON_BLOCK_ID.equals(blockId)
-                || STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID.equals(blockId)
-                || CURVE_CASED_GRAVITY_POWDER_BLOCK_ID.equals(blockId)
-                || GRAVIUM_SENSOR_BLOCK_ID.equals(blockId);
+        String rawBlockId = rawBlockId(blockId);
+
+        return GRAVITY_POWDER_BLOCK_ID.equals(rawBlockId)
+                || INVERTER_BLOCK_ID.equals(rawBlockId)
+                || WIND_GENERATOR_BLOCK_ID.equals(rawBlockId)
+                || GRAVIUM_SIPHON_BLOCK_ID.equals(rawBlockId)
+                || WOODEN_BUTTON_BLOCK_ID.equals(rawBlockId)
+                || STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID.equals(rawBlockId)
+                || CURVE_CASED_GRAVITY_POWDER_BLOCK_ID.equals(rawBlockId)
+                || GRAVIUM_SENSOR_BLOCK_ID.equals(rawBlockId);
     }
 
     public static String rawBlockId(String blockId) {
