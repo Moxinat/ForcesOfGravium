@@ -47,8 +47,13 @@ public final class WindGeneratorInteractionSystem
     ) {
         BlockType blockType = event.getBlockType();
 
-        if (!ConnectableRegistry.WIND_GENERATOR_BLOCK_ID
-                .equals(blockType.getId())) {
+        if (blockType == null
+                || !ConnectableRegistry.WIND_GENERATOR_BLOCK_ID
+                .equals(
+                        ConnectableRegistry.rawBlockId(
+                                blockType.getId()
+                        )
+                )) {
             return;
         }
 
