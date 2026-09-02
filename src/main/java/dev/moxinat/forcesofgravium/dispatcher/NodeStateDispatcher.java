@@ -3,7 +3,6 @@ package dev.moxinat.forcesofgravium.dispatcher;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import org.joml.Vector3i;
 

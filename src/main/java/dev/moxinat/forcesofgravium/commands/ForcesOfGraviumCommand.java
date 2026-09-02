@@ -15,7 +15,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
-import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3d;
@@ -40,14 +39,6 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         String[] args = tokenize(context.getInputString());
         int i = commandArgStartIndex(args);
 
-        if (args.length - i >= 1 && "saveinfo".equalsIgnoreCase(args[i])) {
-            handleSaveInfo(context);
-            return CompletableFuture.completedFuture(null);
-        }
-        if (args.length - i >= 1 && "saveworld".equalsIgnoreCase(args[i])) {
-            handleSaveWorld(context);
-            return CompletableFuture.completedFuture(null);
-        }
         if (args.length - i >= 2 && "node".equalsIgnoreCase(args[i])) {
             return handleDebug(context, args, i, true);
         }
@@ -64,35 +55,9 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
 
         context.sendMessage(Message.raw("Usage: /fog node here|under|<x y z>"
                 + " | /fog rotation here|under|<x y z>"
-                + " | /fog sensor here|under|<x y z>"
-                + " | /fog saveinfo"
-                + " | /fog saveworld"));
+                + " | /fog sensor here|under|<x y z>"));
 
         return CompletableFuture.completedFuture(null);
-    }
-
-    private void handleSaveInfo(CommandContext context) {
-        PlayerCommandState state = playerState(context);
-        if (state == null) {
-            context.sendMessage(Message.raw("This command requires a player sender."));
-            return;
-        }
-        context.sendMessage(Message.raw("World save path: " + WorldSaveFileService.debugSaveFilePath(state.world())));
-    }
-
-    private void handleSaveWorld(CommandContext context) {
-        PlayerCommandState state = playerState(context);
-        if (state == null) {
-            context.sendMessage(Message.raw("This command requires a player sender."));
-            return;
-        }
-        World world = state.world();
-        WorldSaveFileService.forceSaveWorld(world);
-        context.sendMessage(Message.raw("Triggered forced save for world '" + world.getName() + "'."));
-        context.sendMessage(Message.raw("World save path: " + WorldSaveFileService.debugSaveFilePath(world)));
-        context.sendMessage(Message.raw("Save file exists: " + WorldSaveFileService.debugSaveFileExists(world)));
-        String error = WorldSaveFileService.debugLastSaveError(world);
-        if (!error.isBlank()) context.sendMessage(Message.raw("Last save error: " + error));
     }
 
     private CompletableFuture<Void> handleDebug(CommandContext context, String[] args, int i, boolean nodeDebug) {

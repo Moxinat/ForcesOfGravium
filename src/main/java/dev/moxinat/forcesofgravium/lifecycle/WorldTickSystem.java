@@ -15,7 +15,6 @@ import dev.moxinat.forcesofgravium.dispatcher.NodeControlDispatcher;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.source.SourceActivationScheduler;
-import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
 import javax.annotation.Nonnull;
 import java.util.Map;
@@ -23,9 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
 
-    private static final int AUTOSAVE_INTERVAL_TICKS = 100;
     private static final Map<String, Long> LAST_PROCESSED_WORLD_TICKS = new ConcurrentHashMap<>();
-    private static final Map<String, Long> LAST_AUTOSAVED_WORLD_TICKS = new ConcurrentHashMap<>();
 
     public WorldTickSystem() {
     }
@@ -45,8 +42,6 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
     ) {
         World world = store.getExternalData().getWorld();
 
-        WorldSaveFileService.ensureLoaded(world);
-
         long tick = world.getTick();
 
         if (!markWorldTickProcessed(world, tick)) {
@@ -61,11 +56,6 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
         NodeControlDispatcher.tickWorld(world);
         SensorLogic.tickWorld(world);
         SensorBlockRefresher.tickWorld(world);
-
-        // Autosave
-        if (shouldAutosave(world, tick)) {
-            WorldSaveFileService.saveWorld(world);
-        }
     }
 
     private static boolean markWorldTickProcessed(
@@ -80,28 +70,5 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
 
         return previousTick == null
                 || previousTick != tick;
-    }
-
-    private static boolean shouldAutosave(
-            @Nonnull World world,
-            long tick
-    ) {
-        String worldKey = world.getName();
-
-        Long previousTick =
-                LAST_AUTOSAVED_WORLD_TICKS.get(worldKey);
-
-        if (previousTick != null
-                && tick - previousTick < AUTOSAVE_INTERVAL_TICKS) {
-
-            return false;
-        }
-
-        LAST_AUTOSAVED_WORLD_TICKS.put(
-                worldKey,
-                tick
-        );
-
-        return true;
     }
 }
