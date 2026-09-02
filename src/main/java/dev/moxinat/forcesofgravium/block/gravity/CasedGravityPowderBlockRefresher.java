@@ -2,10 +2,14 @@ package dev.moxinat.forcesofgravium.block.gravity;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
-import dev.moxinat.forcesofgravium.data.Nodes;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 
 public final class CasedGravityPowderBlockRefresher {
@@ -17,32 +21,16 @@ public final class CasedGravityPowderBlockRefresher {
             World world,
             Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(
-                world,
-                position
-        );
+        NodeComponent node =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
 
         if (node == null) {
-            return;
-        }
-
-        String baseBlockId;
-
-        if (NodeTypes.STRAIGHT_CASED_GRAVITY_POWDER
-                .blockId()
-                .equals(node.blockId())) {
-
-            baseBlockId =
-                    NodeTypes.STRAIGHT_CASED_GRAVITY_POWDER.blockId();
-
-        } else if (NodeTypes.CURVE_CASED_GRAVITY_POWDER
-                .blockId()
-                .equals(node.blockId())) {
-
-            baseBlockId =
-                    NodeTypes.CURVE_CASED_GRAVITY_POWDER.blockId();
-
-        } else {
             return;
         }
 
@@ -54,6 +42,29 @@ public final class CasedGravityPowderBlockRefresher {
                 world.getBlockType(x, y, z);
 
         if (currentType == null) {
+            return;
+        }
+
+        String rawBlockId =
+                ConnectableRegistry.rawBlockId(
+                        currentType.getId()
+                );
+
+        String baseBlockId;
+
+        if (ConnectableRegistry.STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID
+                .equals(rawBlockId)) {
+
+            baseBlockId =
+                    ConnectableRegistry.STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID;
+
+        } else if (ConnectableRegistry.CURVE_CASED_GRAVITY_POWDER_BLOCK_ID
+                .equals(rawBlockId)) {
+
+            baseBlockId =
+                    ConnectableRegistry.CURVE_CASED_GRAVITY_POWDER_BLOCK_ID;
+
+        } else {
             return;
         }
 
@@ -118,7 +129,10 @@ public final class CasedGravityPowderBlockRefresher {
                 z,
                 blockId,
                 targetType,
-                node.rotation().index(),
+                ConnectableNeighborResolver.rotationFor(
+                        world,
+                        position
+                ).index(),
                 0,
                 0
         );

@@ -6,7 +6,11 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
-import dev.moxinat.forcesofgravium.data.Nodes;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
@@ -45,9 +49,23 @@ public final class ButtonInteractionSystem extends EntityEventSystem<EntityStore
 
         World world = player.getWorld();
         Vector3i position = new Vector3i(event.getTargetBlock());
-        Nodes.Node node = Nodes.get(world, position);
+        NodeComponent node =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
 
-        if (node == null || !NodeTypes.WOODEN_BUTTON.blockId().equals(node.blockId())) {
+        BlockType blockType = event.getBlockType();
+
+        if (node == null
+                || !ConnectableRegistry.WOODEN_BUTTON_BLOCK_ID.equals(
+                ConnectableRegistry.rawBlockId(
+                        blockType.getId()
+                )
+        )) {
             return;
         }
 

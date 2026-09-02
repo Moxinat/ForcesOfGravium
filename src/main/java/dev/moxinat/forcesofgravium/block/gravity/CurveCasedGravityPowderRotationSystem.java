@@ -12,17 +12,20 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.network.ConnectableNetworkManager;
 import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -60,17 +63,42 @@ public final class CurveCasedGravityPowderRotationSystem {
 
             World world = player.getWorld();
             Vector3i position = new Vector3i(event.getTargetBlock());
-            Nodes.Node node = Nodes.get(world, position);
+            Ref<ChunkStore> blockRef =
+                    BlockModule.getBlockEntity(
+                            world,
+                            position.x(),
+                            position.y(),
+                            position.z()
+                    );
 
-            if (node == null || !NodeTypes.CURVE_CASED_GRAVITY_POWDER
-                    .blockId()
-                    .equals(node.blockId())) {
+            if (blockRef == null || !blockRef.isValid()) {
+                return;
+            }
+
+            Store<ChunkStore> blockStore =
+                    blockRef.getStore();
+
+            NodeComponent node =
+                    blockStore.getComponent(
+                            blockRef,
+                            ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE
+                    );
+
+            if (node == null
+                    || !ConnectableRegistry.CURVE_CASED_GRAVITY_POWDER_BLOCK_ID.equals(
+                    ConnectableRegistry.rawBlockId(
+                            blockType.getId()
+                    )
+            )) {
                 return;
             }
 
             RotationTuple nextRotation =
                     rotateAroundLocalAxis(
-                            node.rotation(),
+                            ConnectableNeighborResolver.rotationFor(
+                                    world,
+                                    position
+                            ),
                             LOCAL_INTERACTION_ROTATION_AXIS
                     );
 
@@ -120,8 +148,14 @@ public final class CurveCasedGravityPowderRotationSystem {
                     continue;
                 }
 
-                Nodes.Node adjacentNode =
-                        Nodes.get(world, adjacent);
+                NodeComponent adjacentNode =
+                        BlockModule.getComponent(
+                                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                                world,
+                                adjacent.x(),
+                                adjacent.y(),
+                                adjacent.z()
+                        );
 
                 if (adjacentNode != null) {
                     oldInstantStates.put(
@@ -131,9 +165,9 @@ public final class CurveCasedGravityPowderRotationSystem {
                 }
             }
 
-            Nodes.remove(
-                    world,
-                    position
+            blockStore.removeComponent(
+                    blockRef,
+                    ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE
             );
 
             ConnectableNetworkManager.onNodeBroken(
@@ -142,11 +176,8 @@ public final class CurveCasedGravityPowderRotationSystem {
                     formerNetworkNeighbors
             );
 
-            Nodes.put(
-                    world,
-                    node
-                            .withRotation(nextRotation)
-                            .withNetworkId(Nodes.Node.NO_NETWORK)
+            node.setNetworkId(
+                    NodeComponent.NO_NETWORK
             );
 
             BlockOperations.setBlock(
@@ -160,6 +191,27 @@ public final class CurveCasedGravityPowderRotationSystem {
                     nextRotation.index(),
                     0,
                     0
+            );
+
+            blockRef =
+                    BlockModule.getBlockEntity(
+                            world,
+                            position.x(),
+                            position.y(),
+                            position.z()
+                    );
+
+            if (blockRef == null || !blockRef.isValid()) {
+                return;
+            }
+
+            blockStore =
+                    blockRef.getStore();
+
+            blockStore.putComponent(
+                    blockRef,
+                    ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                    node
             );
 
             ConnectableNetworkManager.onNodePlaced(
@@ -184,10 +236,16 @@ public final class CurveCasedGravityPowderRotationSystem {
             for (Map.Entry<Vector3i, SignalState> entry :
                     oldInstantStates.entrySet()) {
 
-                Nodes.Node currentNode =
-                        Nodes.get(
+                Vector3i currentPosition =
+                        entry.getKey();
+
+                NodeComponent currentNode =
+                        BlockModule.getComponent(
+                                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
                                 world,
-                                entry.getKey()
+                                currentPosition.x(),
+                                currentPosition.y(),
+                                currentPosition.z()
                         );
 
                 if (currentNode == null) {
