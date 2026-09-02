@@ -376,7 +376,7 @@ public final class ConnectableBlockLifecycleSystem {
                 }
             }
 
-            ConnectableVisualDispatcher.refreshTopologyAround(world, target);
+            ConnectableVisualRefreshScheduler.scheduleTopologyRefresh(world, target);
 
         }
     }
