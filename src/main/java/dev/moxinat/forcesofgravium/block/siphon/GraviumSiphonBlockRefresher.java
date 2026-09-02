@@ -1,7 +1,12 @@
 package dev.moxinat.forcesofgravium.block.siphon;
 
 import com.hypixel.hytale.component.Ref;
-import dev.moxinat.forcesofgravium.data.Nodes;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.SiphonComponent;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -20,15 +25,25 @@ public final class GraviumSiphonBlockRefresher {
             World world,
             Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(
-                world,
-                position
-        );
+        NodeComponent node =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
 
-        if (node == null
-                || !NodeTypes.GRAVIUM_SIPHON
-                .blockId()
-                .equals(node.blockId())) {
+        SiphonComponent siphon =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.SIPHON_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
+
+        if (node == null || siphon == null) {
             return;
         }
 
@@ -44,7 +59,7 @@ public final class GraviumSiphonBlockRefresher {
         }
 
         BlockType baseType = BlockType.fromString(
-                NodeTypes.GRAVIUM_SIPHON.blockId()
+                ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID
         );
 
         if (baseType == null) {
@@ -59,12 +74,12 @@ public final class GraviumSiphonBlockRefresher {
 
         String blockKey =
                 stateName == null
-                        ? NodeTypes.GRAVIUM_SIPHON.blockId()
+                        ? ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID
                         : baseType.getBlockKeyForState(stateName);
 
         if (blockKey == null) {
             blockKey =
-                    NodeTypes.GRAVIUM_SIPHON.blockId();
+                    ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID;
         }
 
         if (blockKey.equals(blockType.getId())) {
@@ -97,7 +112,9 @@ public final class GraviumSiphonBlockRefresher {
                 z,
                 blockId,
                 targetType,
-                node.rotation().index(),
+                ConnectableNeighborResolver
+                        .rotationFor(world, position)
+                        .index(),
                 0,
                 0
         );

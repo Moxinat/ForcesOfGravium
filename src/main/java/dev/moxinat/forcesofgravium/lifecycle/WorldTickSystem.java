@@ -14,7 +14,6 @@ import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualRefreshScheduler;
 import dev.moxinat.forcesofgravium.dispatcher.NodeControlDispatcher;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
-import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
 import dev.moxinat.forcesofgravium.source.SourceActivationScheduler;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 
@@ -24,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
 
-    private static final int SIPHON_LOGIC_INTERVAL_TICKS = 5;
     private static final int AUTOSAVE_INTERVAL_TICKS = 100;
     private static final Map<String, Long> LAST_PROCESSED_WORLD_TICKS = new ConcurrentHashMap<>();
     private static final Map<String, Long> LAST_AUTOSAVED_WORLD_TICKS = new ConcurrentHashMap<>();
@@ -63,14 +61,6 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
         NodeControlDispatcher.tickWorld(world);
         SensorLogic.tickWorld(world);
         SensorBlockRefresher.tickWorld(world);
-
-        // Siphon Ticks
-        if (tick % SIPHON_LOGIC_INTERVAL_TICKS == 0) {
-            GraviumSiphonLogic.tickWorld(
-                    world,
-                    commandBuffer
-            );
-        }
 
         // Autosave
         if (shouldAutosave(world, tick)) {

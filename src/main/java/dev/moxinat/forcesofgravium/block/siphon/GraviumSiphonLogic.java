@@ -1,18 +1,16 @@
 package dev.moxinat.forcesofgravium.block.siphon;
 
-import com.hypixel.hytale.component.AddReason;
-import com.hypixel.hytale.component.CommandBuffer;
-import com.hypixel.hytale.component.Holder;
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.RemoveReason;
-import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.*;
 import com.hypixel.hytale.builtin.crafting.component.ProcessingBenchBlock;
 import com.hypixel.hytale.component.query.Query;
+import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.SiphonComponent;
 import dev.moxinat.forcesofgravium.signal.SignalState;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
 import com.hypixel.hytale.protocol.BlockMaterial;
@@ -39,125 +37,114 @@ import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class GraviumSiphonLogic {
 
     private static final int POWERED_TRANSFER_INTERVAL_TICKS = 30;
     private static final int UNPOWERED_TRANSFER_INTERVAL_TICKS = 60;
     private static final float DROPPED_ITEM_OUTPUT_SPEED = 3.0F;
-    private static final Map<String, Long> LAST_TRANSFER_TICKS = new ConcurrentHashMap<>();
 
     private GraviumSiphonLogic() {
     }
 
-    public static void tickWorld(
+    public static void tickSiphon(
             @Nonnull World world,
-            @Nullable CommandBuffer<EntityStore> commandBuffer
+            @Nonnull Vector3i position,
+            @Nonnull NodeComponent node,
+            @Nonnull SiphonComponent siphon,
+            @Nonnull Store<EntityStore> entityStore
     ) {
-        Objects.requireNonNull(world, "world");
-
-        for (Map.Entry<Vector3i, Nodes.Node> entry :
-                Nodes.snapshotForWorld(world).entrySet()) {
-
-            Vector3i position = entry.getKey();
-            Nodes.Node node = entry.getValue();
-
-            if (!NodeTypes.GRAVIUM_SIPHON
-                    .blockId()
-                    .equals(node.blockId())) {
-                continue;
-            }
-
-            if (node.effectiveState() == SignalState.PULL) {
-                continue;
-            }
-
-            if (canTransfer(
-                    world,
-                    position,
-                    node
-            )) {
-                transferOneItem(
-                        world,
-                        position,
-                        commandBuffer
-                );
-            }
+        if (node.effectiveState() == SignalState.PULL) {
+            return;
         }
+
+        if (!canTransfer(
+                world,
+                position,
+                node,
+                siphon
+        )) {
+            return;
+        }
+
+        transferOneItem(
+                world,
+                position,
+                entityStore
+        );
     }
 
     private static boolean canTransfer(
             @Nonnull World world,
             @Nonnull Vector3i position,
-            @Nonnull Nodes.Node node
+            @Nonnull NodeComponent node,
+            @Nonnull SiphonComponent siphon
     ) {
         boolean powered =
                 node.effectiveState() == SignalState.PUSH;
 
         if (!powered
-                && node.rotation().pitch() != Rotation.Ninety) {
+                && ConnectableNeighborResolver
+                .rotationFor(world, position)
+                .pitch() != Rotation.Ninety) {
             return false;
         }
 
-        long tick = world.getTick();
-
-        int interval = powered
-                ? POWERED_TRANSFER_INTERVAL_TICKS
-                : UNPOWERED_TRANSFER_INTERVAL_TICKS;
-
-        String key =
-                transferKey(world, position);
-
-        Long previousTick =
-                LAST_TRANSFER_TICKS.get(key);
-
-        if (previousTick != null
-                && tick - previousTick < interval) {
+        if (siphon.onCooldown()) {
+            siphon.tickCooldown();
             return false;
         }
 
-        LAST_TRANSFER_TICKS.put(
-                key,
-                tick
+        siphon.setCooldownTicks(
+                powered
+                        ? POWERED_TRANSFER_INTERVAL_TICKS
+                        : UNPOWERED_TRANSFER_INTERVAL_TICKS
         );
 
         return true;
     }
 
-    private static @Nonnull String transferKey(@Nonnull World world, @Nonnull Vector3i position) {
-        return world.getSavePath().toAbsolutePath().normalize()
-                + ":" + position.x()
-                + "," + position.y()
-                + "," + position.z();
-    }
-
-    public static @Nonnull SiphonMoveResult transferOneItem(@Nonnull World world, @Nonnull Vector3i siphonPosition) {
-        return transferOneItem(world, siphonPosition, null);
+    public static @Nonnull SiphonMoveResult transferOneItem(
+            @Nonnull World world,
+            @Nonnull Vector3i siphonPosition
+    ) {
+        return transferOneItem(
+                world,
+                siphonPosition,
+                world.getEntityStore().getStore()
+        );
     }
 
     private static @Nonnull SiphonMoveResult transferOneItem(
             @Nonnull World world,
             @Nonnull Vector3i siphonPosition,
-            @Nullable CommandBuffer<EntityStore> commandBuffer
+            @Nonnull Store<EntityStore> entityStore
     ) {
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(siphonPosition, "siphonPosition");
 
-        Vector3i sourcePosition = ConnectableNeighborResolver.adjacentPositionForLocalSide(
-                world,
-                siphonPosition,
-                ConnectableRegistry.SIDE_BACK
-        );
-        Vector3i targetPosition = ConnectableNeighborResolver.adjacentPositionForLocalSide(
-                world,
-                siphonPosition,
-                ConnectableRegistry.SIDE_FRONT
-        );
+        Vector3i sourcePosition =
+                ConnectableNeighborResolver.adjacentPositionForLocalSide(
+                        world,
+                        siphonPosition,
+                        ConnectableRegistry.SIDE_BACK
+                );
 
-        return transferOneItemBetween(world, sourcePosition, targetPosition, siphonPosition, commandBuffer);
+        Vector3i targetPosition =
+                ConnectableNeighborResolver.adjacentPositionForLocalSide(
+                        world,
+                        siphonPosition,
+                        ConnectableRegistry.SIDE_FRONT
+                );
+
+        return transferOneItemBetween(
+                world,
+                sourcePosition,
+                targetPosition,
+                siphonPosition,
+                entityStore
+        );
     }
 
     private static @Nonnull SiphonMoveResult transferOneItemBetween(
@@ -165,35 +152,78 @@ public final class GraviumSiphonLogic {
             @Nonnull Vector3i sourcePosition,
             @Nonnull Vector3i targetPosition,
             @Nonnull Vector3i velocityOriginPosition,
-            @Nullable CommandBuffer<EntityStore> commandBuffer
+            @Nonnull Store<EntityStore> entityStore
     ) {
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(sourcePosition, "sourcePosition");
         Objects.requireNonNull(targetPosition, "targetPosition");
         Objects.requireNonNull(velocityOriginPosition, "velocityOriginPosition");
 
-        SiphonEndpoint target = SiphonEndpoint.at(world, targetPosition);
-        SiphonEndpoint source = SiphonEndpoint.at(world, sourcePosition);
-        ItemContainer sourceContainer = source.extractContainer();
+        SiphonEndpoint target =
+                SiphonEndpoint.at(
+                        world,
+                        targetPosition
+                );
+
+        SiphonEndpoint source =
+                SiphonEndpoint.at(
+                        world,
+                        sourcePosition
+                );
+
+        ItemContainer sourceContainer =
+                source.extractContainer();
+
         if (sourceContainer == null) {
-            if (commandBuffer != null && isDroppableTarget(world, sourcePosition)) {
-                WorldItemSource worldItemSource = worldItemSourceAt(commandBuffer.getStore(), sourcePosition);
+
+            if (isDroppableTarget(
+                    world,
+                    sourcePosition
+            )) {
+                WorldItemSource worldItemSource =
+                        worldItemSourceAt(
+                                entityStore,
+                                sourcePosition
+                        );
+
                 if (worldItemSource == null) {
                     return SiphonMoveResult.SOURCE_EMPTY;
                 }
-                return transferOneWorldItem(world, worldItemSource, target, commandBuffer, velocityOriginPosition, targetPosition);
+
+                return transferOneWorldItem(
+                        world,
+                        worldItemSource,
+                        target,
+                        entityStore,
+                        velocityOriginPosition,
+                        targetPosition
+                );
             }
+
             return SiphonMoveResult.NO_SOURCE_CONTAINER;
         }
 
         if (!target.hasInsertContainer()) {
-            if (commandBuffer != null && isDroppableTarget(world, targetPosition)) {
-                return dropOneItem(sourceContainer, commandBuffer, velocityOriginPosition, targetPosition);
+
+            if (isDroppableTarget(
+                    world,
+                    targetPosition
+            )) {
+                return dropOneItem(
+                        sourceContainer,
+                        entityStore,
+                        velocityOriginPosition,
+                        targetPosition
+                );
             }
+
             return SiphonMoveResult.NO_TARGET_CONTAINER;
         }
 
-        return transferOneItem(sourceContainer, target);
+        return transferOneItem(
+                sourceContainer,
+                target
+        );
     }
 
     private static boolean isDroppableTarget(@Nonnull World world, @Nonnull Vector3i targetPosition) {
@@ -227,92 +257,155 @@ public final class GraviumSiphonLogic {
             @Nonnull World world,
             @Nonnull WorldItemSource source,
             @Nonnull SiphonEndpoint target,
-            @Nonnull CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Store<EntityStore> entityStore,
             @Nonnull Vector3i velocityOriginPosition,
             @Nonnull Vector3i targetPosition
     ) {
-        ItemStack stack = source.item().getItemStack();
+        ItemStack stack =
+                source.item().getItemStack();
+
         if (ItemStack.isEmpty(stack)) {
             return SiphonMoveResult.SOURCE_EMPTY;
         }
 
-        ItemStack itemToMove = Objects.requireNonNull(stack.withQuantity(1), "itemToMove");
+        ItemStack itemToMove =
+                Objects.requireNonNull(
+                        stack.withQuantity(1),
+                        "itemToMove"
+                );
+
         if (target.hasInsertContainer()) {
+
             if (!target.insertOne(itemToMove)) {
                 return SiphonMoveResult.TARGET_REJECTED_ITEM;
             }
 
-            consumeOneWorldItem(source, commandBuffer);
+            consumeOneWorldItem(
+                    source,
+                    entityStore
+            );
+
             return SiphonMoveResult.MOVED;
         }
 
-        if (!isDroppableTarget(world, targetPosition)) {
+        if (!isDroppableTarget(
+                world,
+                targetPosition
+        )) {
             return SiphonMoveResult.NO_TARGET_CONTAINER;
         }
 
-        Holder<EntityStore> itemDrop = createDroppedItem(commandBuffer, velocityOriginPosition, targetPosition, itemToMove);
+        Holder<EntityStore> itemDrop =
+                createDroppedItem(
+                        entityStore,
+                        velocityOriginPosition,
+                        targetPosition,
+                        itemToMove
+                );
+
         if (itemDrop == null) {
             return SiphonMoveResult.TARGET_REJECTED_ITEM;
         }
 
-        consumeOneWorldItem(source, commandBuffer);
-        commandBuffer.addEntity(itemDrop, AddReason.SPAWN);
+        consumeOneWorldItem(
+                source,
+                entityStore
+        );
+
+        entityStore.addEntity(
+                itemDrop,
+                AddReason.SPAWN
+        );
+
         return SiphonMoveResult.DROPPED;
     }
 
     private static void consumeOneWorldItem(
             @Nonnull WorldItemSource source,
-            @Nonnull CommandBuffer<EntityStore> commandBuffer
+            @Nonnull Store<EntityStore> entityStore
     ) {
-        ItemStack stack = source.item().getItemStack();
+        ItemStack stack =
+                source.item().getItemStack();
 
         if (ItemStack.isEmpty(stack)) {
             return;
         }
 
         if (stack.getQuantity() <= 1) {
-            source.item().setItemStack(ItemStack.EMPTY);
-
-            commandBuffer.tryRemoveEntity(
-                    source.ref(),
-                    RemoveReason.REMOVE
+            source.item().setItemStack(
+                    ItemStack.EMPTY
             );
+
+            if (source.ref().isValid()) {
+                entityStore.removeEntity(
+                        source.ref(),
+                        RemoveReason.REMOVE
+                );
+            }
+
             return;
         }
 
         source.item().setItemStack(
-                stack.withQuantity(stack.getQuantity() - 1)
+                stack.withQuantity(
+                        stack.getQuantity() - 1
+                )
         );
     }
 
     private static @Nonnull SiphonMoveResult dropOneItem(
             @Nonnull ItemContainer source,
-            @Nonnull CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Store<EntityStore> entityStore,
             @Nonnull Vector3i velocityOriginPosition,
             @Nonnull Vector3i targetPosition
     ) {
-        for (short slot = 0; slot < source.getCapacity(); slot++) {
-            ItemStack stack = source.getItemStack(slot);
+        for (short slot = 0;
+             slot < source.getCapacity();
+             slot++) {
+
+            ItemStack stack =
+                    source.getItemStack(slot);
+
             if (ItemStack.isEmpty(stack)) {
                 continue;
             }
 
-            Holder<EntityStore> itemDrop = createDroppedItem(
-                    commandBuffer,
-                    velocityOriginPosition,
-                    targetPosition,
-                    Objects.requireNonNull(stack.withQuantity(1), "itemToMove")
-            );
+            Holder<EntityStore> itemDrop =
+                    createDroppedItem(
+                            entityStore,
+                            velocityOriginPosition,
+                            targetPosition,
+                            Objects.requireNonNull(
+                                    stack.withQuantity(1),
+                                    "itemToMove"
+                            )
+                    );
+
             if (itemDrop == null) {
                 return SiphonMoveResult.TARGET_REJECTED_ITEM;
             }
 
-            ItemStackSlotTransaction transaction = source.removeItemStackFromSlot(slot, 1, true, true);
-            if (!transaction.succeeded() || !ItemStack.isEmpty(transaction.getRemainder())) {
+            ItemStackSlotTransaction transaction =
+                    source.removeItemStackFromSlot(
+                            slot,
+                            1,
+                            true,
+                            true
+                    );
+
+            if (!transaction.succeeded()
+                    || !ItemStack.isEmpty(
+                    transaction.getRemainder()
+            )) {
+
                 return SiphonMoveResult.TARGET_REJECTED_ITEM;
             }
 
-            commandBuffer.addEntity(itemDrop, AddReason.SPAWN);
+            entityStore.addEntity(
+                    itemDrop,
+                    AddReason.SPAWN
+            );
+
             return SiphonMoveResult.DROPPED;
         }
 
@@ -320,21 +413,38 @@ public final class GraviumSiphonLogic {
     }
 
     private static @Nullable Holder<EntityStore> createDroppedItem(
-            @Nonnull CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Store<EntityStore> entityStore,
             @Nonnull Vector3i velocityOriginPosition,
             @Nonnull Vector3i targetPosition,
             @Nonnull ItemStack itemStack
     ) {
-        Vector3d position = new Vector3d(
-                targetPosition.x() + 0.5D,
-                targetPosition.y() + 0.5D,
-                targetPosition.z() + 0.5D
-        );
-        float velocityX = outputVelocityComponent(targetPosition.x() - velocityOriginPosition.x());
-        float velocityY = outputVelocityComponent(targetPosition.y() - velocityOriginPosition.y());
-        float velocityZ = outputVelocityComponent(targetPosition.z() - velocityOriginPosition.z());
+        Vector3d position =
+                new Vector3d(
+                        targetPosition.x() + 0.5D,
+                        targetPosition.y() + 0.5D,
+                        targetPosition.z() + 0.5D
+                );
+
+        float velocityX =
+                outputVelocityComponent(
+                        targetPosition.x()
+                                - velocityOriginPosition.x()
+                );
+
+        float velocityY =
+                outputVelocityComponent(
+                        targetPosition.y()
+                                - velocityOriginPosition.y()
+                );
+
+        float velocityZ =
+                outputVelocityComponent(
+                        targetPosition.z()
+                                - velocityOriginPosition.z()
+                );
+
         return ItemComponent.generateItemDrop(
-                commandBuffer,
+                entityStore,
                 itemStack,
                 position,
                 Rotation3f.ZERO,
@@ -552,5 +662,75 @@ public final class GraviumSiphonLogic {
         NO_TARGET_CONTAINER,
         SOURCE_EMPTY,
         TARGET_REJECTED_ITEM
+    }
+
+    public static final class TickSystem
+            extends EntityTickingSystem<ChunkStore> {
+
+        @Override
+        public @Nonnull Query<ChunkStore> getQuery() {
+            return Query.and(
+                    ForcesOfGraviumPlugin.SIPHON_COMPONENT_TYPE,
+                    ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                    BlockModule.BlockStateInfo.getComponentType()
+            );
+        }
+
+        @Override
+        public void tick(
+                float delta,
+                int index,
+                @Nonnull ArchetypeChunk<ChunkStore> chunk,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
+            NodeComponent node =
+                    chunk.getComponent(
+                            index,
+                            ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE
+                    );
+
+            SiphonComponent siphon =
+                    chunk.getComponent(
+                            index,
+                            ForcesOfGraviumPlugin.SIPHON_COMPONENT_TYPE
+                    );
+
+            BlockModule.BlockStateInfo blockStateInfo =
+                    chunk.getComponent(
+                            index,
+                            BlockModule.BlockStateInfo.getComponentType()
+                    );
+
+            if (node == null
+                    || siphon == null
+                    || blockStateInfo == null) {
+                return;
+            }
+
+            Vector3i position =
+                    new Vector3i();
+
+            if (!blockStateInfo.fillWorldPos(
+                    store,
+                    position
+            )) {
+                return;
+            }
+
+            World world =
+                    store.getExternalData().getWorld();
+
+            Store<EntityStore> entityStore =
+                    world.getEntityStore().getStore();
+
+            tickSiphon(
+                    world,
+                    position,
+                    node,
+                    siphon,
+                    entityStore
+            );
+        }
     }
 }

@@ -11,6 +11,7 @@ import dev.moxinat.forcesofgravium.block.button.ButtonInteractionSystem;
 import dev.moxinat.forcesofgravium.block.gravity.CurveCasedGravityPowderRotationSystem;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.block.sensor.SensorRotationSystem;
+import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
 import dev.moxinat.forcesofgravium.block.windgen.WindGeneratorInteractionSystem;
 import dev.moxinat.forcesofgravium.commands.ForcesOfGraviumCommand;
 import dev.moxinat.forcesofgravium.data.*;
@@ -30,6 +31,7 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
     public static ComponentType<ChunkStore, SourceComponent> SOURCE_COMPONENT_TYPE;
     public static ResourceType<ChunkStore, NetworkResource> NETWORK_RESOURCE_TYPE;
     public static ResourceType<ChunkStore, SignalRuntimeResource> SIGNAL_RESOURCE_TYPE;
+    public static ComponentType<ChunkStore, SiphonComponent> SIPHON_COMPONENT_TYPE;
 
     @Override
     protected void setup() {
@@ -40,6 +42,13 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
                         NodeComponent.CODEC
                 );
 
+        SOURCE_COMPONENT_TYPE =
+                this.getChunkStoreRegistry().registerComponent(
+                        SourceComponent.class,
+                        "forcesofgravium:source",
+                        SourceComponent.CODEC
+                );
+
         SENSOR_COMPONENT_TYPE =
                 this.getChunkStoreRegistry().registerComponent(
                         SensorComponent.class,
@@ -47,11 +56,11 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
                         SensorComponent.CODEC
                 );
 
-        SOURCE_COMPONENT_TYPE =
+        SIPHON_COMPONENT_TYPE =
                 this.getChunkStoreRegistry().registerComponent(
-                        SourceComponent.class,
-                        "forcesofgravium:source",
-                        SourceComponent.CODEC
+                        SiphonComponent.class,
+                        "forcesofgravium:siphon",
+                        SiphonComponent.CODEC
                 );
 
         NETWORK_RESOURCE_TYPE =
@@ -81,8 +90,10 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new ButtonInteractionSystem());
         this.getEntityStoreRegistry().registerSystem(new CurveCasedGravityPowderRotationSystem.UseSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlaceSystem());
+        this.getChunkStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlacedSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.BreakSystem());
         this.getEntityStoreRegistry().registerSystem(new WorldTickSystem());
+        this.getChunkStoreRegistry().registerSystem(new GraviumSiphonLogic.TickSystem());
         this.getEntityStoreRegistry().registerSystem(new WindGeneratorInteractionSystem());
         this.getEntityStoreRegistry().registerSystem(new SensorRotationSystem.UseSystem());
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.BlockUseSystem()); //temp

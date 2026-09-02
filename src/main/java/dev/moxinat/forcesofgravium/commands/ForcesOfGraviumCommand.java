@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.persistence.WorldSaveFileService;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -280,8 +279,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
 
     private void sendRotationDebug(CommandContext context, World world, Vector3i p) {
         BlockType block = world.getBlockType(p.x(), p.y(), p.z());
-        Nodes.Node node = Nodes.get(world, p);
-        RotationTuple stored = node != null ? node.rotation() : null;
+        RotationTuple stored = ConnectableNeighborResolver.rotationFor(world, p);
         context.sendMessage(Message.raw("Rotation debug at " + formatPosition(p)));
         context.sendMessage(Message.raw("block=" + (block != null ? block.getId() : "null")));
         context.sendMessage(Message.raw("storedRotation=" + stored));
@@ -292,8 +290,14 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             World world,
             Vector3i position
     ) {
-        Nodes.Node sensor =
-                Nodes.get(world, position);
+        NodeComponent sensor =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
 
         if (sensor == null) {
             context.sendMessage(
@@ -337,8 +341,14 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
                 )
         );
 
-        Nodes.Node observedNode =
-                Nodes.get(world, observedPosition);
+        NodeComponent observedNode =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                        world,
+                        observedPosition.x(),
+                        observedPosition.y(),
+                        observedPosition.z()
+                );
 
         context.sendMessage(
                 Message.raw(

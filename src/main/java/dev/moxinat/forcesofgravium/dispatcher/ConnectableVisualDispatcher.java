@@ -1,5 +1,6 @@
 package dev.moxinat.forcesofgravium.dispatcher;
 
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.gravity.CasedGravityPowderBlockRefresher;
 import dev.moxinat.forcesofgravium.block.gravity.GravityPowderBlockRefresher;
@@ -22,13 +23,19 @@ public final class ConnectableVisualDispatcher {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(world, position);
+        BlockType blockType =
+                world.getBlockType(position);
 
-        if (node == null) {
+        if (blockType == null) {
             return;
         }
 
-        switch (node.blockId()) {
+        String blockId =
+                blockType.getId();
+
+        System.out.println(blockId);
+
+        switch (blockId) {
             case ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID ->
                     GraviumSiphonBlockRefresher.refreshAt(world, position);
             case ConnectableRegistry.INVERTER_BLOCK_ID ->

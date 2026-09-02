@@ -262,6 +262,68 @@ public final class NetworkResource implements Resource<ChunkStore> {
         network.energy = energy;
     }
 
+    public boolean isFailing(
+            long networkId
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        return network != null
+                && network.failureStep >= 0;
+    }
+
+    public int failureStep(
+            long networkId
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        return network == null
+                ? -1
+                : network.failureStep;
+    }
+
+    public long failureRemainingTicks(
+            long networkId
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        return network == null
+                ? 0L
+                : network.failureRemainingTicks;
+    }
+
+    public void setFailureState(
+            long networkId,
+            int step,
+            long remainingTicks
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        if (network == null) {
+            return;
+        }
+
+        network.failureStep = step;
+        network.failureRemainingTicks = remainingTicks;
+    }
+
+    public void clearFailure(
+            long networkId
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        if (network == null) {
+            return;
+        }
+
+        network.failureStep = -1;
+        network.failureRemainingTicks = 0L;
+    }
+
 
     // --------------------------------------------------
     // CLONE
@@ -322,10 +384,34 @@ public final class NetworkResource implements Resource<ChunkStore> {
                                         network.energy
                         )
                         .add()
+                        .append(
+                                new KeyedCodec<>(
+                                        "FailureStep",
+                                        Codec.INTEGER
+                                ),
+                                (network, value) ->
+                                        network.failureStep = value,
+                                network ->
+                                        network.failureStep
+                        )
+                        .add()
+                        .append(
+                                new KeyedCodec<>(
+                                        "FailureRemainingTicks",
+                                        Codec.LONG
+                                ),
+                                (network, value) ->
+                                        network.failureRemainingTicks = value,
+                                network ->
+                                        network.failureRemainingTicks
+                        )
+                        .add()
                         .build();
 
 
         private long id;
+        private int failureStep = -1;
+        private long failureRemainingTicks = 0L;
 
         private final Set<Vector3i> members =
                 new LinkedHashSet<>();
@@ -355,6 +441,12 @@ public final class NetworkResource implements Resource<ChunkStore> {
                         new Vector3i(position)
                 );
             }
+
+            this.failureStep =
+                    other.failureStep;
+
+            this.failureRemainingTicks =
+                    other.failureRemainingTicks;
         }
 
 

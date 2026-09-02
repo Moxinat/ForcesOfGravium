@@ -1,10 +1,10 @@
 package dev.moxinat.forcesofgravium.dispatcher;
 
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.inverter.InverterStateCalculator;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -76,16 +76,19 @@ public final class NodeControlDispatcher {
             @Nonnull Vector3i targetPosition,
             @Nonnull Vector3i sourcePosition
     ) {
-        Nodes.Node node = Nodes.get(
-                world,
-                targetPosition
-        );
+        BlockType blockType =
+                world.getBlockType(targetPosition);
 
-        if (node == null) {
+        if (blockType == null) {
             return;
         }
 
-        switch (node.blockId()) {
+        String blockId =
+                blockType.getId();
+
+        System.out.println(blockId);
+
+        switch (blockId) {
             case ConnectableRegistry.INVERTER_BLOCK_ID ->
                     InverterStateCalculator.handleControlChange(
                             world,

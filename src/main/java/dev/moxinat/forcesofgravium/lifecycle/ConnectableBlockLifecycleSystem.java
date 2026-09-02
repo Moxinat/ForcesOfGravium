@@ -74,53 +74,105 @@ public final class ConnectableBlockLifecycleSystem {
                 return;
             }
 
-            Ref<EntityStore> entityRef = chunk.getReferenceTo(index);
+            Ref<EntityStore> entityRef =
+                    chunk.getReferenceTo(index);
 
-            Player player = store.getComponent(
-                    entityRef,
-                    Player.getComponentType()
-            );
+            Player player =
+                    store.getComponent(
+                            entityRef,
+                            Player.getComponentType()
+                    );
 
             if (player == null || player.getWorld() == null) {
                 return;
             }
 
-            World world = player.getWorld();
-            Vector3i target = new Vector3i(event.getTargetBlock());
+            RotationTuple rotation =
+                    event.getRotation();
 
-            NodeComponent testNode =
-                    BlockModule.getComponent(
-                            ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
-                            world,
-                            target.x(),
-                            target.y(),
-                            target.z()
+            HeadRotation headRotation =
+                    store.getComponent(
+                            entityRef,
+                            HeadRotation.getComponentType()
                     );
 
-            System.out.println(
-                    "[PLACE EVENT] NodeComponent = " + testNode
-            );
-
-            // -------------------------
-            // ROTATION
-            // -------------------------
-
-            RotationTuple rotation = event.getRotation();
-
-            HeadRotation headRotation = store.getComponent(
-                    entityRef,
-                    HeadRotation.getComponentType()
-            );
-
             if (headRotation != null) {
-                rotation = BlockPlacementRotationSystem.resolveRotation(
-                        blockId,
-                        rotation,
-                        headRotation
-                );
+                rotation =
+                        BlockPlacementRotationSystem.resolveRotation(
+                                blockId,
+                                rotation,
+                                headRotation
+                        );
             }
 
             event.setRotation(rotation);
+        }
+    }
+
+    public static final class PlacedSystem
+            extends RefChangeSystem<ChunkStore, PlacedByInteractionComponent> {
+
+        @Override
+        public @Nonnull ComponentType<ChunkStore, PlacedByInteractionComponent> componentType() {
+            return InteractionModule.get().getPlacedByComponentType();
+        }
+
+        @Override
+        public @Nonnull Query<ChunkStore> getQuery() {
+            return Query.and(
+                    InteractionModule.get().getPlacedByComponentType(),
+                    ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                    BlockModule.BlockStateInfo.getComponentType()
+            );
+        }
+
+        @Override
+        public void onComponentSet(
+                @Nonnull Ref<ChunkStore> ref,
+                @Nullable PlacedByInteractionComponent oldComponent,
+                @Nonnull PlacedByInteractionComponent newComponent,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
+        }
+
+        @Override
+        public void onComponentRemoved(
+                @Nonnull Ref<ChunkStore> ref,
+                @Nonnull PlacedByInteractionComponent component,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
+        }
+
+        @Override
+        public void onComponentAdded(
+                @Nonnull Ref<ChunkStore> ref,
+                @Nonnull PlacedByInteractionComponent component,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
+            BlockModule.BlockStateInfo blockStateInfo =
+                    store.getComponent(
+                            ref,
+                            BlockModule.BlockStateInfo.getComponentType()
+                    );
+
+            if (blockStateInfo == null) {
+                return;
+            }
+
+            Vector3i target = new Vector3i();
+
+            if (!blockStateInfo.fillWorldPos(
+                    store,
+                    target
+            )) {
+                return;
+            }
+
+            World world =
+                    store.getExternalData().getWorld();
 
             // -------------------------
             // NETWORK
@@ -170,61 +222,16 @@ public final class ConnectableBlockLifecycleSystem {
             }
 
             if (hasStableBackwardNeighbor) {
-                ConnectablePropagationScheduler
-                        .scheduleAdoption(
-                                world,
-                                target
-                        );
+                ConnectablePropagationScheduler.scheduleAdoption(
+                        world,
+                        target
+                );
             }
 
-            ConnectableVisualRefreshScheduler.scheduleTopologyRefresh(world, target);
-        }
-    }
-
-    public static final class PlacedSystem
-            extends RefChangeSystem<ChunkStore, PlacedByInteractionComponent> {
-
-        @Override
-        public @Nonnull ComponentType<ChunkStore, PlacedByInteractionComponent> componentType() {
-            return InteractionModule.get().getPlacedByComponentType();
-        }
-
-        @Override
-        public @Nonnull Query<ChunkStore> getQuery() {
-            return Query.and(
-                    InteractionModule.get().getPlacedByComponentType(),
-                    ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
-                    BlockModule.BlockStateInfo.getComponentType()
+            ConnectableVisualRefreshScheduler.scheduleTopologyRefresh(
+                    world,
+                    target
             );
-        }
-
-        @Override
-        public void onComponentSet(
-                @Nonnull Ref<ChunkStore> ref,
-                @Nullable PlacedByInteractionComponent oldComponent,
-                @Nonnull PlacedByInteractionComponent newComponent,
-                @Nonnull Store<ChunkStore> store,
-                @Nonnull CommandBuffer<ChunkStore> commandBuffer
-        ) {
-        }
-
-        @Override
-        public void onComponentRemoved(
-                @Nonnull Ref<ChunkStore> ref,
-                @Nonnull PlacedByInteractionComponent component,
-                @Nonnull Store<ChunkStore> store,
-                @Nonnull CommandBuffer<ChunkStore> commandBuffer
-        ) {
-        }
-
-        @Override
-        public void onComponentAdded(
-                @Nonnull Ref<ChunkStore> ref,
-                @Nonnull PlacedByInteractionComponent component,
-                @Nonnull Store<ChunkStore> store,
-                @Nonnull CommandBuffer<ChunkStore> commandBuffer
-        ) {
-            // Hier kommt unsere bisherige Post-Placement-Logik hin.
         }
     }
 

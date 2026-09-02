@@ -9,14 +9,18 @@ import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.SourceComponent;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -43,8 +47,7 @@ public final class WindGeneratorInteractionSystem
     ) {
         BlockType blockType = event.getBlockType();
 
-        if (!NodeTypes.WIND_GENERATOR
-                .blockId()
+        if (!ConnectableRegistry.WIND_GENERATOR_BLOCK_ID
                 .equals(blockType.getId())) {
             return;
         }
@@ -66,12 +69,29 @@ public final class WindGeneratorInteractionSystem
         Vector3i position =
                 new Vector3i(event.getTargetBlock());
 
-        Nodes.Node node = Nodes.get(
-                world,
-                position
-        );
+        NodeComponent node =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
 
         if (node == null) {
+            return;
+        }
+
+        SourceComponent source =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.SOURCE_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
+
+        if (source == null) {
             return;
         }
 
@@ -83,8 +103,7 @@ public final class WindGeneratorInteractionSystem
         SignalState instantState;
 
         if (turningOn) {
-            energyDelta =
-                    SourceRegistry.powerFor(node.blockId());
+            energyDelta = source.power();
 
             if (energyDelta <= 0) {
                 return;
@@ -96,15 +115,9 @@ public final class WindGeneratorInteractionSystem
             instantState = SignalState.OFF;
         }
 
-        node = node
-                .withEnergyDelta(energyDelta)
-                .withInstantState(instantState)
-                .withDirty(true);
-
-        Nodes.put(
-                world,
-                node
-        );
+        node.setEnergyDelta(energyDelta);
+        node.setInstantState(instantState);
+        node.setDirty(true);
 
         EnergyManager.checkNetwork(
                 world,

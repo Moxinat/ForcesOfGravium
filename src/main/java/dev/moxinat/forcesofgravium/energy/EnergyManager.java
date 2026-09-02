@@ -1,14 +1,15 @@
 package dev.moxinat.forcesofgravium.energy;
 
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
+import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NetworkResource;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class EnergyManager {
 
@@ -21,9 +22,6 @@ public final class EnergyManager {
             SignalState.OFF
     };
 
-    private static final Map<World, Map<Long, FailureState>> FAILING_NETWORKS =
-            new ConcurrentHashMap<>();
-
     private EnergyManager() {
     }
 
@@ -31,19 +29,37 @@ public final class EnergyManager {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(world, position);
+        NodeComponent node =
+                nodeAt(world, position);
 
-        if (node == null || node.networkId() == Nodes.Node.NO_NETWORK) {
+        if (node == null
+                || node.networkId() == NodeComponent.NO_NETWORK) {
             return;
         }
 
-        long networkId = node.networkId();
+        long networkId =
+                node.networkId();
+
+        NetworkResource networks =
+                networks(world);
+
+        if (!networks.containsNetwork(networkId)) {
+            return;
+        }
 
         int energy = 0;
         boolean hasEnergySource = false;
 
-        for (Nodes.Node networkNode : Nodes.snapshotForWorld(world).values()) {
-            if (networkNode.networkId() != networkId) {
+        for (Vector3i memberPosition :
+                networks.members(networkId)) {
+
+            NodeComponent networkNode =
+                    nodeAt(
+                            world,
+                            memberPosition
+                    );
+
+            if (networkNode == null) {
                 continue;
             }
 
@@ -54,8 +70,16 @@ public final class EnergyManager {
             }
         }
 
+        networks.setEnergy(
+                networkId,
+                energy
+        );
+
         if (hasEnergySource && energy < 0) {
-            failNetwork(world, networkId);
+            failNetwork(
+                    world,
+                    networkId
+            );
         }
     }
 
@@ -63,81 +87,100 @@ public final class EnergyManager {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        Nodes.Node node = Nodes.get(world, position);
+        NodeComponent node =
+                nodeAt(world, position);
 
-        if (node == null || node.networkId() == Nodes.Node.NO_NETWORK) {
+        if (node == null
+                || node.networkId() == NodeComponent.NO_NETWORK) {
             return 0;
         }
 
-        long networkId = node.networkId();
-        int energy = 0;
-
-        for (Nodes.Node networkNode : Nodes.snapshotForWorld(world).values()) {
-            if (networkNode.networkId() == networkId) {
-                energy += networkNode.energyDelta();
-            }
-        }
-
-        return energy;
+        return networks(world)
+                .energy(node.networkId());
     }
 
-    public static void tickWorld(@Nonnull World world) {
-        Map<Long, FailureState> failingNetworks = FAILING_NETWORKS.get(world);
+    public static void tickWorld(
+            @Nonnull World world
+    ) {
+        NetworkResource networks =
+                networks(world);
 
-        if (failingNetworks == null || failingNetworks.isEmpty()) {
-            return;
-        }
+        for (long networkId :
+                networks.networkIds()) {
 
-        long currentTick = world.getTick();
-
-        for (Map.Entry<Long, FailureState> entry :
-                Map.copyOf(failingNetworks).entrySet()) {
-
-            long networkId = entry.getKey();
-            FailureState failureState = entry.getValue();
-
-            if (currentTick < failureState.nextChangeTick()) {
+            if (!networks.isFailing(networkId)) {
                 continue;
             }
 
-            SignalState state = FAILURE_SEQUENCE[failureState.step()];
+            long remainingTicks =
+                    networks.failureRemainingTicks(
+                            networkId
+                    );
 
-            for (Nodes.Node node : Nodes.snapshotForWorld(world).values()) {
-                if (node.networkId() != networkId) {
+            if (remainingTicks > 0) {
+                remainingTicks--;
+
+                networks.setFailureState(
+                        networkId,
+                        networks.failureStep(networkId),
+                        remainingTicks
+                );
+
+                if (remainingTicks > 0) {
+                    continue;
+                }
+            }
+
+            int step =
+                    networks.failureStep(networkId);
+
+            SignalState state =
+                    FAILURE_SEQUENCE[step];
+
+            for (Vector3i position :
+                    networks.members(networkId)) {
+
+                NodeComponent node =
+                        nodeAt(
+                                world,
+                                position
+                        );
+
+                if (node == null) {
                     continue;
                 }
 
-                Nodes.Node updatedNode = node
-                        .withEffectiveState(state)
-                        .withDirty(false);
+                node.setEffectiveState(state);
+                node.setDirty(false);
 
                 if (state == SignalState.OFF) {
-                    updatedNode = updatedNode
-                            .withInstantState(SignalState.OFF)
-                            .withDirty(false);
+                    node.setInstantState(
+                            SignalState.OFF
+                    );
+
+                    node.setDirty(false);
                 }
 
-                Nodes.put(world, updatedNode);
-                ConnectableVisualDispatcher.refreshAt(world, updatedNode.position());
-            }
-
-            int nextStep = failureState.step() + 1;
-
-            if (nextStep >= FAILURE_SEQUENCE.length) {
-                failingNetworks.remove(networkId);
-            } else {
-                failingNetworks.put(
-                        networkId,
-                        new FailureState(
-                                nextStep,
-                                currentTick + FAILURE_STATE_TICKS
-                        )
+                ConnectableVisualDispatcher.refreshAt(
+                        world,
+                        position
                 );
             }
-        }
 
-        if (failingNetworks.isEmpty()) {
-            FAILING_NETWORKS.remove(world, failingNetworks);
+            int nextStep =
+                    step + 1;
+
+            if (nextStep >= FAILURE_SEQUENCE.length) {
+                networks.clearFailure(
+                        networkId
+                );
+            } else {
+                networks.setFailureState(
+                        networkId,
+                        nextStep,
+                        FAILURE_STATE_TICKS
+                );
+            }
         }
     }
 
@@ -145,20 +188,41 @@ public final class EnergyManager {
             @Nonnull World world,
             long networkId
     ) {
-        FAILING_NETWORKS
-                .computeIfAbsent(
-                        world,
-                        ignored -> new ConcurrentHashMap<>()
-                )
-                .putIfAbsent(
-                        networkId,
-                        new FailureState(0, world.getTick())
+        NetworkResource networks =
+                networks(world);
+
+        if (networks.isFailing(networkId)) {
+            return;
+        }
+
+        networks.setFailureState(
+                networkId,
+                0,
+                0L
+        );
+    }
+
+    private static NetworkResource networks(
+            @Nonnull World world
+    ) {
+        return world
+                .getChunkStore()
+                .getStore()
+                .getResource(
+                        ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
                 );
     }
 
-    private record FailureState(
-            int step,
-            long nextChangeTick
+    private static NodeComponent nodeAt(
+            @Nonnull World world,
+            @Nonnull Vector3i position
     ) {
+        return BlockModule.getComponent(
+                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                world,
+                position.x(),
+                position.y(),
+                position.z()
+        );
     }
 }

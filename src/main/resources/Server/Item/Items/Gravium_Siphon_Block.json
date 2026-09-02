@@ -38,6 +38,9 @@
           "Passing": false,
           "EnergyDelta": -1,
           "NetworkId": 0
+        },
+        "forcesofgravium:siphon": {
+          "CooldownTicks": 0
         }
       }
     },
