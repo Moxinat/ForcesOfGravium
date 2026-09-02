@@ -66,14 +66,14 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         NETWORK_RESOURCE_TYPE =
                 this.getChunkStoreRegistry().registerResource(
                         NetworkResource.class,
-                        "forcesofgravium:networks",
+                        "forcesofgravium_networks",
                         NetworkResource.CODEC
                 );
 
         SIGNAL_RESOURCE_TYPE =
                 this.getChunkStoreRegistry().registerResource(
                         SignalRuntimeResource.class,
-                        "forcesofgravium:signal",
+                        "forcesofgravium_signal",
                         SignalRuntimeResource.CODEC
                 );
 
