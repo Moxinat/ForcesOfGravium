@@ -557,7 +557,7 @@ public final class SensorLogic {
                         : blockType.getId();
 
         String blockId =
-                rawBlockId(blockStateId);
+                ConnectableRegistry.rawBlockId(blockStateId);
 
         Integer containerItemCount = null;
         ItemContainerBlock itemContainerBlock =
@@ -851,29 +851,6 @@ public final class SensorLogic {
                 );
             }
         }
-    }
-
-    private static String rawBlockId(String blockId) {
-        BlockType blockType =
-                BlockType.getAssetMap().getAsset(blockId);
-
-        if (blockType == null || !blockType.isState()) {
-            return blockId;
-        }
-
-        for (BlockType candidate :
-                BlockType.getAssetMap().getAssetMap().values()) {
-
-            if (candidate.isState()) {
-                continue;
-            }
-
-            if (candidate.getStateForBlock(blockId) != null) {
-                return candidate.getId();
-            }
-        }
-
-        return blockId;
     }
 
     private static void registerTriggerVolume(
@@ -1332,8 +1309,6 @@ public final class SensorLogic {
                             currentPosition
                     );
 
-            // Defensive fallback in case the lifecycle system
-            // did not see this entity being added.
             if (previousPosition == null) {
                 compareSensorsObserving(
                         world,
@@ -1440,7 +1415,6 @@ public final class SensorLogic {
                 return;
             }
 
-            // Chunk unloading is not an actual gameplay removal.
             if (reason == RemoveReason.UNLOAD) {
                 return;
             }
