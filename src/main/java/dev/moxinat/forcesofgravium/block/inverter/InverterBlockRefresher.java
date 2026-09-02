@@ -42,7 +42,11 @@ public final class InverterBlockRefresher {
 
         if (blockType == null
                 || !ConnectableRegistry.INVERTER_BLOCK_ID
-                .equals(blockType.getId())) {
+                .equals(
+                        ConnectableRegistry.rawBlockId(
+                                blockType.getId()
+                        )
+                )) {
             return;
         }
 
