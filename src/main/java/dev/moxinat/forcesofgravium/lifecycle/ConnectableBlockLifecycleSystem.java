@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.*;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.component.system.RefChangeSystem;
+import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
 import com.hypixel.hytale.server.core.modules.interaction.components.PlacedByInteractionComponent;
@@ -12,7 +13,6 @@ import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
-import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualRefreshScheduler;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
@@ -23,7 +23,6 @@ import dev.moxinat.forcesofgravium.spatial.BlockPlacementRotationSystem;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.event.events.ecs.BreakBlockEvent;
 import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -228,59 +227,81 @@ public final class ConnectableBlockLifecycleSystem {
                 );
             }
 
-            ConnectableVisualRefreshScheduler.scheduleTopologyRefresh(
+            // -------------------------
+            // VISUAL
+            // -------------------------
+
+            ConnectableVisualDispatcher.refreshTopologyAround(
                     world,
                     target
             );
         }
     }
 
-    public static final class BreakSystem extends EntityEventSystem<EntityStore, BreakBlockEvent> {
-
-        public BreakSystem() {
-            super(BreakBlockEvent.class);
-        }
+    public static final class BrokenSystem
+            extends RefSystem<ChunkStore> {
 
         @Override
-        public @Nonnull Query<EntityStore> getQuery() {
-            return Player.getComponentType();
-        }
-
-        @Override
-        public void handle(
-                int index,
-                @Nonnull ArchetypeChunk<EntityStore> chunk,
-                @Nonnull Store<EntityStore> store,
-                @Nonnull CommandBuffer<EntityStore> commandBuffer,
-                @Nonnull BreakBlockEvent event
-        ) {
-
-            Ref<EntityStore> entityRef = chunk.getReferenceTo(index);
-
-            Player player = store.getComponent(
-                    entityRef,
-                    Player.getComponentType()
+        public @Nonnull Query<ChunkStore> getQuery() {
+            return Query.and(
+                    ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                    BlockModule.BlockStateInfo.getComponentType()
             );
+        }
 
-            if (player == null || player.getWorld() == null) {
+        @Override
+        public void onEntityAdded(
+                @Nonnull Ref<ChunkStore> ref,
+                @Nonnull AddReason reason,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
+        }
+
+        @Override
+        public void onEntityRemove(
+                @Nonnull Ref<ChunkStore> ref,
+                @Nonnull RemoveReason reason,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
+            if (reason != RemoveReason.REMOVE
+                    && reason != RemoveReason.BUILDER_TOOLS_UNDO) {
                 return;
             }
 
-            World world = player.getWorld();
-            Vector3i target = new Vector3i(event.getTargetBlock());
+            BlockModule.BlockStateInfo blockStateInfo =
+                    store.getComponent(
+                            ref,
+                            BlockModule.BlockStateInfo.getComponentType()
+                    );
 
-            NodeComponent brokenNode = nodeAt(world, target);
+            NodeComponent brokenNode =
+                    store.getComponent(
+                            ref,
+                            ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE
+                    );
 
-            if (brokenNode == null) {
+            if (blockStateInfo == null || brokenNode == null) {
                 return;
             }
 
-            SensorComponent sensor = BlockModule.getComponent(
-                            ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE,
-                            world,
-                            target.x(),
-                            target.y(),
-                            target.z()
+            Vector3i target = new Vector3i();
+
+            if (!blockStateInfo.fillWorldPos(
+                    store,
+                    target
+            )) {
+                return;
+            }
+
+            World world =
+                    store.getExternalData().getWorld();
+
+            SensorComponent sensor =
+                    store.getComponent(
+                            ref,
+                            ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE
                     );
 
             if (sensor != null) {
@@ -294,7 +315,8 @@ public final class ConnectableBlockLifecycleSystem {
             // SNAPSHOT BEFORE REMOVAL
             // -------------------------
 
-            long oldNetworkId = brokenNode.networkId();
+            long oldNetworkId =
+                    brokenNode.networkId();
 
             Set<Vector3i> formerForwardNeighbors =
                     ConnectableNeighborResolver.allForwardSignalNeighbors(
@@ -308,11 +330,11 @@ public final class ConnectableBlockLifecycleSystem {
                             target
                     );
 
-            // Snapshot ALL old instant states before the first recompute.
             Map<Vector3i, SignalState> oldForwardInstantStates =
                     new LinkedHashMap<>();
 
             for (Vector3i forwardNeighbor : formerForwardNeighbors) {
+
                 NodeComponent neighbor =
                         nodeAt(
                                 world,
@@ -321,63 +343,75 @@ public final class ConnectableBlockLifecycleSystem {
 
                 if (neighbor != null) {
                     oldForwardInstantStates.put(
-                            forwardNeighbor,
+                            new Vector3i(forwardNeighbor),
                             neighbor.instantState()
                     );
                 }
             }
 
-            // -------------------------
-            // NETWORK
-            // -------------------------
+            // Everything below runs after the block entity was removed.
+            commandBuffer.run(ignored -> {
 
-            ConnectableNetworkManager.onNodeBroken(
-                    world,
-                    oldNetworkId,
-                    formerNetworkNeighbors
-            );
+                // -------------------------
+                // NETWORK
+                // -------------------------
 
-            for (Vector3i neighbor : formerNetworkNeighbors) {
-                EnergyManager.checkNetwork(
+                ConnectableNetworkManager.onNodeBroken(
                         world,
-                        neighbor
-                );
-            }
-
-            // -------------------------
-            // SIGNAL
-            // -------------------------
-
-            for (Map.Entry<Vector3i, SignalState> entry :
-                    oldForwardInstantStates.entrySet()) {
-
-                Vector3i position = entry.getKey();
-                SignalState oldInstantState = entry.getValue();
-
-                ConnectableSignalRecalculator.recompute(
-                        world,
-                        position
+                        oldNetworkId,
+                        formerNetworkNeighbors
                 );
 
-                NodeComponent recomputedNode =
-                        nodeAt(world, position);
-
-                if (recomputedNode == null) {
-                    continue;
+                for (Vector3i neighbor : formerNetworkNeighbors) {
+                    EnergyManager.checkNetwork(
+                            world,
+                            neighbor
+                    );
                 }
 
-                // Only start a new effective wave if breaking the node
-                // actually changed the logical instant truth here.
-                if (recomputedNode.instantState() != oldInstantState) {
-                    ConnectablePropagationScheduler.scheduleAdoption(
+                // -------------------------
+                // SIGNAL
+                // -------------------------
+
+                for (Map.Entry<Vector3i, SignalState> entry :
+                        oldForwardInstantStates.entrySet()) {
+
+                    Vector3i position =
+                            entry.getKey();
+
+                    SignalState oldInstantState =
+                            entry.getValue();
+
+                    ConnectableSignalRecalculator.recompute(
                             world,
                             position
                     );
+
+                    NodeComponent recomputedNode =
+                            nodeAt(
+                                    world,
+                                    position
+                            );
+
+                    if (recomputedNode == null) {
+                        continue;
+                    }
+
+                    if (recomputedNode.instantState()
+                            != oldInstantState) {
+
+                        ConnectablePropagationScheduler.scheduleAdoption(
+                                world,
+                                position
+                        );
+                    }
                 }
-            }
 
-            ConnectableVisualRefreshScheduler.scheduleTopologyRefresh(world, target);
-
+                ConnectableVisualDispatcher.refreshTopologyAround(
+                        world,
+                        target
+                );
+            });
         }
     }
 
