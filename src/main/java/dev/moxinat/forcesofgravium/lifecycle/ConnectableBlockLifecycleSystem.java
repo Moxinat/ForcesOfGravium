@@ -15,7 +15,6 @@ import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
-import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.network.ConnectableNetworkManager;
@@ -34,7 +33,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,7 +43,14 @@ public final class ConnectableBlockLifecycleSystem {
     private ConnectableBlockLifecycleSystem() {
     }
 
-    private static final Map<World, Map<Vector3i, Long>> PENDING_BREAKS =
+    private record BreakSnapshot(
+            Set<Vector3i> formerNetworkNeighbors,
+            Set<Vector3i> formerForwardNeighbors,
+            long tick
+    ) {
+    }
+
+    private static final Map<World, Map<Vector3i, BreakSnapshot>> PENDING_BREAKS =
             new ConcurrentHashMap<>();
 
     public static final class PlaceSystem extends EntityEventSystem<EntityStore, PlaceBlockEvent> {
@@ -298,23 +304,42 @@ public final class ConnectableBlockLifecycleSystem {
                 return;
             }
 
+            Set<Vector3i> formerNetworkNeighbors =
+                    copyPositions(
+                            ConnectableNeighborResolver.allNetworkNeighbors(
+                                    world,
+                                    target
+                            )
+                    );
+
+            Set<Vector3i> formerForwardNeighbors =
+                    copyPositions(
+                            ConnectableNeighborResolver.allForwardSignalNeighbors(
+                                    world,
+                                    target
+                            )
+                    );
+
             long currentTick =
                     world.getTick();
 
-            Map<Vector3i, Long> pending =
+            Map<Vector3i, BreakSnapshot> pending =
                     PENDING_BREAKS.computeIfAbsent(
                             world,
                             ignored -> new ConcurrentHashMap<>()
                     );
 
-            // Remove stale break intents.
             pending.entrySet().removeIf(
-                    entry -> entry.getValue() < currentTick
+                    entry -> entry.getValue().tick() < currentTick
             );
 
             pending.put(
-                    target,
-                    currentTick
+                    new Vector3i(target),
+                    new BreakSnapshot(
+                            formerNetworkNeighbors,
+                            formerForwardNeighbors,
+                            currentTick
+                    )
             );
         }
     }
@@ -380,10 +405,13 @@ public final class ConnectableBlockLifecycleSystem {
             World world =
                     store.getExternalData().getWorld();
 
-            if (!consumePendingBreak(
-                    world,
-                    target
-            )) {
+            BreakSnapshot snapshot =
+                    consumePendingBreak(
+                            world,
+                            target
+                    );
+
+            if (snapshot == null) {
                 return;
             }
 
@@ -400,43 +428,8 @@ public final class ConnectableBlockLifecycleSystem {
                 );
             }
 
-            // -------------------------
-            // SNAPSHOT BEFORE REMOVAL
-            // -------------------------
-
             long oldNetworkId =
                     brokenNode.networkId();
-
-            Set<Vector3i> formerForwardNeighbors =
-                    ConnectableNeighborResolver.allForwardSignalNeighbors(
-                            world,
-                            target
-                    );
-
-            Set<Vector3i> formerNetworkNeighbors =
-                    ConnectableNeighborResolver.allNetworkNeighbors(
-                            world,
-                            target
-                    );
-
-            Map<Vector3i, SignalState> oldForwardInstantStates =
-                    new LinkedHashMap<>();
-
-            for (Vector3i forwardNeighbor : formerForwardNeighbors) {
-
-                NodeComponent neighbor =
-                        nodeAt(
-                                world,
-                                forwardNeighbor
-                        );
-
-                if (neighbor != null) {
-                    oldForwardInstantStates.put(
-                            new Vector3i(forwardNeighbor),
-                            neighbor.instantState()
-                    );
-                }
-            }
 
             // Everything below runs after the block entity was removed.
             commandBuffer.run(ignored -> {
@@ -448,10 +441,10 @@ public final class ConnectableBlockLifecycleSystem {
                 ConnectableNetworkManager.onNodeBroken(
                         world,
                         oldNetworkId,
-                        formerNetworkNeighbors
+                        snapshot.formerNetworkNeighbors()
                 );
 
-                for (Vector3i neighbor : formerNetworkNeighbors) {
+                for (Vector3i neighbor : snapshot.formerNetworkNeighbors()) {
                     EnergyManager.checkNetwork(
                             world,
                             neighbor
@@ -462,14 +455,7 @@ public final class ConnectableBlockLifecycleSystem {
                 // SIGNAL
                 // -------------------------
 
-                for (Map.Entry<Vector3i, SignalState> entry :
-                        oldForwardInstantStates.entrySet()) {
-
-                    Vector3i position =
-                            entry.getKey();
-
-                    SignalState oldInstantState =
-                            entry.getValue();
+                for (Vector3i position : snapshot.formerForwardNeighbors()) {
 
                     ConnectableSignalRecalculator.recompute(
                             world,
@@ -482,12 +468,8 @@ public final class ConnectableBlockLifecycleSystem {
                                     position
                             );
 
-                    if (recomputedNode == null) {
-                        continue;
-                    }
-
-                    if (recomputedNode.instantState()
-                            != oldInstantState) {
+                    if (recomputedNode != null
+                            && recomputedNode.dirty()) {
 
                         ConnectablePropagationScheduler.scheduleAdoption(
                                 world,
@@ -504,26 +486,45 @@ public final class ConnectableBlockLifecycleSystem {
         }
     }
 
-    private static boolean consumePendingBreak(
+    private static @Nullable BreakSnapshot consumePendingBreak(
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        Map<Vector3i, Long> pending =
+        Map<Vector3i, BreakSnapshot> pending =
                 PENDING_BREAKS.get(world);
 
         if (pending == null) {
-            return false;
+            return null;
         }
 
-        Long breakTick =
+        BreakSnapshot snapshot =
                 pending.remove(position);
 
         if (pending.isEmpty()) {
             PENDING_BREAKS.remove(world, pending);
         }
 
-        return breakTick != null
-                && breakTick == world.getTick();
+        if (snapshot == null
+                || snapshot.tick() != world.getTick()) {
+            return null;
+        }
+
+        return snapshot;
+    }
+
+    private static @Nonnull Set<Vector3i> copyPositions(
+            @Nonnull Set<Vector3i> positions
+    ) {
+        Set<Vector3i> copy =
+                new LinkedHashSet<>();
+
+        for (Vector3i position : positions) {
+            copy.add(
+                    new Vector3i(position)
+            );
+        }
+
+        return Set.copyOf(copy);
     }
 
     private static NodeComponent nodeAt(
