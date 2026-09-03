@@ -32,6 +32,11 @@ public class ConnectableNetworkManager {
                         position
                 );
 
+        System.out.println(
+                "[FoG Network] PLACE at " + position
+                        + " resourceNetworks=" + networks.networkIds()
+        );
+
         LinkedHashSet<Long> neighborNetworkIds = new LinkedHashSet<>();
 
         for (Vector3i neighborPosition : neighbors) {
@@ -41,8 +46,24 @@ public class ConnectableNetworkManager {
                     && neighbor.networkId() != NodeComponent.NO_NETWORK) {
 
                 neighborNetworkIds.add(neighbor.networkId());
+
+                System.out.println(
+                        "[FoG Network] neighbor="
+                                + neighborPosition
+                                + " networkId="
+                                + neighbor.networkId()
+                                + " exists="
+                                + networks.containsNetwork(
+                                neighbor.networkId()
+                        )
+                );
             }
         }
+
+        System.out.println(
+                "[FoG Network] collected ids="
+                        + neighborNetworkIds
+        );
 
         // no Network -> make one
         if (neighborNetworkIds.isEmpty()) {
@@ -93,6 +114,10 @@ public class ConnectableNetworkManager {
                 }
             }
 
+            System.out.println(
+                    "[FoG Network] REMOVE NETWORK "
+                            + sourceNetworkId
+            );
             networks.removeNetwork(sourceNetworkId);
         }
     }
@@ -102,11 +127,21 @@ public class ConnectableNetworkManager {
             long oldNetworkId,
             @Nonnull Set<Vector3i> formerNeighbors
     ) {
+
         if (oldNetworkId == NodeComponent.NO_NETWORK) {
             return;
         }
 
         NetworkResource networks = networks(world);
+
+        System.out.println(
+                "[FoG Network] BREAK oldNetwork="
+                        + oldNetworkId
+                        + " networksBefore="
+                        + networks.networkIds()
+                        + " formerNeighbors="
+                        + formerNeighbors
+        );
 
         NetworkResource.NetworkData oldNetwork =
                 networks.getNetwork(oldNetworkId);
@@ -188,6 +223,10 @@ public class ConnectableNetworkManager {
         }
 
         if (firstComponent) {
+            System.out.println(
+                    "[FoG Network] REMOVE NETWORK "
+                            + oldNetworkId
+            );
             networks.removeNetwork(oldNetworkId);
         }
     }

@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.component.system.RefChangeSystem;
 import com.hypixel.hytale.component.system.RefSystem;
+import com.hypixel.hytale.server.core.event.events.ecs.BreakBlockEvent;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
 import com.hypixel.hytale.server.core.modules.interaction.components.PlacedByInteractionComponent;
@@ -36,11 +37,15 @@ import javax.annotation.Nullable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class ConnectableBlockLifecycleSystem {
 
     private ConnectableBlockLifecycleSystem() {
     }
+
+    private static final Map<World, Map<Vector3i, Long>> PENDING_BREAKS =
+            new ConcurrentHashMap<>();
 
     public static final class PlaceSystem extends EntityEventSystem<EntityStore, PlaceBlockEvent> {
 
@@ -238,6 +243,82 @@ public final class ConnectableBlockLifecycleSystem {
         }
     }
 
+    public static final class BreakSystem
+            extends EntityEventSystem<EntityStore, BreakBlockEvent> {
+
+        public BreakSystem() {
+            super(BreakBlockEvent.class);
+        }
+
+        @Override
+        public @Nonnull Query<EntityStore> getQuery() {
+            return Player.getComponentType();
+        }
+
+        @Override
+        public void handle(
+                int index,
+                @Nonnull ArchetypeChunk<EntityStore> chunk,
+                @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer,
+                @Nonnull BreakBlockEvent event
+        ) {
+            if (event.isCancelled()) {
+                return;
+            }
+
+            Ref<EntityStore> entityRef =
+                    chunk.getReferenceTo(index);
+
+            Player player =
+                    store.getComponent(
+                            entityRef,
+                            Player.getComponentType()
+                    );
+
+            if (player == null || player.getWorld() == null) {
+                return;
+            }
+
+            World world =
+                    player.getWorld();
+
+            Vector3i target =
+                    new Vector3i(
+                            event.getTargetBlock()
+                    );
+
+            NodeComponent node =
+                    nodeAt(
+                            world,
+                            target
+                    );
+
+            if (node == null) {
+                return;
+            }
+
+            long currentTick =
+                    world.getTick();
+
+            Map<Vector3i, Long> pending =
+                    PENDING_BREAKS.computeIfAbsent(
+                            world,
+                            ignored -> new ConcurrentHashMap<>()
+                    );
+
+            // Remove stale break intents.
+            pending.entrySet().removeIf(
+                    entry -> entry.getValue() < currentTick
+            );
+
+            pending.put(
+                    target,
+                    currentTick
+            );
+        }
+    }
+
     public static final class BrokenSystem
             extends RefSystem<ChunkStore> {
 
@@ -265,6 +346,7 @@ public final class ConnectableBlockLifecycleSystem {
                 @Nonnull Store<ChunkStore> store,
                 @Nonnull CommandBuffer<ChunkStore> commandBuffer
         ) {
+
             if (reason != RemoveReason.REMOVE
                     && reason != RemoveReason.BUILDER_TOOLS_UNDO) {
                 return;
@@ -297,6 +379,13 @@ public final class ConnectableBlockLifecycleSystem {
 
             World world =
                     store.getExternalData().getWorld();
+
+            if (!consumePendingBreak(
+                    world,
+                    target
+            )) {
+                return;
+            }
 
             SensorComponent sensor =
                     store.getComponent(
@@ -413,6 +502,28 @@ public final class ConnectableBlockLifecycleSystem {
                 );
             });
         }
+    }
+
+    private static boolean consumePendingBreak(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        Map<Vector3i, Long> pending =
+                PENDING_BREAKS.get(world);
+
+        if (pending == null) {
+            return false;
+        }
+
+        Long breakTick =
+                pending.remove(position);
+
+        if (pending.isEmpty()) {
+            PENDING_BREAKS.remove(world, pending);
+        }
+
+        return breakTick != null
+                && breakTick == world.getTick();
     }
 
     private static NodeComponent nodeAt(
