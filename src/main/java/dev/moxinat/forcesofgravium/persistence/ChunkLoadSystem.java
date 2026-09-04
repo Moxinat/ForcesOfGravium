@@ -69,13 +69,6 @@ public final class ChunkLoadSystem {
             World world =
                     store.getExternalData().getWorld();
 
-            System.out.println(
-                    "[FoG] SensorComponent added at "
-                            + position
-                            + " tick="
-                            + world.getTick()
-            );
-
             SensorLogic.restoreRuntime(
                     world,
                     position
