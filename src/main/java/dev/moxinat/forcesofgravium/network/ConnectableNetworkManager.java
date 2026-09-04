@@ -33,11 +33,6 @@ public class ConnectableNetworkManager {
                         position
                 );
 
-        System.out.println(
-                "[FoG Network] PLACE at " + position
-                        + " resourceNetworks=" + networks.networkIds()
-        );
-
         LinkedHashSet<Long> neighborNetworkIds = new LinkedHashSet<>();
 
         for (Vector3i neighborPosition : neighbors) {
@@ -47,24 +42,8 @@ public class ConnectableNetworkManager {
                     && neighbor.networkId() != NodeComponent.NO_NETWORK) {
 
                 neighborNetworkIds.add(neighbor.networkId());
-
-                System.out.println(
-                        "[FoG Network] neighbor="
-                                + neighborPosition
-                                + " networkId="
-                                + neighbor.networkId()
-                                + " exists="
-                                + networks.containsNetwork(
-                                neighbor.networkId()
-                        )
-                );
             }
         }
-
-        System.out.println(
-                "[FoG Network] collected ids="
-                        + neighborNetworkIds
-        );
 
         // no Network -> make one
         if (neighborNetworkIds.isEmpty()) {
@@ -115,10 +94,6 @@ public class ConnectableNetworkManager {
                 }
             }
 
-            System.out.println(
-                    "[FoG Network] REMOVE NETWORK "
-                            + sourceNetworkId
-            );
             networks.removeNetwork(sourceNetworkId);
         }
     }
@@ -149,15 +124,6 @@ public class ConnectableNetworkManager {
 
         NetworkResource networks = networks(world);
 
-        System.out.println(
-                "[FoG Network] BREAK oldNetwork="
-                        + oldNetworkId
-                        + " networksBefore="
-                        + networks.networkIds()
-                        + " formerNeighbors="
-                        + formerNeighbors
-        );
-
         NetworkResource.NetworkData oldNetwork =
                 networks.getNetwork(oldNetworkId);
 
@@ -172,12 +138,10 @@ public class ConnectableNetworkManager {
             );
         }
 
-
         LinkedHashSet<Vector3i> processed =
                 new LinkedHashSet<>();
 
         boolean firstComponent = true;
-
 
         for (Vector3i neighborPosition : formerNeighbors) {
 
@@ -192,7 +156,6 @@ public class ConnectableNetworkManager {
                 continue;
             }
 
-
             Set<Vector3i> component =
                     scanFrom(
                             world,
@@ -204,18 +167,14 @@ public class ConnectableNetworkManager {
                 continue;
             }
 
-
             long networkId;
 
             if (firstComponent) {
                 networkId = oldNetworkId;
                 firstComponent = false;
-            }
-
-            else {
+            } else {
                 networkId = networks.createNetwork();
             }
-
 
             for (Vector3i memberPosition : component) {
 
@@ -234,15 +193,10 @@ public class ConnectableNetworkManager {
                 );
             }
 
-
             processed.addAll(component);
         }
 
         if (firstComponent) {
-            System.out.println(
-                    "[FoG Network] REMOVE NETWORK "
-                            + oldNetworkId
-            );
             networks.removeNetwork(oldNetworkId);
         }
     }
