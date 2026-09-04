@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
@@ -102,20 +103,30 @@ public final class CurveCasedGravityPowderRotationSystem {
                             LOCAL_INTERACTION_ROTATION_AXIS
                     );
 
-            ChunkStore chunkStore = world.getChunkStore();
-            Ref<ChunkStore> sectionRef =
-                    chunkStore.getChunkSectionReferenceAtBlock(
-                            position.x(),
-                            position.y(),
-                            position.z()
+            BlockModule.BlockStateInfo blockStateInfo =
+                    blockStore.getComponent(
+                            blockRef,
+                            BlockModule.BlockStateInfo.getComponentType()
                     );
 
-            if (sectionRef == null) {
+            if (blockStateInfo == null) {
                 return;
             }
 
-            int blockId = BlockType.getAssetMap().getIndex(blockType.getId());
-            if (blockId < 0) {
+            Ref<ChunkStore> sectionRef =
+                    blockStateInfo.getSectionRef();
+
+            if (sectionRef == null || !sectionRef.isValid()) {
+                return;
+            }
+
+            BlockSection blockSection =
+                    sectionRef.getStore().getComponent(
+                            sectionRef,
+                            BlockSection.getComponentType()
+                    );
+
+            if (blockSection == null) {
                 return;
             }
 
@@ -165,58 +176,27 @@ public final class CurveCasedGravityPowderRotationSystem {
                 }
             }
 
-            blockStore.removeComponent(
-                    blockRef,
-                    ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE
+            int blockIndex =
+                    blockStateInfo.getIndex();
+
+            int currentBlockId =
+                    blockSection.get(blockIndex);
+
+            int filler =
+                    blockSection.getFiller(blockIndex);
+
+            blockSection.set(
+                    blockIndex,
+                    currentBlockId,
+                    nextRotation.index(),
+                    filler
             );
 
-            ConnectableNetworkManager.onNodeBroken(
+            ConnectableNetworkManager.updateNodeNetwork(
                     world,
+                    position,
                     oldNetworkId,
                     formerNetworkNeighbors
-            );
-
-            node.setNetworkId(
-                    NodeComponent.NO_NETWORK
-            );
-
-            BlockOperations.setBlock(
-                    chunkStore,
-                    sectionRef,
-                    position.x(),
-                    position.y(),
-                    position.z(),
-                    blockId,
-                    blockType,
-                    nextRotation.index(),
-                    0,
-                    0
-            );
-
-            blockRef =
-                    BlockModule.getBlockEntity(
-                            world,
-                            position.x(),
-                            position.y(),
-                            position.z()
-                    );
-
-            if (blockRef == null || !blockRef.isValid()) {
-                return;
-            }
-
-            blockStore =
-                    blockRef.getStore();
-
-            blockStore.putComponent(
-                    blockRef,
-                    ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
-                    node
-            );
-
-            ConnectableNetworkManager.onNodePlaced(
-                    world,
-                    position
             );
 
             ConnectableSignalRecalculator.recompute(

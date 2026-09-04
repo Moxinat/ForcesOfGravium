@@ -31,6 +31,7 @@ import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
+import dev.moxinat.forcesofgravium.network.ConnectableNetworkManager;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
@@ -1084,6 +1085,14 @@ public final class SensorLogic {
 
         Set<Vector3i> forwardNeighbors;
 
+        long oldNetworkId = node.networkId();
+
+        Set<Vector3i> formerNetworkNeighbors =
+                ConnectableNeighborResolver.allNetworkNeighbors(
+                        world,
+                        position
+                );
+
         if (!shouldPass) {
             forwardNeighbors =
                     ConnectableNeighborResolver.allForwardSignalNeighbors(
@@ -1101,6 +1110,13 @@ public final class SensorLogic {
                             position
                     );
         }
+
+        ConnectableNetworkManager.updateNodeNetwork(
+                world,
+                position,
+                oldNetworkId,
+                formerNetworkNeighbors
+        );
 
         for (Vector3i forwardNeighbor : forwardNeighbors) {
             ConnectableSignalRecalculator.recompute(

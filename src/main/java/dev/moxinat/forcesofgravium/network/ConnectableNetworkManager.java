@@ -9,6 +9,7 @@ import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayDeque;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -127,6 +128,20 @@ public class ConnectableNetworkManager {
             long oldNetworkId,
             @Nonnull Set<Vector3i> formerNeighbors
     ) {
+        onNodeBroken(
+                world,
+                oldNetworkId,
+                formerNeighbors,
+                null
+        );
+    }
+
+    public static void onNodeBroken(
+            @Nonnull World world,
+            long oldNetworkId,
+            @Nonnull Set<Vector3i> formerNeighbors,
+            @Nullable Vector3i excludedPosition
+    ) {
 
         if (oldNetworkId == NodeComponent.NO_NETWORK) {
             return;
@@ -181,7 +196,8 @@ public class ConnectableNetworkManager {
             Set<Vector3i> component =
                     scanFrom(
                             world,
-                            neighborPosition
+                            neighborPosition,
+                            excludedPosition
                     );
 
             if (component.isEmpty()) {
@@ -235,17 +251,46 @@ public class ConnectableNetworkManager {
             @Nonnull World world,
             @Nonnull Vector3i start
     ) {
+        return scanFrom(
+                world,
+                start,
+                null
+        );
+    }
+
+    private static @Nonnull Set<Vector3i> scanFrom(
+            @Nonnull World world,
+            @Nonnull Vector3i start,
+            @Nullable Vector3i excludedPosition
+    ) {
+        if (excludedPosition != null
+                && start.equals(excludedPosition)) {
+            return Set.of();
+        }
+
         if (nodeAt(world, start) == null) {
             return Set.of();
         }
 
-        ArrayDeque<Vector3i> queue = new ArrayDeque<>();
-        LinkedHashSet<Vector3i> visited = new LinkedHashSet<>();
+        ArrayDeque<Vector3i> queue =
+                new ArrayDeque<>();
 
-        queue.add(start);
+        LinkedHashSet<Vector3i> visited =
+                new LinkedHashSet<>();
+
+        queue.add(
+                new Vector3i(start)
+        );
 
         while (!queue.isEmpty()) {
-            Vector3i position = queue.removeFirst();
+
+            Vector3i position =
+                    queue.removeFirst();
+
+            if (excludedPosition != null
+                    && position.equals(excludedPosition)) {
+                continue;
+            }
 
             if (!visited.add(position)) {
                 continue;
@@ -261,13 +306,53 @@ public class ConnectableNetworkManager {
                             position
                     )) {
 
+                if (excludedPosition != null
+                        && neighbor.equals(excludedPosition)) {
+                    continue;
+                }
+
                 if (!visited.contains(neighbor)) {
-                    queue.addLast(neighbor);
+                    queue.addLast(
+                            new Vector3i(neighbor)
+                    );
                 }
             }
         }
 
         return Set.copyOf(visited);
+    }
+
+    public static void updateNodeNetwork(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            long oldNetworkId,
+            @Nonnull Set<Vector3i> formerNetworkNeighbors
+    ) {
+        onNodeBroken(
+                world,
+                oldNetworkId,
+                formerNetworkNeighbors,
+                position
+        );
+
+        NodeComponent node =
+                nodeAt(
+                        world,
+                        position
+                );
+
+        if (node == null) {
+            return;
+        }
+
+        node.setNetworkId(
+                NodeComponent.NO_NETWORK
+        );
+
+        onNodePlaced(
+                world,
+                position
+        );
     }
 
     private static NetworkResource networks(
