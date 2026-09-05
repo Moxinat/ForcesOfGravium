@@ -158,7 +158,7 @@ public final class NetworkResource implements Resource<ChunkStore> {
 
 
     // --------------------------------------------------
-    // MEMBERS
+    // MEMBERS / GRAPH NODES
     // --------------------------------------------------
 
     public void addMember(
@@ -166,17 +166,14 @@ public final class NetworkResource implements Resource<ChunkStore> {
             @Nonnull Vector3i position
     ) {
         NetworkData network =
-                networks.get(networkId);
+                requireNetwork(networkId);
 
-        if (network == null) {
-            throw new IllegalArgumentException(
-                    "Unknown network id: "
-                            + networkId
-            );
-        }
+        Vector3i key =
+                new Vector3i(position);
 
-        network.members.add(
-                new Vector3i(position)
+        network.nodes.putIfAbsent(
+                key,
+                new NetworkNodeData(position)
         );
     }
 
@@ -191,7 +188,15 @@ public final class NetworkResource implements Resource<ChunkStore> {
             return;
         }
 
-        network.members.remove(position);
+        if (network.nodes.remove(position) == null) {
+            return;
+        }
+
+        for (NetworkNodeData node :
+                network.nodes.values()) {
+
+            node.neighbours.remove(position);
+        }
     }
 
     public boolean containsMember(
@@ -202,7 +207,7 @@ public final class NetworkResource implements Resource<ChunkStore> {
                 networks.get(networkId);
 
         return network != null
-                && network.members.contains(position);
+                && network.nodes.containsKey(position);
     }
 
     public @Nonnull Set<Vector3i> members(
@@ -218,8 +223,8 @@ public final class NetworkResource implements Resource<ChunkStore> {
         LinkedHashSet<Vector3i> copy =
                 new LinkedHashSet<>();
 
-        for (Vector3i position
-                : network.members) {
+        for (Vector3i position :
+                network.nodes.keySet()) {
 
             copy.add(
                     new Vector3i(position)
@@ -229,9 +234,138 @@ public final class NetworkResource implements Resource<ChunkStore> {
         return Set.copyOf(copy);
     }
 
+    public @Nullable NetworkNodeData node(
+            long networkId,
+            @Nonnull Vector3i position
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        if (network == null) {
+            return null;
+        }
+
+        return network.nodes.get(position);
+    }
+
 
     // --------------------------------------------------
-    // ENERGY
+    // GRAPH EDGES
+    // --------------------------------------------------
+
+    public void addEdge(
+            long networkId,
+            @Nonnull Vector3i first,
+            @Nonnull Vector3i second
+    ) {
+        NetworkData network =
+                requireNetwork(networkId);
+
+        NetworkNodeData firstNode =
+                requireNode(
+                        network,
+                        first
+                );
+
+        NetworkNodeData secondNode =
+                requireNode(
+                        network,
+                        second
+                );
+
+        firstNode.neighbours.add(
+                new Vector3i(second)
+        );
+
+        secondNode.neighbours.add(
+                new Vector3i(first)
+        );
+    }
+
+    public void removeEdge(
+            long networkId,
+            @Nonnull Vector3i first,
+            @Nonnull Vector3i second
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        if (network == null) {
+            return;
+        }
+
+        NetworkNodeData firstNode =
+                network.nodes.get(first);
+
+        NetworkNodeData secondNode =
+                network.nodes.get(second);
+
+        if (firstNode != null) {
+            firstNode.neighbours.remove(second);
+        }
+
+        if (secondNode != null) {
+            secondNode.neighbours.remove(first);
+        }
+    }
+
+    public @Nonnull Set<Vector3i> neighbours(
+            long networkId,
+            @Nonnull Vector3i position
+    ) {
+        NetworkNodeData node =
+                node(
+                        networkId,
+                        position
+                );
+
+        if (node == null) {
+            return Set.of();
+        }
+
+        return node.neighbours();
+    }
+
+
+    // --------------------------------------------------
+    // NODE ENERGY
+    // --------------------------------------------------
+
+    public int energyDelta(
+            long networkId,
+            @Nonnull Vector3i position
+    ) {
+        NetworkNodeData node =
+                node(
+                        networkId,
+                        position
+                );
+
+        return node == null
+                ? 0
+                : node.energyDelta;
+    }
+
+    public void setEnergyDelta(
+            long networkId,
+            @Nonnull Vector3i position,
+            int energyDelta
+    ) {
+        NetworkData network =
+                requireNetwork(networkId);
+
+        NetworkNodeData node =
+                requireNode(
+                        network,
+                        position
+                );
+
+        node.energyDelta = energyDelta;
+    }
+
+
+    // --------------------------------------------------
+    // ENERGY / FAILURE
     // --------------------------------------------------
 
     public int energy(
@@ -250,14 +384,7 @@ public final class NetworkResource implements Resource<ChunkStore> {
             int energy
     ) {
         NetworkData network =
-                networks.get(networkId);
-
-        if (network == null) {
-            throw new IllegalArgumentException(
-                    "Unknown network id: "
-                            + networkId
-            );
-        }
+                requireNetwork(networkId);
 
         network.energy = energy;
     }
@@ -367,8 +494,8 @@ public final class NetworkResource implements Resource<ChunkStore> {
         LinkedHashSet<Vector3i> copy =
                 new LinkedHashSet<>();
 
-        for (Vector3i position
-                : network.pendingFailureOff) {
+        for (Vector3i position :
+                network.pendingFailureOff) {
 
             copy.add(
                     new Vector3i(position)
@@ -389,6 +516,44 @@ public final class NetworkResource implements Resource<ChunkStore> {
         }
 
         network.pendingFailureOff.clear();
+    }
+
+
+    // --------------------------------------------------
+    // INTERNAL ACCESS
+    // --------------------------------------------------
+
+    private @Nonnull NetworkData requireNetwork(
+            long networkId
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        if (network == null) {
+            throw new IllegalArgumentException(
+                    "Unknown network id: "
+                            + networkId
+            );
+        }
+
+        return network;
+    }
+
+    private static @Nonnull NetworkNodeData requireNode(
+            @Nonnull NetworkData network,
+            @Nonnull Vector3i position
+    ) {
+        NetworkNodeData node =
+                network.nodes.get(position);
+
+        if (node == null) {
+            throw new IllegalArgumentException(
+                    "Unknown network node: "
+                            + position
+            );
+        }
+
+        return node;
     }
 
 
@@ -415,6 +580,13 @@ public final class NetworkResource implements Resource<ChunkStore> {
                         Vector3i[]::new
                 );
 
+        private static final ArrayCodec<NetworkNodeData>
+                NODE_ARRAY_CODEC =
+                ArrayCodec.ofBuilderCodec(
+                        NetworkNodeData.CODEC,
+                        NetworkNodeData[]::new
+                );
+
         public static final BuilderCodec<NetworkData> CODEC =
                 BuilderCodec.builder(
                                 NetworkData.class,
@@ -433,11 +605,11 @@ public final class NetworkResource implements Resource<ChunkStore> {
                         .add()
                         .append(
                                 new KeyedCodec<>(
-                                        "Members",
-                                        POSITION_ARRAY_CODEC
+                                        "Nodes",
+                                        NODE_ARRAY_CODEC
                                 ),
-                                NetworkData::setMembers,
-                                NetworkData::getMembers
+                                NetworkData::setNodes,
+                                NetworkData::getNodes
                         )
                         .add()
                         .append(
@@ -489,8 +661,8 @@ public final class NetworkResource implements Resource<ChunkStore> {
         private int failureStep = -1;
         private long failureRemainingTicks = 0L;
 
-        private final Set<Vector3i> members =
-                new LinkedHashSet<>();
+        private final Map<Vector3i, NetworkNodeData> nodes =
+                new HashMap<>();
 
         private final Set<Vector3i> pendingFailureOff =
                 new LinkedHashSet<>();
@@ -513,16 +685,20 @@ public final class NetworkResource implements Resource<ChunkStore> {
             this.id = other.id;
             this.energy = other.energy;
 
-            for (Vector3i position
-                    : other.members) {
+            for (NetworkNodeData node :
+                    other.nodes.values()) {
 
-                this.members.add(
-                        new Vector3i(position)
+                NetworkNodeData copy =
+                        new NetworkNodeData(node);
+
+                this.nodes.put(
+                        new Vector3i(copy.position),
+                        copy
                 );
             }
 
-            for (Vector3i position
-                    : other.pendingFailureOff) {
+            for (Vector3i position :
+                    other.pendingFailureOff) {
 
                 this.pendingFailureOff.add(
                         new Vector3i(position)
@@ -541,29 +717,32 @@ public final class NetworkResource implements Resource<ChunkStore> {
         // SERIALIZATION
         // ----------------------------------------------
 
-        private Vector3i[] getMembers() {
-            return members.toArray(
-                    Vector3i[]::new
-            );
+        private NetworkNodeData[] getNodes() {
+            return nodes.values()
+                    .toArray(NetworkNodeData[]::new);
         }
 
-        private void setMembers(
-                Vector3i[] loadedMembers
+        private void setNodes(
+                NetworkNodeData[] loadedNodes
         ) {
-            members.clear();
+            nodes.clear();
 
-            if (loadedMembers == null) {
+            if (loadedNodes == null) {
                 return;
             }
 
-            for (Vector3i position
-                    : loadedMembers) {
+            for (NetworkNodeData node :
+                    loadedNodes) {
 
-                if (position != null) {
-                    members.add(
-                            new Vector3i(position)
-                    );
+                if (node == null
+                        || node.position == null) {
+                    continue;
                 }
+
+                nodes.put(
+                        new Vector3i(node.position),
+                        node
+                );
             }
         }
 
@@ -582,8 +761,8 @@ public final class NetworkResource implements Resource<ChunkStore> {
                 return;
             }
 
-            for (Vector3i position
-                    : loadedPositions) {
+            for (Vector3i position :
+                    loadedPositions) {
 
                 if (position != null) {
                     pendingFailureOff.add(
@@ -607,7 +786,158 @@ public final class NetworkResource implements Resource<ChunkStore> {
         }
 
         public int size() {
-            return members.size();
+            return nodes.size();
+        }
+    }
+
+
+    // --------------------------------------------------
+    // NETWORK NODE DATA
+    // --------------------------------------------------
+
+    public static final class NetworkNodeData {
+
+        private static final ArrayCodec<Vector3i>
+                NEIGHBOUR_ARRAY_CODEC =
+                new ArrayCodec<>(
+                        Vector3iUtil.CODEC,
+                        Vector3i[]::new
+                );
+
+        public static final BuilderCodec<NetworkNodeData> CODEC =
+                BuilderCodec.builder(
+                                NetworkNodeData.class,
+                                NetworkNodeData::new
+                        )
+                        .append(
+                                new KeyedCodec<>(
+                                        "Position",
+                                        Vector3iUtil.CODEC
+                                ),
+                                (node, value) ->
+                                        node.position = value == null
+                                                ? null
+                                                : new Vector3i(value),
+                                node ->
+                                        node.position
+                        )
+                        .add()
+                        .append(
+                                new KeyedCodec<>(
+                                        "Neighbours",
+                                        NEIGHBOUR_ARRAY_CODEC
+                                ),
+                                NetworkNodeData::setNeighbours,
+                                NetworkNodeData::getNeighbours
+                        )
+                        .add()
+                        .append(
+                                new KeyedCodec<>(
+                                        "EnergyDelta",
+                                        Codec.INTEGER
+                                ),
+                                (node, value) ->
+                                        node.energyDelta = value,
+                                node ->
+                                        node.energyDelta
+                        )
+                        .add()
+                        .build();
+
+
+        private Vector3i position;
+
+        private final Set<Vector3i> neighbours =
+                new LinkedHashSet<>();
+
+        private int energyDelta;
+
+
+        public NetworkNodeData() {
+        }
+
+        private NetworkNodeData(
+                @Nonnull Vector3i position
+        ) {
+            this.position =
+                    new Vector3i(position);
+        }
+
+        private NetworkNodeData(
+                @Nonnull NetworkNodeData other
+        ) {
+            this.position =
+                    new Vector3i(other.position);
+
+            this.energyDelta =
+                    other.energyDelta;
+
+            for (Vector3i neighbour :
+                    other.neighbours) {
+
+                this.neighbours.add(
+                        new Vector3i(neighbour)
+                );
+            }
+        }
+
+
+        // ----------------------------------------------
+        // SERIALIZATION
+        // ----------------------------------------------
+
+        private Vector3i[] getNeighbours() {
+            return neighbours.toArray(
+                    Vector3i[]::new
+            );
+        }
+
+        private void setNeighbours(
+                Vector3i[] loadedNeighbours
+        ) {
+            neighbours.clear();
+
+            if (loadedNeighbours == null) {
+                return;
+            }
+
+            for (Vector3i neighbour :
+                    loadedNeighbours) {
+
+                if (neighbour != null) {
+                    neighbours.add(
+                            new Vector3i(neighbour)
+                    );
+                }
+            }
+        }
+
+
+        // ----------------------------------------------
+        // ACCESS
+        // ----------------------------------------------
+
+        public @Nonnull Vector3i position() {
+            return new Vector3i(position);
+        }
+
+        public @Nonnull Set<Vector3i> neighbours() {
+            LinkedHashSet<Vector3i> copy =
+                    new LinkedHashSet<>();
+
+            for (Vector3i neighbour :
+                    neighbours) {
+
+                copy.add(
+                        new Vector3i(neighbour)
+                );
+            }
+
+            return Set.copyOf(copy);
+        }
+
+        public int energyDelta() {
+            return energyDelta;
         }
     }
 }
