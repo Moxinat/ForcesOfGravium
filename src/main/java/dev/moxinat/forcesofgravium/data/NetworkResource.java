@@ -324,6 +324,73 @@ public final class NetworkResource implements Resource<ChunkStore> {
         network.failureRemainingTicks = 0L;
     }
 
+    public void addPendingFailureOff(
+            long networkId,
+            @Nonnull Vector3i position
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        if (network == null) {
+            return;
+        }
+
+        network.pendingFailureOff.add(
+                new Vector3i(position)
+        );
+    }
+
+    public void removePendingFailureOff(
+            long networkId,
+            @Nonnull Vector3i position
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        if (network == null) {
+            return;
+        }
+
+        network.pendingFailureOff.remove(position);
+    }
+
+    public @Nonnull Set<Vector3i> pendingFailureOff(
+            long networkId
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        if (network == null) {
+            return Set.of();
+        }
+
+        LinkedHashSet<Vector3i> copy =
+                new LinkedHashSet<>();
+
+        for (Vector3i position
+                : network.pendingFailureOff) {
+
+            copy.add(
+                    new Vector3i(position)
+            );
+        }
+
+        return Set.copyOf(copy);
+    }
+
+    public void clearPendingFailureOff(
+            long networkId
+    ) {
+        NetworkData network =
+                networks.get(networkId);
+
+        if (network == null) {
+            return;
+        }
+
+        network.pendingFailureOff.clear();
+    }
+
 
     // --------------------------------------------------
     // CLONE
@@ -342,7 +409,7 @@ public final class NetworkResource implements Resource<ChunkStore> {
     public static final class NetworkData {
 
         private static final ArrayCodec<Vector3i>
-                MEMBER_ARRAY_CODEC =
+                POSITION_ARRAY_CODEC =
                 new ArrayCodec<>(
                         Vector3iUtil.CODEC,
                         Vector3i[]::new
@@ -367,7 +434,7 @@ public final class NetworkResource implements Resource<ChunkStore> {
                         .append(
                                 new KeyedCodec<>(
                                         "Members",
-                                        MEMBER_ARRAY_CODEC
+                                        POSITION_ARRAY_CODEC
                                 ),
                                 NetworkData::setMembers,
                                 NetworkData::getMembers
@@ -406,6 +473,15 @@ public final class NetworkResource implements Resource<ChunkStore> {
                                         network.failureRemainingTicks
                         )
                         .add()
+                        .append(
+                                new KeyedCodec<>(
+                                        "PendingFailureOff",
+                                        POSITION_ARRAY_CODEC
+                                ),
+                                NetworkData::setPendingFailureOff,
+                                NetworkData::getPendingFailureOff
+                        )
+                        .add()
                         .build();
 
 
@@ -414,6 +490,9 @@ public final class NetworkResource implements Resource<ChunkStore> {
         private long failureRemainingTicks = 0L;
 
         private final Set<Vector3i> members =
+                new LinkedHashSet<>();
+
+        private final Set<Vector3i> pendingFailureOff =
                 new LinkedHashSet<>();
 
         private int energy;
@@ -438,6 +517,14 @@ public final class NetworkResource implements Resource<ChunkStore> {
                     : other.members) {
 
                 this.members.add(
+                        new Vector3i(position)
+                );
+            }
+
+            for (Vector3i position
+                    : other.pendingFailureOff) {
+
+                this.pendingFailureOff.add(
                         new Vector3i(position)
                 );
             }
@@ -474,6 +561,32 @@ public final class NetworkResource implements Resource<ChunkStore> {
 
                 if (position != null) {
                     members.add(
+                            new Vector3i(position)
+                    );
+                }
+            }
+        }
+
+        private Vector3i[] getPendingFailureOff() {
+            return pendingFailureOff.toArray(
+                    Vector3i[]::new
+            );
+        }
+
+        private void setPendingFailureOff(
+                Vector3i[] loadedPositions
+        ) {
+            pendingFailureOff.clear();
+
+            if (loadedPositions == null) {
+                return;
+            }
+
+            for (Vector3i position
+                    : loadedPositions) {
+
+                if (position != null) {
+                    pendingFailureOff.add(
                             new Vector3i(position)
                     );
                 }
