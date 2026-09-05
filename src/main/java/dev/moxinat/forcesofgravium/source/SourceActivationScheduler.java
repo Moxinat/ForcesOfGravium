@@ -101,8 +101,6 @@ public final class SourceActivationScheduler {
                 continue;
             }
 
-            activeSources.remove(position);
-
             NodeComponent node =
                     nodeAt(
                             world,
@@ -112,6 +110,8 @@ public final class SourceActivationScheduler {
             if (node == null) {
                 continue;
             }
+
+            activeSources.remove(position);
 
             node.setEnergyDelta(0);
             node.setInstantState(SignalState.OFF);
