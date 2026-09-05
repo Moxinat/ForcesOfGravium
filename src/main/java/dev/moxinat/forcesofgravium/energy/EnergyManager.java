@@ -80,6 +80,11 @@ public final class EnergyManager {
                     world,
                     networkId
             );
+        } else if (networks.isFailing(networkId)) {
+            recoverNetwork(
+                    world,
+                    networkId
+            );
         }
     }
 
@@ -238,6 +243,44 @@ public final class EnergyManager {
                 networkId,
                 0,
                 0L
+        );
+    }
+
+    private static void recoverNetwork(
+            @Nonnull World world,
+            long networkId
+    ) {
+        NetworkResource networks =
+                networks(world);
+
+        for (Vector3i position :
+                networks.members(networkId)) {
+
+            NodeComponent node =
+                    nodeAt(
+                            world,
+                            position
+                    );
+
+            if (node == null) {
+                continue;
+            }
+
+            node.setEffectiveState(SignalState.OFF);
+            node.setDirty(false);
+
+            ConnectableVisualDispatcher.refreshAt(
+                    world,
+                    position
+            );
+        }
+
+        networks.clearPendingFailureOff(
+                networkId
+        );
+
+        networks.clearFailure(
+                networkId
         );
     }
 
