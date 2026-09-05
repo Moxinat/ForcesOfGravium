@@ -64,7 +64,14 @@ public final class ConnectablePropagationScheduler {
     ) {
         NodeComponent node = nodeAt(world, position);
 
-        if (node == null || !node.dirty()) {
+        if (node == null) {
+            signalResource(world)
+                    .currentWave()
+                    .add(new Vector3i(position));
+            return;
+        }
+
+        if (!node.dirty()) {
             return;
         }
 
