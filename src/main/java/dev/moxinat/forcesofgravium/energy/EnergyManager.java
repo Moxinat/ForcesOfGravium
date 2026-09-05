@@ -137,7 +137,54 @@ public final class EnergyManager {
             SignalState state =
                     FAILURE_SEQUENCE[step];
 
-            boolean allOffApplied = true;
+            if (state == SignalState.OFF) {
+                if (networks.pendingFailureOff(networkId).isEmpty()) {
+                    for (Vector3i position :
+                            networks.members(networkId)) {
+
+                        networks.addPendingFailureOff(
+                                networkId,
+                                position
+                        );
+                    }
+                }
+
+                for (Vector3i position :
+                        networks.pendingFailureOff(networkId)) {
+
+                    NodeComponent node =
+                            nodeAt(
+                                    world,
+                                    position
+                            );
+
+                    if (node == null) {
+                        continue;
+                    }
+
+                    node.setEffectiveState(SignalState.OFF);
+                    node.setInstantState(SignalState.OFF);
+                    node.setDirty(false);
+
+                    ConnectableVisualDispatcher.refreshAt(
+                            world,
+                            position
+                    );
+
+                    networks.removePendingFailureOff(
+                            networkId,
+                            position
+                    );
+                }
+
+                if (networks.pendingFailureOff(networkId).isEmpty()) {
+                    networks.clearFailure(
+                            networkId
+                    );
+                }
+
+                continue;
+            }
 
             for (Vector3i position :
                     networks.members(networkId)) {
@@ -149,22 +196,11 @@ public final class EnergyManager {
                         );
 
                 if (node == null) {
-                    if (state == SignalState.OFF) {
-                        allOffApplied = false;
-                    }
                     continue;
                 }
 
                 node.setEffectiveState(state);
                 node.setDirty(false);
-
-                if (state == SignalState.OFF) {
-                    node.setInstantState(
-                            SignalState.OFF
-                    );
-
-                    node.setDirty(false);
-                }
 
                 ConnectableVisualDispatcher.refreshAt(
                         world,
@@ -175,19 +211,11 @@ public final class EnergyManager {
             int nextStep =
                     step + 1;
 
-            if (nextStep >= FAILURE_SEQUENCE.length) {
-                if (allOffApplied) {
-                    networks.clearFailure(
-                            networkId
-                    );
-                }
-            } else {
-                networks.setFailureState(
-                        networkId,
-                        nextStep,
-                        FAILURE_STATE_TICKS
-                );
-            }
+            networks.setFailureState(
+                    networkId,
+                    nextStep,
+                    FAILURE_STATE_TICKS
+            );
         }
     }
 
@@ -201,6 +229,10 @@ public final class EnergyManager {
         if (networks.isFailing(networkId)) {
             return;
         }
+
+        networks.clearPendingFailureOff(
+                networkId
+        );
 
         networks.setFailureState(
                 networkId,
