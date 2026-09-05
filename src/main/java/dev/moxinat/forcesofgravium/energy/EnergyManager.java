@@ -137,6 +137,8 @@ public final class EnergyManager {
             SignalState state =
                     FAILURE_SEQUENCE[step];
 
+            boolean allOffApplied = true;
+
             for (Vector3i position :
                     networks.members(networkId)) {
 
@@ -147,6 +149,9 @@ public final class EnergyManager {
                         );
 
                 if (node == null) {
+                    if (state == SignalState.OFF) {
+                        allOffApplied = false;
+                    }
                     continue;
                 }
 
@@ -171,9 +176,11 @@ public final class EnergyManager {
                     step + 1;
 
             if (nextStep >= FAILURE_SEQUENCE.length) {
-                networks.clearFailure(
-                        networkId
-                );
+                if (allOffApplied) {
+                    networks.clearFailure(
+                            networkId
+                    );
+                }
             } else {
                 networks.setFailureState(
                         networkId,
