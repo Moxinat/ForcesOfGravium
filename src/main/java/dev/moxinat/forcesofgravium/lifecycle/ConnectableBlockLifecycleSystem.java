@@ -44,7 +44,6 @@ public final class ConnectableBlockLifecycleSystem {
     }
 
     private record BreakSnapshot(
-            Set<Vector3i> formerNetworkNeighbors,
             Set<Vector3i> formerForwardNeighbors,
             long tick
     ) {
@@ -184,10 +183,6 @@ public final class ConnectableBlockLifecycleSystem {
             World world =
                     store.getExternalData().getWorld();
 
-            // -------------------------
-            // NETWORK
-            // -------------------------
-
             ConnectableNetworkManager.onNodePlaced(
                     world,
                     target
@@ -198,18 +193,10 @@ public final class ConnectableBlockLifecycleSystem {
                     target
             );
 
-            // -------------------------
-            // SIGNAL
-            // -------------------------
-
             ConnectableSignalRecalculator.recompute(
                     world,
                     target
             );
-
-            // -------------------------
-            // EFFECTIVE ADOPTION
-            // -------------------------
 
             boolean hasStableBackwardNeighbor = false;
 
@@ -237,10 +224,6 @@ public final class ConnectableBlockLifecycleSystem {
                         target
                 );
             }
-
-            // -------------------------
-            // VISUAL
-            // -------------------------
 
             ConnectableVisualDispatcher.refreshTopologyAround(
                     world,
@@ -304,14 +287,6 @@ public final class ConnectableBlockLifecycleSystem {
                 return;
             }
 
-            Set<Vector3i> formerNetworkNeighbors =
-                    copyPositions(
-                            ConnectableNeighborResolver.allNetworkNeighbors(
-                                    world,
-                                    target
-                            )
-                    );
-
             Set<Vector3i> formerForwardNeighbors =
                     copyPositions(
                             ConnectableNeighborResolver.allForwardSignalNeighbors(
@@ -336,7 +311,6 @@ public final class ConnectableBlockLifecycleSystem {
             pending.put(
                     new Vector3i(target),
                     new BreakSnapshot(
-                            formerNetworkNeighbors,
                             formerForwardNeighbors,
                             currentTick
                     )
@@ -428,32 +402,20 @@ public final class ConnectableBlockLifecycleSystem {
                 );
             }
 
-            long oldNetworkId =
-                    brokenNode.networkId();
-
-            // Everything below runs after the block entity was removed.
             commandBuffer.run(ignored -> {
 
-                // -------------------------
-                // NETWORK
-                // -------------------------
+                Set<Vector3i> formerNetworkNeighbors =
+                        ConnectableNetworkManager.onNodeBroken(
+                                world,
+                                target
+                        );
 
-                ConnectableNetworkManager.onNodeBroken(
-                        world,
-                        oldNetworkId,
-                        snapshot.formerNetworkNeighbors()
-                );
-
-                for (Vector3i neighbor : snapshot.formerNetworkNeighbors()) {
+                for (Vector3i neighbor : formerNetworkNeighbors) {
                     EnergyManager.checkNetwork(
                             world,
                             neighbor
                     );
                 }
-
-                // -------------------------
-                // SIGNAL
-                // -------------------------
 
                 for (Vector3i position : snapshot.formerForwardNeighbors()) {
 
