@@ -2,6 +2,7 @@ package dev.moxinat.forcesofgravium.source;
 
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SignalRuntimeResource;
 import dev.moxinat.forcesofgravium.data.SourceComponent;
@@ -39,7 +40,13 @@ public final class SourceActivationScheduler {
             return;
         }
 
-        node.setEnergyDelta(power);
+        setNetworkEnergyDelta(
+                world,
+                position,
+                node.networkId(),
+                power
+        );
+
         node.setInstantState(SignalState.PUSH);
         node.setDirty(true);
 
@@ -113,7 +120,13 @@ public final class SourceActivationScheduler {
 
             activeSources.remove(position);
 
-            node.setEnergyDelta(0);
+            setNetworkEnergyDelta(
+                    world,
+                    position,
+                    node.networkId(),
+                    0
+            );
+
             node.setInstantState(SignalState.OFF);
             node.setDirty(true);
 
@@ -141,6 +154,34 @@ public final class SourceActivationScheduler {
         }
     }
 
+    private static void setNetworkEnergyDelta(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            long networkId,
+            int energyDelta
+    ) {
+        if (networkId == NodeComponent.NO_NETWORK) {
+            return;
+        }
+
+        NetworkResource networks =
+                networkResource(world);
+
+        if (!networks.containsNetwork(networkId)
+                || !networks.containsMember(
+                        networkId,
+                        position
+                )) {
+            return;
+        }
+
+        networks.setEnergyDelta(
+                networkId,
+                position,
+                energyDelta
+        );
+    }
+
     private static NodeComponent nodeAt(
             World world,
             Vector3i position
@@ -152,6 +193,17 @@ public final class SourceActivationScheduler {
                 position.y(),
                 position.z()
         );
+    }
+
+    private static NetworkResource networkResource(
+            @Nonnull World world
+    ) {
+        return world
+                .getChunkStore()
+                .getStore()
+                .getResource(
+                        ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
+                );
     }
 
     private static SignalRuntimeResource signalResource(
