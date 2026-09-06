@@ -9,11 +9,8 @@ import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.ArrayDeque;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Set;
 
 public class ConnectableNetworkManager {
@@ -120,158 +117,71 @@ public class ConnectableNetworkManager {
         );
     }
 
-    public static void onNodeBroken(
+    public static @Nonnull Set<Vector3i> onNodeBroken(
             @Nonnull World world,
-            long oldNetworkId,
-            @Nonnull Set<Vector3i> formerNeighbors
+            @Nonnull Vector3i position
     ) {
         NetworkResource networks =
                 networks(world);
 
-        Vector3i excludedPosition =
-                inferExcludedPosition(
+        long networkId =
+                networkIdAt(
                         networks,
-                        oldNetworkId,
-                        formerNeighbors
+                        position
                 );
 
-        onNodeBroken(
-                world,
-                oldNetworkId,
-                formerNeighbors,
-                excludedPosition
-        );
-    }
-
-    public static void onNodeBroken(
-            @Nonnull World world,
-            long oldNetworkId,
-            @Nonnull Set<Vector3i> formerNeighbors,
-            @Nullable Vector3i excludedPosition
-    ) {
-        NetworkResource networks =
-                networks(world);
-
-        if (excludedPosition != null) {
-            long graphNetworkId =
-                    networkIdAt(
-                            networks,
-                            excludedPosition
-                    );
-
-            if (graphNetworkId != NodeComponent.NO_NETWORK) {
-                oldNetworkId = graphNetworkId;
-            }
+        if (networkId == NodeComponent.NO_NETWORK) {
+            return Set.of();
         }
 
-        if (oldNetworkId == NodeComponent.NO_NETWORK
-                || !networks.containsNetwork(oldNetworkId)) {
-            return;
-        }
-
-        Set<Vector3i> oldMembers =
-                networks.members(oldNetworkId);
-
-        Map<Vector3i, Set<Vector3i>> oldNeighbours =
-                new LinkedHashMap<>();
-
-        Map<Vector3i, Integer> oldEnergyDeltas =
-                new LinkedHashMap<>();
-
-        for (Vector3i member : oldMembers) {
-            oldNeighbours.put(
-                    new Vector3i(member),
-                    networks.neighbours(
-                            oldNetworkId,
-                            member
-                    )
-            );
-
-            oldEnergyDeltas.put(
-                    new Vector3i(member),
-                    networks.energyDelta(
-                            oldNetworkId,
-                            member
-                    )
-            );
-        }
+        Set<Vector3i> formerNeighbours =
+                copyPositions(
+                        networks.neighbours(
+                                networkId,
+                                position
+                        )
+                );
 
         boolean wasFailing =
-                networks.isFailing(oldNetworkId);
+                networks.isFailing(networkId);
 
         int failureStep =
-                networks.failureStep(oldNetworkId);
+                networks.failureStep(networkId);
 
         long failureRemainingTicks =
                 networks.failureRemainingTicks(
-                        oldNetworkId
+                        networkId
                 );
 
         Set<Vector3i> pendingFailureOff =
                 networks.pendingFailureOff(
-                        oldNetworkId
+                        networkId
                 );
 
-        LinkedHashSet<Vector3i> remainingMembers =
-                new LinkedHashSet<>();
+        networks.removeMember(
+                networkId,
+                position
+        );
 
-        for (Vector3i member : oldMembers) {
-            if (excludedPosition != null
-                    && member.equals(excludedPosition)) {
-                continue;
-            }
+        networks.removePendingFailureOff(
+                networkId,
+                position
+        );
 
-            remainingMembers.add(
-                    new Vector3i(member)
-            );
-        }
-
-        if (remainingMembers.isEmpty()) {
+        if (networks.members(networkId).isEmpty()) {
             networks.removeNetwork(
-                    oldNetworkId
+                    networkId
             );
-            return;
+            return formerNeighbours;
         }
 
         Set<Set<Vector3i>> components =
                 connectedComponents(
-                        remainingMembers,
-                        oldNeighbours
+                        networks,
+                        networkId
                 );
 
-        for (Vector3i member : oldMembers) {
-            networks.removeMember(
-                    oldNetworkId,
-                    member
-            );
-        }
-
-        networks.clearPendingFailureOff(
-                oldNetworkId
-        );
-
-        boolean firstComponent = true;
-
-        for (Set<Vector3i> component : components) {
-            long networkId;
-
-            if (firstComponent) {
-                networkId = oldNetworkId;
-                firstComponent = false;
-            } else {
-                networkId =
-                        networks.createNetwork();
-            }
-
-            rebuildComponent(
-                    world,
-                    networks,
-                    networkId,
-                    component,
-                    oldNeighbours,
-                    oldEnergyDeltas
-            );
-
+        if (components.size() == 1) {
             networks.setEnergy(
                     networkId,
                     graphEnergy(
@@ -279,51 +189,98 @@ public class ConnectableNetworkManager {
                             networkId
                     )
             );
+            return formerNeighbours;
+        }
+
+        Set<Vector3i> retainedComponent =
+                components.iterator().next();
+
+        networks.clearPendingFailureOff(
+                networkId
+        );
+
+        for (Vector3i pendingPosition :
+                pendingFailureOff) {
+
+            if (retainedComponent.contains(pendingPosition)) {
+                networks.addPendingFailureOff(
+                        networkId,
+                        pendingPosition
+                );
+            }
+        }
+
+        boolean firstComponent = true;
+
+        for (Set<Vector3i> component : components) {
+            if (firstComponent) {
+                firstComponent = false;
+                continue;
+            }
+
+            long splitNetworkId =
+                    networks.createNetwork();
+
+            copyComponent(
+                    world,
+                    networks,
+                    networkId,
+                    splitNetworkId,
+                    component
+            );
 
             if (wasFailing) {
                 networks.setFailureState(
-                        networkId,
+                        splitNetworkId,
                         failureStep,
                         failureRemainingTicks
                 );
+            }
 
-                for (Vector3i pendingPosition :
-                        pendingFailureOff) {
+            for (Vector3i pendingPosition :
+                    pendingFailureOff) {
 
-                    if (component.contains(pendingPosition)) {
-                        networks.addPendingFailureOff(
-                                networkId,
-                                pendingPosition
-                        );
-                    }
+                if (component.contains(pendingPosition)) {
+                    networks.addPendingFailureOff(
+                            splitNetworkId,
+                            pendingPosition
+                    );
                 }
             }
+
+            networks.setEnergy(
+                    splitNetworkId,
+                    graphEnergy(
+                            networks,
+                            splitNetworkId
+                    )
+            );
+
+            for (Vector3i member : component) {
+                networks.removeMember(
+                        networkId,
+                        member
+                );
+            }
         }
+
+        networks.setEnergy(
+                networkId,
+                graphEnergy(
+                        networks,
+                        networkId
+                )
+        );
+
+        return formerNeighbours;
     }
 
     public static void updateNodeNetwork(
             @Nonnull World world,
-            @Nonnull Vector3i position,
-            long oldNetworkId,
-            @Nonnull Set<Vector3i> formerNetworkNeighbors
+            @Nonnull Vector3i position
     ) {
-        NetworkResource networks =
-                networks(world);
-
-        long graphNetworkId =
-                networkIdAt(
-                        networks,
-                        position
-                );
-
-        if (graphNetworkId != NodeComponent.NO_NETWORK) {
-            oldNetworkId = graphNetworkId;
-        }
-
         onNodeBroken(
                 world,
-                oldNetworkId,
-                formerNetworkNeighbors,
                 position
         );
 
@@ -358,32 +315,27 @@ public class ConnectableNetworkManager {
             return;
         }
 
+        boolean targetWasFailing =
+                networks.isFailing(targetNetworkId);
+
+        boolean sourceWasFailing =
+                networks.isFailing(sourceNetworkId);
+
+        int sourceFailureStep =
+                networks.failureStep(sourceNetworkId);
+
+        long sourceFailureRemainingTicks =
+                networks.failureRemainingTicks(
+                        sourceNetworkId
+                );
+
+        Set<Vector3i> sourcePendingFailureOff =
+                networks.pendingFailureOff(
+                        sourceNetworkId
+                );
+
         Set<Vector3i> sourceMembers =
                 networks.members(sourceNetworkId);
-
-        Map<Vector3i, Set<Vector3i>> sourceNeighbours =
-                new LinkedHashMap<>();
-
-        Map<Vector3i, Integer> sourceEnergyDeltas =
-                new LinkedHashMap<>();
-
-        for (Vector3i member : sourceMembers) {
-            sourceNeighbours.put(
-                    new Vector3i(member),
-                    networks.neighbours(
-                            sourceNetworkId,
-                            member
-                    )
-            );
-
-            sourceEnergyDeltas.put(
-                    new Vector3i(member),
-                    networks.energyDelta(
-                            sourceNetworkId,
-                            member
-                    )
-            );
-        }
 
         for (Vector3i member : sourceMembers) {
             networks.addMember(
@@ -394,29 +346,27 @@ public class ConnectableNetworkManager {
             networks.setEnergyDelta(
                     targetNetworkId,
                     member,
-                    sourceEnergyDeltas.getOrDefault(
-                            member,
-                            0
+                    networks.energyDelta(
+                            sourceNetworkId,
+                            member
                     )
             );
         }
 
         for (Vector3i member : sourceMembers) {
             for (Vector3i neighbour :
-                    sourceNeighbours.getOrDefault(
-                            member,
-                            Set.of()
+                    networks.neighbours(
+                            sourceNetworkId,
+                            member
                     )) {
 
-                if (!sourceMembers.contains(neighbour)) {
-                    continue;
+                if (sourceMembers.contains(neighbour)) {
+                    networks.addEdge(
+                            targetNetworkId,
+                            member,
+                            neighbour
+                    );
                 }
-
-                networks.addEdge(
-                        targetNetworkId,
-                        member,
-                        neighbour
-                );
             }
         }
 
@@ -434,51 +384,65 @@ public class ConnectableNetworkManager {
             }
         }
 
+        for (Vector3i pendingPosition :
+                sourcePendingFailureOff) {
+
+            networks.addPendingFailureOff(
+                    targetNetworkId,
+                    pendingPosition
+            );
+        }
+
+        if (!targetWasFailing && sourceWasFailing) {
+            networks.setFailureState(
+                    targetNetworkId,
+                    sourceFailureStep,
+                    sourceFailureRemainingTicks
+            );
+        }
+
         networks.removeNetwork(
                 sourceNetworkId
         );
     }
 
-    private static void rebuildComponent(
+    private static void copyComponent(
             @Nonnull World world,
             @Nonnull NetworkResource networks,
-            long networkId,
-            @Nonnull Set<Vector3i> component,
-            @Nonnull Map<Vector3i, Set<Vector3i>> oldNeighbours,
-            @Nonnull Map<Vector3i, Integer> oldEnergyDeltas
+            long sourceNetworkId,
+            long targetNetworkId,
+            @Nonnull Set<Vector3i> component
     ) {
         for (Vector3i member : component) {
             networks.addMember(
-                    networkId,
+                    targetNetworkId,
                     member
             );
 
             networks.setEnergyDelta(
-                    networkId,
+                    targetNetworkId,
                     member,
-                    oldEnergyDeltas.getOrDefault(
-                            member,
-                            0
+                    networks.energyDelta(
+                            sourceNetworkId,
+                            member
                     )
             );
         }
 
         for (Vector3i member : component) {
             for (Vector3i neighbour :
-                    oldNeighbours.getOrDefault(
-                            member,
-                            Set.of()
+                    networks.neighbours(
+                            sourceNetworkId,
+                            member
                     )) {
 
-                if (!component.contains(neighbour)) {
-                    continue;
+                if (component.contains(neighbour)) {
+                    networks.addEdge(
+                            targetNetworkId,
+                            member,
+                            neighbour
+                    );
                 }
-
-                networks.addEdge(
-                        networkId,
-                        member,
-                        neighbour
-                );
             }
         }
 
@@ -491,16 +455,19 @@ public class ConnectableNetworkManager {
 
             if (member != null) {
                 member.setNetworkId(
-                        networkId
+                        targetNetworkId
                 );
             }
         }
     }
 
     private static @Nonnull Set<Set<Vector3i>> connectedComponents(
-            @Nonnull Set<Vector3i> members,
-            @Nonnull Map<Vector3i, Set<Vector3i>> neighbours
+            @Nonnull NetworkResource networks,
+            long networkId
     ) {
+        Set<Vector3i> members =
+                networks.members(networkId);
+
         LinkedHashSet<Set<Vector3i>> components =
                 new LinkedHashSet<>();
 
@@ -536,9 +503,9 @@ public class ConnectableNetworkManager {
                 );
 
                 for (Vector3i neighbour :
-                        neighbours.getOrDefault(
-                                current,
-                                Set.of()
+                        networks.neighbours(
+                                networkId,
+                                current
                         )) {
 
                     if (members.contains(neighbour)
@@ -561,34 +528,19 @@ public class ConnectableNetworkManager {
         return Set.copyOf(components);
     }
 
-    private static @Nullable Vector3i inferExcludedPosition(
-            @Nonnull NetworkResource networks,
-            long networkId,
-            @Nonnull Set<Vector3i> formerNeighbors
+    private static @Nonnull Set<Vector3i> copyPositions(
+            @Nonnull Set<Vector3i> positions
     ) {
-        if (!networks.containsNetwork(networkId)) {
-            return null;
-        }
+        LinkedHashSet<Vector3i> copy =
+                new LinkedHashSet<>();
 
-        Set<Vector3i> members =
-                networks.members(networkId);
-
-        if (members.size() == 1) {
-            return new Vector3i(
-                    members.iterator().next()
+        for (Vector3i position : positions) {
+            copy.add(
+                    new Vector3i(position)
             );
         }
 
-        for (Vector3i member : members) {
-            if (networks.neighbours(
-                    networkId,
-                    member
-            ).equals(formerNeighbors)) {
-                return new Vector3i(member);
-            }
-        }
-
-        return null;
+        return Set.copyOf(copy);
     }
 
     private static long networkIdAt(
