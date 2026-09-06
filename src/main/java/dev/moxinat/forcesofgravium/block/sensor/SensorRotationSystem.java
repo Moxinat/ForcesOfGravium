@@ -147,14 +147,6 @@ public final class SensorRotationSystem {
                 return;
             }
 
-            long oldNetworkId = node.networkId();
-
-            Set<Vector3i> formerNetworkNeighbors =
-                    ConnectableNeighborResolver.allNetworkNeighbors(
-                            world,
-                            position
-                    );
-
             Set<Vector3i> formerForwardNeighbors =
                     ConnectableNeighborResolver.allForwardSignalNeighbors(
                             world,
@@ -211,9 +203,7 @@ public final class SensorRotationSystem {
 
             ConnectableNetworkManager.updateNodeNetwork(
                     world,
-                    position,
-                    oldNetworkId,
-                    formerNetworkNeighbors
+                    position
             );
 
             ConnectableSignalRecalculator.recompute(
