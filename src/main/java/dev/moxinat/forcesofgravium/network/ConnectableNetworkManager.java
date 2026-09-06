@@ -304,6 +304,18 @@ public class ConnectableNetworkManager {
         );
     }
 
+    public static void updateNodeNetwork(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            long ignoredOldNetworkId,
+            @Nonnull Set<Vector3i> ignoredFormerNetworkNeighbors
+    ) {
+        updateNodeNetwork(
+                world,
+                position
+        );
+    }
+
     private static void mergeNetworkInto(
             @Nonnull World world,
             @Nonnull NetworkResource networks,
