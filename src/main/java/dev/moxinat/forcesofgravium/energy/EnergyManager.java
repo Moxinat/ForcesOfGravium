@@ -29,21 +29,16 @@ public final class EnergyManager {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        NodeComponent node =
-                nodeAt(world, position);
-
-        if (node == null
-                || node.networkId() == NodeComponent.NO_NETWORK) {
-            return;
-        }
-
-        long networkId =
-                node.networkId();
-
         NetworkResource networks =
                 networks(world);
 
-        if (!networks.containsNetwork(networkId)) {
+        long networkId =
+                networkIdAt(
+                        networks,
+                        position
+                );
+
+        if (networkId == NodeComponent.NO_NETWORK) {
             return;
         }
 
@@ -53,19 +48,15 @@ public final class EnergyManager {
         for (Vector3i memberPosition :
                 networks.members(networkId)) {
 
-            NodeComponent networkNode =
-                    nodeAt(
-                            world,
+            int energyDelta =
+                    networks.energyDelta(
+                            networkId,
                             memberPosition
                     );
 
-            if (networkNode == null) {
-                continue;
-            }
+            energy += energyDelta;
 
-            energy += networkNode.energyDelta();
-
-            if (networkNode.energyDelta() > 0) {
+            if (energyDelta > 0) {
                 hasEnergySource = true;
             }
         }
@@ -92,16 +83,20 @@ public final class EnergyManager {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        NodeComponent node =
-                nodeAt(world, position);
+        NetworkResource networks =
+                networks(world);
 
-        if (node == null
-                || node.networkId() == NodeComponent.NO_NETWORK) {
+        long networkId =
+                networkIdAt(
+                        networks,
+                        position
+                );
+
+        if (networkId == NodeComponent.NO_NETWORK) {
             return 0;
         }
 
-        return networks(world)
-                .energy(node.networkId());
+        return networks.energy(networkId);
     }
 
     public static void tickWorld(
@@ -282,6 +277,24 @@ public final class EnergyManager {
         networks.clearFailure(
                 networkId
         );
+    }
+
+    private static long networkIdAt(
+            @Nonnull NetworkResource networks,
+            @Nonnull Vector3i position
+    ) {
+        for (long networkId :
+                networks.networkIds()) {
+
+            if (networks.containsMember(
+                    networkId,
+                    position
+            )) {
+                return networkId;
+            }
+        }
+
+        return NodeComponent.NO_NETWORK;
     }
 
     private static NetworkResource networks(
