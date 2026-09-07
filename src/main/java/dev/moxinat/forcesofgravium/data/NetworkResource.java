@@ -18,6 +18,8 @@ import java.util.Set;
 
 public final class NetworkResource implements Resource<ChunkStore> {
 
+    public static final long NO_NETWORK = 0L;
+
     private static final ArrayCodec<NetworkData> NETWORK_ARRAY_CODEC =
             ArrayCodec.ofBuilderCodec(
                     NetworkData.CODEC,
@@ -57,6 +59,9 @@ public final class NetworkResource implements Resource<ChunkStore> {
     private final Map<Long, NetworkData> networks =
             new HashMap<>();
 
+    private final Map<Vector3i, Long> networkByPosition =
+            new HashMap<>();
+
 
     public NetworkResource() {
     }
@@ -75,6 +80,8 @@ public final class NetworkResource implements Resource<ChunkStore> {
                     new NetworkData(entry.getValue())
             );
         }
+
+        rebuildNetworkByPosition();
     }
 
 
@@ -91,6 +98,7 @@ public final class NetworkResource implements Resource<ChunkStore> {
             NetworkData[] loadedNetworks
     ) {
         networks.clear();
+        networkByPosition.clear();
 
         if (loadedNetworks == null) {
             return;
@@ -107,6 +115,8 @@ public final class NetworkResource implements Resource<ChunkStore> {
                     network
             );
         }
+
+        rebuildNetworkByPosition();
     }
 
 
@@ -144,10 +154,36 @@ public final class NetworkResource implements Resource<ChunkStore> {
         return networks.containsKey(networkId);
     }
 
+    public long networkAt(
+            @Nonnull Vector3i position
+    ) {
+        return networkByPosition.getOrDefault(
+                position,
+                NO_NETWORK
+        );
+    }
+
     public void removeNetwork(
             long networkId
     ) {
-        networks.remove(networkId);
+        NetworkData removed =
+                networks.remove(networkId);
+
+        if (removed == null) {
+            return;
+        }
+
+        for (Vector3i position :
+                removed.nodes.keySet()) {
+
+            Long mappedNetworkId =
+                    networkByPosition.get(position);
+
+            if (mappedNetworkId != null
+                    && mappedNetworkId == networkId) {
+                networkByPosition.remove(position);
+            }
+        }
     }
 
     public @Nonnull Set<Long> networkIds() {
@@ -175,6 +211,11 @@ public final class NetworkResource implements Resource<ChunkStore> {
                 key,
                 new NetworkNodeData(position)
         );
+
+        networkByPosition.put(
+                new Vector3i(position),
+                networkId
+        );
     }
 
     public void removeMember(
@@ -190,6 +231,14 @@ public final class NetworkResource implements Resource<ChunkStore> {
 
         if (network.nodes.remove(position) == null) {
             return;
+        }
+
+        Long mappedNetworkId =
+                networkByPosition.get(position);
+
+        if (mappedNetworkId != null
+                && mappedNetworkId == networkId) {
+            networkByPosition.remove(position);
         }
 
         for (NetworkNodeData node :
@@ -522,6 +571,26 @@ public final class NetworkResource implements Resource<ChunkStore> {
     // --------------------------------------------------
     // INTERNAL ACCESS
     // --------------------------------------------------
+
+    private void rebuildNetworkByPosition() {
+        networkByPosition.clear();
+
+        for (Map.Entry<Long, NetworkData> entry :
+                networks.entrySet()) {
+
+            long networkId =
+                    entry.getKey();
+
+            for (Vector3i position :
+                    entry.getValue().nodes.keySet()) {
+
+                networkByPosition.put(
+                        new Vector3i(position),
+                        networkId
+                );
+            }
+        }
+    }
 
     private @Nonnull NetworkData requireNetwork(
             long networkId
