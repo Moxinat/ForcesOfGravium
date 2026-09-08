@@ -43,7 +43,7 @@ public final class SourceActivationScheduler {
         setNetworkEnergyDelta(
                 world,
                 position,
-                node.networkId(),
+                networkResource(world).networkAt(position),
                 power
         );
 
@@ -123,7 +123,7 @@ public final class SourceActivationScheduler {
             setNetworkEnergyDelta(
                     world,
                     position,
-                    node.networkId(),
+                    networkResource(world).networkAt(position),
                     0
             );
 
