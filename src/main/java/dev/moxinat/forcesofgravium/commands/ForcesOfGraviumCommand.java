@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.ParticleUtil;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -232,12 +233,19 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
                 )
         );
 
+        NetworkResource networks =
+                world.getChunkStore()
+                        .getStore()
+                        .getResource(
+                                ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
+                        );
+
         context.sendMessage(
                 Message.raw(
                         "energyDelta="
                                 + node.energyDelta()
                                 + " networkId="
-                                + node.networkId()
+                                + networks.networkAt(position)
                 )
         );
     }
