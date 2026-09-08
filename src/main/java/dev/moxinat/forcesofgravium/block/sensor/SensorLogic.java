@@ -1085,7 +1085,13 @@ public final class SensorLogic {
 
         Set<Vector3i> forwardNeighbors;
 
-        long oldNetworkId = node.networkId();
+        long oldNetworkId =
+                world.getChunkStore()
+                        .getStore()
+                        .getResource(
+                                ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
+                        )
+                        .networkAt(position);
 
         Set<Vector3i> formerNetworkNeighbors =
                 ConnectableNeighborResolver.allNetworkNeighbors(
