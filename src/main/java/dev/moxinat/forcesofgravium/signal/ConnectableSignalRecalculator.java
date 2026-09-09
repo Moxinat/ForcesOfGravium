@@ -16,6 +16,9 @@ import java.util.Set;
 
 public final class ConnectableSignalRecalculator {
 
+    private static final Vector3i DEBUG_TARGET =
+            new Vector3i(543, 123, 64);
+
     private ConnectableSignalRecalculator() {
     }
 
@@ -42,7 +45,20 @@ public final class ConnectableSignalRecalculator {
 
         NodeComponent startNode = nodeAt(world, position);
         if (startNode == null) {
+            if (isDebugTarget(position)) {
+                debugTarget("RECOMPUTE start node=null");
+            }
             return;
+        }
+
+        if (isDebugTarget(position)) {
+            trackAndLog(
+                    startNode,
+                    "RECOMPUTE START"
+                            + " instant=" + startNode.instantState()
+                            + " effective=" + startNode.effectiveState()
+                            + " dirty=" + startNode.dirty()
+            );
         }
 
         NetworkResource networks = networkResource(world);
@@ -92,6 +108,16 @@ public final class ConnectableSignalRecalculator {
                     if (dependencyNode != null
                             && dependencyNode.instantState() != frame.resolvedState) {
 
+                        if (isDebugTarget(frame.startPosition)) {
+                            trackAndLog(
+                                    dependencyNode,
+                                    "DEPENDENCY SET"
+                                            + " from=" + dependencyNode.instantState()
+                                            + " to=" + frame.resolvedState
+                                            + " dirtyBefore=" + dependencyNode.dirty()
+                            );
+                        }
+
                         ConnectablePropagationScheduler.cancelPendingAdoption(
                                 world,
                                 frame.startPosition
@@ -115,7 +141,21 @@ public final class ConnectableSignalRecalculator {
 
             NodeComponent currentNode = nodeAt(world, currentPosition);
             if (currentNode == null) {
+                if (isDebugTarget(currentPosition)) {
+                    debugTarget("BACKWARD VISIT node=null");
+                }
                 continue;
+            }
+
+            if (isDebugTarget(currentPosition)) {
+                trackAndLog(
+                        currentNode,
+                        "BACKWARD VISIT"
+                                + " frameStart=" + frame.startPosition
+                                + " instant=" + currentNode.instantState()
+                                + " effective=" + currentNode.effectiveState()
+                                + " dirty=" + currentNode.dirty()
+                );
             }
 
             if (!currentPosition.equals(frame.startPosition)) {
@@ -176,6 +216,16 @@ public final class ConnectableSignalRecalculator {
 
         if (startNode.instantState() != resolvedState) {
 
+            if (isDebugTarget(position)) {
+                trackAndLog(
+                        startNode,
+                        "ROOT SET"
+                                + " from=" + startNode.instantState()
+                                + " to=" + resolvedState
+                                + " dirtyBefore=" + startNode.dirty()
+                );
+            }
+
             ConnectablePropagationScheduler.cancelPendingAdoption(
                     world,
                     position
@@ -188,6 +238,17 @@ public final class ConnectableSignalRecalculator {
         SignalState forwardState = startNode.invertEnabled()
                 ? resolvedState.inverted()
                 : resolvedState;
+
+        if (isDebugTarget(position)) {
+            trackAndLog(
+                    startNode,
+                    "ROOT RESOLVED"
+                            + " resolved=" + resolvedState
+                            + " forward=" + forwardState
+                            + " instantNow=" + startNode.instantState()
+                            + " dirtyNow=" + startNode.dirty()
+            );
+        }
 
         ArrayDeque<Vector3i> forwardStack = new ArrayDeque<>();
         Set<Vector3i> forwardVisited = new LinkedHashSet<>();
@@ -212,10 +273,37 @@ public final class ConnectableSignalRecalculator {
 
             NodeComponent currentNode = nodeAt(world, currentPosition);
             if (currentNode == null) {
+                if (isDebugTarget(currentPosition)) {
+                    debugTarget(
+                            "FORWARD VISIT node=null"
+                                    + " recomputeStart=" + position
+                                    + " forwardState=" + forwardState
+                    );
+                }
                 continue;
             }
 
+            if (isDebugTarget(currentPosition)) {
+                trackAndLog(
+                        currentNode,
+                        "FORWARD VISIT"
+                                + " recomputeStart=" + position
+                                + " forwardState=" + forwardState
+                                + " instantBefore=" + currentNode.instantState()
+                                + " effective=" + currentNode.effectiveState()
+                                + " dirtyBefore=" + currentNode.dirty()
+                );
+            }
+
             if (currentNode.instantState() != forwardState) {
+
+                if (isDebugTarget(currentPosition)) {
+                    debugTarget(
+                            "FORWARD SET"
+                                    + " from=" + currentNode.instantState()
+                                    + " to=" + forwardState
+                    );
+                }
 
                 ConnectablePropagationScheduler.cancelPendingAdoption(
                         world,
@@ -227,20 +315,49 @@ public final class ConnectableSignalRecalculator {
             }
 
             if (currentNode.invertEnabled()) {
+                if (isDebugTarget(currentPosition)) {
+                    debugTarget("FORWARD STOP inverter=true");
+                }
                 continue;
             }
 
-            for (Vector3i forwardNeighbor :
+            Set<Vector3i> forwardNeighbors =
                     ConnectableNeighborResolver.allForwardSignalNeighbors(
                             world,
                             currentPosition
-                    )) {
+                    );
+
+            if (isDebugTarget(currentPosition)) {
+                debugTarget(
+                        "FORWARD CONTINUE neighbors=" + forwardNeighbors
+                );
+            }
+
+            for (Vector3i forwardNeighbor : forwardNeighbors) {
 
                 if (!forwardVisited.contains(forwardNeighbor)) {
                     forwardStack.push(forwardNeighbor);
                 }
             }
         }
+    }
+
+    private static boolean isDebugTarget(@Nonnull Vector3i position) {
+        return DEBUG_TARGET.equals(position);
+    }
+
+    private static void trackAndLog(
+            @Nonnull NodeComponent node,
+            @Nonnull String message
+    ) {
+        NodeComponent.debugTrackForSave(node);
+        debugTarget(message);
+    }
+
+    private static void debugTarget(@Nonnull String message) {
+        System.out.println(
+                "[FoG Target Debug][Recompute][543,123,64] " + message
+        );
     }
 
     private static NetworkResource networkResource(
