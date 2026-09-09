@@ -12,8 +12,6 @@ import javax.annotation.Nonnull;
 
 public final class NodeComponent implements Component<ChunkStore> {
 
-    public static final long NO_NETWORK = 0L;
-
     private static final EnumCodec<SignalState> SIGNAL_STATE_CODEC =
             new EnumCodec<>(SignalState.class);
 
@@ -166,7 +164,7 @@ public final class NodeComponent implements Component<ChunkStore> {
         passing = true;
 
         energyDelta = 0;
-        networkId = NO_NETWORK;
+        networkId = NetworkResource.NO_NETWORK;
     }
 
     private NodeComponent(@Nonnull NodeComponent other) {
@@ -286,10 +284,6 @@ public final class NodeComponent implements Component<ChunkStore> {
 
     public long networkId() {
         return networkId;
-    }
-
-    public void setNetworkId(long networkId) {
-        this.networkId = networkId;
     }
 
 
