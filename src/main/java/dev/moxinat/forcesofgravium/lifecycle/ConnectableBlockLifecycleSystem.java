@@ -185,7 +185,8 @@ public final class ConnectableBlockLifecycleSystem {
 
             ConnectableNetworkManager.onNodePlaced(
                     world,
-                    target
+                    target,
+                    0
             );
 
             EnergyManager.checkNetwork(
