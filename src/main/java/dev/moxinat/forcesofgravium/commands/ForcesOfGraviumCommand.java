@@ -240,12 +240,17 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
                                 ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
                         );
 
+        long networkId = networks.networkAt(position);
+        int energyDelta = networkId == NetworkResource.NO_NETWORK
+                ? 0
+                : networks.energyDelta(networkId, position);
+
         context.sendMessage(
                 Message.raw(
                         "energyDelta="
-                                + node.energyDelta()
+                                + energyDelta
                                 + " networkId="
-                                + networks.networkAt(position)
+                                + networkId
                 )
         );
     }
