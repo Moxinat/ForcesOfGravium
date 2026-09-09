@@ -5,6 +5,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 
@@ -123,8 +124,11 @@ public final class ConnectableSignalRecalculator {
                                 frame.startPosition
                         );
 
-                        dependencyNode.setInstantState(frame.resolvedState);
-                        dependencyNode.setDirty(true);
+                        SignalState dependencyState = frame.resolvedState;
+                        Nodes.mutate(world, frame.startPosition, currentNode -> {
+                            currentNode.setInstantState(dependencyState);
+                            currentNode.setDirty(true);
+                        });
                     }
                 } else {
                     resolvedState = frame.resolvedState;
@@ -231,8 +235,16 @@ public final class ConnectableSignalRecalculator {
                     position
             );
 
-            startNode.setInstantState(resolvedState);
-            startNode.setDirty(true);
+            SignalState rootState = resolvedState;
+            Nodes.mutate(world, position, currentNode -> {
+                currentNode.setInstantState(rootState);
+                currentNode.setDirty(true);
+            });
+
+            startNode = nodeAt(world, position);
+            if (startNode == null) {
+                return;
+            }
         }
 
         SignalState forwardState = startNode.invertEnabled()
@@ -310,8 +322,16 @@ public final class ConnectableSignalRecalculator {
                         currentPosition
                 );
 
-                currentNode.setInstantState(forwardState);
-                currentNode.setDirty(true);
+                SignalState stateToApply = forwardState;
+                Nodes.mutate(world, currentPosition, nodeToMutate -> {
+                    nodeToMutate.setInstantState(stateToApply);
+                    nodeToMutate.setDirty(true);
+                });
+
+                currentNode = nodeAt(world, currentPosition);
+                if (currentNode == null) {
+                    continue;
+                }
             }
 
             if (currentNode.invertEnabled()) {
