@@ -114,13 +114,6 @@ public final class NodeComponent implements Component<ChunkStore> {
                     )
                     .add()
 
-                    .append(
-                            new KeyedCodec<>("NetworkId", Codec.LONG),
-                            (component, value) -> component.networkId = value,
-                            component -> component.networkId
-                    )
-                    .add()
-
                     .build();
 
 
@@ -145,7 +138,6 @@ public final class NodeComponent implements Component<ChunkStore> {
     private boolean passing;
 
     private int energyDelta;
-    private long networkId;
 
 
     public NodeComponent() {
@@ -164,7 +156,6 @@ public final class NodeComponent implements Component<ChunkStore> {
         passing = true;
 
         energyDelta = 0;
-        networkId = NetworkResource.NO_NETWORK;
     }
 
     private NodeComponent(@Nonnull NodeComponent other) {
@@ -183,7 +174,6 @@ public final class NodeComponent implements Component<ChunkStore> {
         passing = other.passing;
 
         energyDelta = other.energyDelta;
-        networkId = other.networkId;
     }
 
 
@@ -279,11 +269,6 @@ public final class NodeComponent implements Component<ChunkStore> {
 
     public void setEnergyDelta(int energyDelta) {
         this.energyDelta = energyDelta;
-    }
-
-
-    public long networkId() {
-        return networkId;
     }
 
 
