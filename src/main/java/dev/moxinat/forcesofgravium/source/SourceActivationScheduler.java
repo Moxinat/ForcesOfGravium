@@ -4,6 +4,7 @@ import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.SignalRuntimeResource;
 import dev.moxinat.forcesofgravium.data.SourceComponent;
 import dev.moxinat.forcesofgravium.signal.SignalState;
@@ -47,8 +48,10 @@ public final class SourceActivationScheduler {
                 power
         );
 
-        node.setInstantState(SignalState.PUSH);
-        node.setDirty(true);
+        Nodes.mutate(world, position, currentNode -> {
+            currentNode.setInstantState(SignalState.PUSH);
+            currentNode.setDirty(true);
+        });
 
         EnergyManager.checkNetwork(
                 world,
@@ -127,8 +130,10 @@ public final class SourceActivationScheduler {
                     0
             );
 
-            node.setInstantState(SignalState.OFF);
-            node.setDirty(true);
+            Nodes.mutate(world, position, currentNode -> {
+                currentNode.setInstantState(SignalState.OFF);
+                currentNode.setDirty(true);
+            });
 
             EnergyManager.checkNetwork(
                     world,
