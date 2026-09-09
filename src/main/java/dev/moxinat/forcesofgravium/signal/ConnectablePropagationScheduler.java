@@ -66,6 +66,8 @@ public final class ConnectablePropagationScheduler {
             @Nonnull Vector3i position
     ) {
         if (!isBubbleLoaded(world, position)) {
+            System.out.println("[FoG Wave] WAIT BUBBLE " + position);
+
             signalResource(world)
                     .currentWave()
                     .add(new Vector3i(position));
@@ -75,6 +77,8 @@ public final class ConnectablePropagationScheduler {
         NodeComponent node = nodeAt(world, position);
 
         if (node == null) {
+            System.out.println("[FoG Wave] WAIT NODE " + position);
+
             signalResource(world)
                     .currentWave()
                     .add(new Vector3i(position));
@@ -82,6 +86,12 @@ public final class ConnectablePropagationScheduler {
         }
 
         if (!node.dirty()) {
+            System.out.println(
+                    "[FoG Wave] DROP CLEAN "
+                            + position
+                            + " instant=" + node.instantState()
+                            + " effective=" + node.effectiveState()
+            );
             return;
         }
 
@@ -120,6 +130,11 @@ public final class ConnectablePropagationScheduler {
             }
         }
 
+        System.out.println(
+                "[FoG Wave] " + position
+                        + " -> " + ConnectableNeighborResolver.allForwardSignalNeighbors(world, position)
+        );
+
         for (Vector3i signalNeighbor :
                 ConnectableNeighborResolver.allForwardSignalNeighbors(
                         world,
@@ -132,6 +147,42 @@ public final class ConnectablePropagationScheduler {
                 signalResource(world)
                         .nextWave()
                         .add(new Vector3i(signalNeighbor));
+            }
+        }
+
+        Set<Vector3i> forwardNeighbors =
+                ConnectableNeighborResolver.allForwardSignalNeighbors(
+                        world,
+                        position
+                );
+
+        boolean scheduledAny = false;
+
+        for (Vector3i signalNeighbor : forwardNeighbors) {
+
+            NodeComponent neighbor = nodeAt(world, signalNeighbor);
+
+            if (neighbor != null && neighbor.dirty()) {
+                signalResource(world)
+                        .nextWave()
+                        .add(new Vector3i(signalNeighbor));
+
+                scheduledAny = true;
+            }
+        }
+
+        if (!scheduledAny && !forwardNeighbors.isEmpty()) {
+            for (Vector3i signalNeighbor : forwardNeighbors) {
+
+                NodeComponent neighbor = nodeAt(world, signalNeighbor);
+
+                System.out.println(
+                        "[FoG Wave] STOP "
+                                + position
+                                + " -> " + signalNeighbor
+                                + " node=" + (neighbor != null)
+                                + " dirty=" + (neighbor != null && neighbor.dirty())
+                );
             }
         }
     }
@@ -179,6 +230,13 @@ public final class ConnectablePropagationScheduler {
                             );
 
                     if (sectionRef == null || !sectionRef.isValid()) {
+                        return false;
+                    }
+
+                    if (sectionRef.getStore().getComponent(
+                            sectionRef,
+                            ChunkStore.REGISTRY.getNonTickingComponentType()
+                    ) != null) {
                         return false;
                     }
                 }
