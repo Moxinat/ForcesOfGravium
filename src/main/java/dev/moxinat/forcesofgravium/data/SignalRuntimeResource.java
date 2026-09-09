@@ -135,6 +135,12 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
     // --------------------------------------------------
 
     private Vector3i[] getCurrentWave() {
+        System.out.println(
+                "[FoG SAVE] SERIALIZE RESOURCE current="
+                        + currentWave
+                        + " next=" + nextWave
+        );
+
         return currentWave.toArray(
                 Vector3i[]::new
         );
