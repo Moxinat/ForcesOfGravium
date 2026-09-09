@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.chunk.section.ChunkSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.SignalRuntimeResource;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.dispatcher.NodeControlDispatcher;
@@ -195,7 +196,11 @@ public final class ConnectablePropagationScheduler {
                         + " dirty=" + node.dirty()
         );
 
-        node.adoptInstantState();
+        Nodes.mutate(
+                world,
+                position,
+                NodeComponent::adoptInstantState
+        );
 
         debug(
                 debugTick,
