@@ -5,6 +5,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import org.joml.Vector3i;
@@ -162,9 +163,11 @@ public final class EnergyManager {
                         continue;
                     }
 
-                    node.setEffectiveState(SignalState.OFF);
-                    node.setInstantState(SignalState.OFF);
-                    node.setDirty(false);
+                    Nodes.mutate(world, position, currentNode -> {
+                        currentNode.setEffectiveState(SignalState.OFF);
+                        currentNode.setInstantState(SignalState.OFF);
+                        currentNode.setDirty(false);
+                    });
 
                     ConnectableVisualDispatcher.refreshAt(
                             world,
@@ -199,8 +202,10 @@ public final class EnergyManager {
                     continue;
                 }
 
-                node.setEffectiveState(state);
-                node.setDirty(false);
+                Nodes.mutate(world, position, currentNode -> {
+                    currentNode.setEffectiveState(state);
+                    currentNode.setDirty(false);
+                });
 
                 ConnectableVisualDispatcher.refreshAt(
                         world,
@@ -261,8 +266,10 @@ public final class EnergyManager {
                 continue;
             }
 
-            node.setEffectiveState(SignalState.OFF);
-            node.setDirty(false);
+            Nodes.mutate(world, position, currentNode -> {
+                currentNode.setEffectiveState(SignalState.OFF);
+                currentNode.setDirty(false);
+            });
 
             ConnectableVisualDispatcher.refreshAt(
                     world,
