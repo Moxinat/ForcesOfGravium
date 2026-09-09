@@ -38,7 +38,7 @@ public final class EnergyManager {
                         position
                 );
 
-        if (networkId == NodeComponent.NO_NETWORK) {
+        if (networkId == NetworkResource.NO_NETWORK) {
             return;
         }
 
@@ -92,7 +92,7 @@ public final class EnergyManager {
                         position
                 );
 
-        if (networkId == NodeComponent.NO_NETWORK) {
+        if (networkId == NetworkResource.NO_NETWORK) {
             return 0;
         }
 
@@ -283,18 +283,7 @@ public final class EnergyManager {
             @Nonnull NetworkResource networks,
             @Nonnull Vector3i position
     ) {
-        for (long networkId :
-                networks.networkIds()) {
-
-            if (networks.containsMember(
-                    networkId,
-                    position
-            )) {
-                return networkId;
-            }
-        }
-
-        return NodeComponent.NO_NETWORK;
+        return networks.networkAt(position);
     }
 
     private static NetworkResource networks(
