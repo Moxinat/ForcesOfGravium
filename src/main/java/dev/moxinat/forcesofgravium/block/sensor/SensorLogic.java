@@ -29,6 +29,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.block.siphon.GraviumSiphonLogic;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.network.ConnectableNetworkManager;
@@ -417,7 +418,6 @@ public final class SensorLogic {
         }
 
         sensors.remove(position);
-
         if (sensors.isEmpty()) {
             NUMBER_UPDATE_SENSORS.remove(world, sensors);
         }
@@ -434,8 +434,12 @@ public final class SensorLogic {
             return;
         }
 
-        node.setInvertEnabled(
-                !node.invertEnabled()
+        boolean invertEnabled = !node.invertEnabled();
+
+        Nodes.mutate(
+                world,
+                position,
+                currentNode -> currentNode.setInvertEnabled(invertEnabled)
         );
 
         for (Vector3i forwardNeighbor :
@@ -1106,9 +1110,17 @@ public final class SensorLogic {
                             position
                     );
 
-            node.setPassing(false);
+            Nodes.mutate(
+                    world,
+                    position,
+                    currentNode -> currentNode.setPassing(false)
+            );
         } else {
-            node.setPassing(true);
+            Nodes.mutate(
+                    world,
+                    position,
+                    currentNode -> currentNode.setPassing(true)
+            );
 
             forwardNeighbors =
                     ConnectableNeighborResolver.allForwardSignalNeighbors(
