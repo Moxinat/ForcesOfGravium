@@ -107,13 +107,6 @@ public final class NodeComponent implements Component<ChunkStore> {
                     )
                     .add()
 
-                    .append(
-                            new KeyedCodec<>("EnergyDelta", Codec.INTEGER),
-                            (component, value) -> component.energyDelta = value,
-                            component -> component.energyDelta
-                    )
-                    .add()
-
                     .build();
 
 
@@ -137,8 +130,6 @@ public final class NodeComponent implements Component<ChunkStore> {
     private boolean invertEnabled;
     private boolean passing;
 
-    private int energyDelta;
-
 
     public NodeComponent() {
         signalInputSides = 0;
@@ -154,8 +145,6 @@ public final class NodeComponent implements Component<ChunkStore> {
         dirty = false;
         invertEnabled = false;
         passing = true;
-
-        energyDelta = 0;
     }
 
     private NodeComponent(@Nonnull NodeComponent other) {
@@ -172,8 +161,6 @@ public final class NodeComponent implements Component<ChunkStore> {
         dirty = other.dirty;
         invertEnabled = other.invertEnabled;
         passing = other.passing;
-
-        energyDelta = other.energyDelta;
     }
 
 
@@ -260,15 +247,6 @@ public final class NodeComponent implements Component<ChunkStore> {
 
     public void setPassing(boolean passing) {
         this.passing = passing;
-    }
-
-
-    public int energyDelta() {
-        return energyDelta;
-    }
-
-    public void setEnergyDelta(int energyDelta) {
-        this.energyDelta = energyDelta;
     }
 
 
