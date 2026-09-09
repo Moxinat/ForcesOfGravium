@@ -160,7 +160,7 @@ public final class SourceActivationScheduler {
             long networkId,
             int energyDelta
     ) {
-        if (networkId == NodeComponent.NO_NETWORK) {
+        if (networkId == NetworkResource.NO_NETWORK) {
             return;
         }
 
