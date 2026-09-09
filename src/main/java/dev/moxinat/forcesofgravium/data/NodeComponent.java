@@ -15,6 +15,8 @@ public final class NodeComponent implements Component<ChunkStore> {
     private static final EnumCodec<SignalState> SIGNAL_STATE_CODEC =
             new EnumCodec<>(SignalState.class);
 
+    private static volatile NodeComponent DEBUG_TRACKED_INSTANCE;
+
     public static final BuilderCodec<NodeComponent> CODEC =
             BuilderCodec.builder(
                             NodeComponent.class,
@@ -148,6 +150,17 @@ public final class NodeComponent implements Component<ChunkStore> {
     }
 
     private NodeComponent(@Nonnull NodeComponent other) {
+        if (other == DEBUG_TRACKED_INSTANCE) {
+            debugTracked(
+                    "CLONE/SNAPSHOT source"
+                            + " instant=" + other.instantState
+                            + " effective=" + other.effectiveState
+                            + " dirty=" + other.dirty
+                            + " invert=" + other.invertEnabled
+                            + " passing=" + other.passing
+            );
+        }
+
         signalInputSides = other.signalInputSides;
         signalOutputSides = other.signalOutputSides;
         controlInputSides = other.controlInputSides;
@@ -161,6 +174,24 @@ public final class NodeComponent implements Component<ChunkStore> {
         dirty = other.dirty;
         invertEnabled = other.invertEnabled;
         passing = other.passing;
+    }
+
+
+    public static void debugTrackForSave(@Nonnull NodeComponent component) {
+        if (DEBUG_TRACKED_INSTANCE == component) {
+            return;
+        }
+
+        DEBUG_TRACKED_INSTANCE = component;
+
+        debugTracked(
+                "TRACK instance=" + System.identityHashCode(component)
+                        + " instant=" + component.instantState
+                        + " effective=" + component.effectiveState
+                        + " dirty=" + component.dirty
+                        + " invert=" + component.invertEnabled
+                        + " passing=" + component.passing
+        );
     }
 
 
@@ -198,6 +229,11 @@ public final class NodeComponent implements Component<ChunkStore> {
     }
 
     public void setInstantState(@Nonnull SignalState instantState) {
+        debugTrackedMutation(
+                "setInstantState",
+                "from=" + this.instantState + " to=" + instantState
+        );
+
         this.previousInstantState = this.instantState;
         this.instantState = instantState;
     }
@@ -212,14 +248,32 @@ public final class NodeComponent implements Component<ChunkStore> {
     }
 
     public void setEffectiveState(@Nonnull SignalState effectiveState) {
+        debugTrackedMutation(
+                "setEffectiveState",
+                "from=" + this.effectiveState + " to=" + effectiveState
+        );
+
         this.previousEffectiveState = this.effectiveState;
         this.effectiveState = effectiveState;
     }
 
     public void adoptInstantState() {
+        debugTrackedMutation(
+                "adoptInstantState",
+                "instant=" + instantState
+                        + " effectiveBefore=" + effectiveState
+                        + " dirtyBefore=" + dirty
+        );
+
         previousEffectiveState = effectiveState;
         effectiveState = instantState;
         dirty = false;
+
+        debugTrackedMutation(
+                "adoptInstantState complete",
+                "effectiveAfter=" + effectiveState
+                        + " dirtyAfter=" + dirty
+        );
     }
 
 
@@ -228,6 +282,11 @@ public final class NodeComponent implements Component<ChunkStore> {
     }
 
     public void setDirty(boolean dirty) {
+        debugTrackedMutation(
+                "setDirty",
+                "from=" + this.dirty + " to=" + dirty
+        );
+
         this.dirty = dirty;
     }
 
@@ -237,6 +296,11 @@ public final class NodeComponent implements Component<ChunkStore> {
     }
 
     public void setInvertEnabled(boolean invertEnabled) {
+        debugTrackedMutation(
+                "setInvertEnabled",
+                "from=" + this.invertEnabled + " to=" + invertEnabled
+        );
+
         this.invertEnabled = invertEnabled;
     }
 
@@ -246,6 +310,11 @@ public final class NodeComponent implements Component<ChunkStore> {
     }
 
     public void setPassing(boolean passing) {
+        debugTrackedMutation(
+                "setPassing",
+                "from=" + this.passing + " to=" + passing
+        );
+
         this.passing = passing;
     }
 
@@ -260,6 +329,28 @@ public final class NodeComponent implements Component<ChunkStore> {
 
     public boolean canReceiveControlFrom(int localSide) {
         return (controlInputSides & localSide) != 0;
+    }
+
+
+    private void debugTrackedMutation(
+            @Nonnull String action,
+            @Nonnull String details
+    ) {
+        if (this != DEBUG_TRACKED_INSTANCE) {
+            return;
+        }
+
+        debugTracked(
+                action
+                        + " instance=" + System.identityHashCode(this)
+                        + " " + details
+        );
+    }
+
+    private static void debugTracked(@Nonnull String message) {
+        System.out.println(
+                "[FoG Target Debug][NodeComponent] " + message
+        );
     }
 
 
