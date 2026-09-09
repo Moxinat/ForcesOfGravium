@@ -17,7 +17,8 @@ public class ConnectableNetworkManager {
 
     public static void onNodePlaced(
             @Nonnull World world,
-            @Nonnull Vector3i position
+            @Nonnull Vector3i position,
+            int energyDelta
     ) {
         NodeComponent node =
                 nodeAt(
@@ -85,7 +86,7 @@ public class ConnectableNetworkManager {
         networks.setEnergyDelta(
                 targetNetworkId,
                 position,
-                0
+                energyDelta
         );
 
         for (Vector3i neighborPosition : neighbors) {
@@ -273,6 +274,20 @@ public class ConnectableNetworkManager {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
+        NetworkResource networks =
+                networks(world);
+
+        long oldNetworkId =
+                networks.networkAt(position);
+
+        int energyDelta =
+                oldNetworkId == NetworkResource.NO_NETWORK
+                        ? 0
+                        : networks.energyDelta(
+                                oldNetworkId,
+                                position
+                        );
+
         onNodeBroken(
                 world,
                 position
@@ -290,7 +305,8 @@ public class ConnectableNetworkManager {
 
         onNodePlaced(
                 world,
-                position
+                position,
+                energyDelta
         );
     }
 
