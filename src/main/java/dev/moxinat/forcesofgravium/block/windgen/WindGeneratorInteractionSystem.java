@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SourceComponent;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -87,6 +88,19 @@ public final class WindGeneratorInteractionSystem
             return;
         }
 
+        NetworkResource networks =
+                world.getChunkStore()
+                        .getStore()
+                        .getResource(
+                                ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
+                        );
+
+        long networkId = networks.networkAt(position);
+
+        if (networkId == NetworkResource.NO_NETWORK) {
+            return;
+        }
+
         SourceComponent source =
                 BlockModule.getComponent(
                         ForcesOfGraviumPlugin.SOURCE_COMPONENT_TYPE,
@@ -101,7 +115,10 @@ public final class WindGeneratorInteractionSystem
         }
 
         boolean turningOn =
-                node.energyDelta() == 0;
+                networks.energyDelta(
+                        networkId,
+                        position
+                ) == 0;
 
         int energyDelta;
 
@@ -120,7 +137,11 @@ public final class WindGeneratorInteractionSystem
             instantState = SignalState.OFF;
         }
 
-        node.setEnergyDelta(energyDelta);
+        networks.setEnergyDelta(
+                networkId,
+                position,
+                energyDelta
+        );
         node.setInstantState(instantState);
         node.setDirty(true);
 
