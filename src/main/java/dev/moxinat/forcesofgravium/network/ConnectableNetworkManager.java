@@ -48,7 +48,7 @@ public class ConnectableNetworkManager {
                             neighborPosition
                     );
 
-            if (neighborNetworkId != NodeComponent.NO_NETWORK) {
+            if (neighborNetworkId != NetworkResource.NO_NETWORK) {
                 neighborNetworkIds.add(
                         neighborNetworkId
                 );
@@ -70,7 +70,6 @@ public class ConnectableNetworkManager {
                 }
 
                 mergeNetworkInto(
-                        world,
                         networks,
                         sourceNetworkId,
                         targetNetworkId
@@ -87,10 +86,6 @@ public class ConnectableNetworkManager {
                 targetNetworkId,
                 position,
                 node.energyDelta()
-        );
-
-        node.setNetworkId(
-                targetNetworkId
         );
 
         for (Vector3i neighborPosition : neighbors) {
@@ -130,7 +125,7 @@ public class ConnectableNetworkManager {
                         position
                 );
 
-        if (networkId == NodeComponent.NO_NETWORK) {
+        if (networkId == NetworkResource.NO_NETWORK) {
             return Set.of();
         }
 
@@ -222,7 +217,6 @@ public class ConnectableNetworkManager {
                     networks.createNetwork();
 
             copyComponent(
-                    world,
                     networks,
                     networkId,
                     splitNetworkId,
@@ -294,10 +288,6 @@ public class ConnectableNetworkManager {
             return;
         }
 
-        node.setNetworkId(
-                NodeComponent.NO_NETWORK
-        );
-
         onNodePlaced(
                 world,
                 position
@@ -317,7 +307,6 @@ public class ConnectableNetworkManager {
     }
 
     private static void mergeNetworkInto(
-            @Nonnull World world,
             @Nonnull NetworkResource networks,
             long sourceNetworkId,
             long targetNetworkId
@@ -382,20 +371,6 @@ public class ConnectableNetworkManager {
             }
         }
 
-        for (Vector3i memberPosition : sourceMembers) {
-            NodeComponent member =
-                    nodeAt(
-                            world,
-                            memberPosition
-                    );
-
-            if (member != null) {
-                member.setNetworkId(
-                        targetNetworkId
-                );
-            }
-        }
-
         for (Vector3i pendingPosition :
                 sourcePendingFailureOff) {
 
@@ -419,7 +394,6 @@ public class ConnectableNetworkManager {
     }
 
     private static void copyComponent(
-            @Nonnull World world,
             @Nonnull NetworkResource networks,
             long sourceNetworkId,
             long targetNetworkId,
@@ -455,20 +429,6 @@ public class ConnectableNetworkManager {
                             neighbour
                     );
                 }
-            }
-        }
-
-        for (Vector3i memberPosition : component) {
-            NodeComponent member =
-                    nodeAt(
-                            world,
-                            memberPosition
-                    );
-
-            if (member != null) {
-                member.setNetworkId(
-                        targetNetworkId
-                );
             }
         }
     }
@@ -559,18 +519,7 @@ public class ConnectableNetworkManager {
             @Nonnull NetworkResource networks,
             @Nonnull Vector3i position
     ) {
-        for (long networkId :
-                networks.networkIds()) {
-
-            if (networks.containsMember(
-                    networkId,
-                    position
-            )) {
-                return networkId;
-            }
-        }
-
-        return NodeComponent.NO_NETWORK;
+        return networks.networkAt(position);
     }
 
     private static int graphEnergy(
