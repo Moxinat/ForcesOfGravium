@@ -4,6 +4,7 @@ import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.signal.ConnectableSignalRecalculator;
@@ -35,8 +36,12 @@ public final class InverterStateCalculator {
             return;
         }
 
-        inverter.setInvertEnabled(
-                !inverter.invertEnabled()
+        boolean invertEnabled = !inverter.invertEnabled();
+
+        Nodes.mutate(
+                world,
+                inverterPosition,
+                currentNode -> currentNode.setInvertEnabled(invertEnabled)
         );
 
         for (Vector3i forwardNeighbor :
