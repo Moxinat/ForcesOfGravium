@@ -85,7 +85,7 @@ public class ConnectableNetworkManager {
         networks.setEnergyDelta(
                 targetNetworkId,
                 position,
-                node.energyDelta()
+                0
         );
 
         for (Vector3i neighborPosition : neighbors) {
