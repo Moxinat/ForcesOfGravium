@@ -1,7 +1,10 @@
 package dev.moxinat.forcesofgravium.signal;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.ChunkSection;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SignalRuntimeResource;
@@ -62,6 +65,13 @@ public final class ConnectablePropagationScheduler {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
+        if (!isBubbleLoaded(world, position)) {
+            signalResource(world)
+                    .currentWave()
+                    .add(new Vector3i(position));
+            return;
+        }
+
         NodeComponent node = nodeAt(world, position);
 
         if (node == null) {
@@ -124,6 +134,58 @@ public final class ConnectablePropagationScheduler {
                         .add(new Vector3i(signalNeighbor));
             }
         }
+    }
+
+    private static boolean isBubbleLoaded(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        var chunkStore = world.getChunkStore();
+
+        Ref<ChunkStore> centerRef =
+                chunkStore.getChunkSectionReferenceAtBlock(
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
+
+        if (centerRef == null || !centerRef.isValid()) {
+            return false;
+        }
+
+        ChunkSection centerSection =
+                centerRef.getStore().getComponent(
+                        centerRef,
+                        ChunkSection.getComponentType()
+                );
+
+        if (centerSection == null) {
+            return false;
+        }
+
+        int centerX = centerSection.getX();
+        int centerY = centerSection.getY();
+        int centerZ = centerSection.getZ();
+
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dz = -1; dz <= 1; dz++) {
+
+                    Ref<ChunkStore> sectionRef =
+                            chunkStore.getChunkSectionReference(
+                                    centerX + dx,
+                                    centerY + dy,
+                                    centerZ + dz
+                            );
+
+                    if (sectionRef == null || !sectionRef.isValid()) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
     }
 
     public static void cancelPendingAdoption(
