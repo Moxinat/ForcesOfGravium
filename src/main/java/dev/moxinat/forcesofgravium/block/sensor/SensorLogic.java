@@ -117,13 +117,27 @@ public final class SensorLogic {
             return;
         }
 
-        world.getChunkStore()
-                .getStore()
-                .putComponent(
+        Store<ChunkStore> store =
+                world.getChunkStore()
+                        .getStore();
+
+        BlockModule.BlockStateInfo blockStateInfo =
+                store.getComponent(
                         blockRef,
-                        ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE,
-                        component
+                        BlockModule.BlockStateInfo.getComponentType()
                 );
+
+        if (blockStateInfo == null) {
+            return;
+        }
+
+        store.putComponent(
+                blockRef,
+                ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE,
+                component
+        );
+
+        blockStateInfo.markNeedsSaving();
     }
 
     public static void handleStateChange(
