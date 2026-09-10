@@ -113,10 +113,6 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
     }
 
 
-    // --------------------------------------------------
-    // RUNTIME ACCESS
-    // --------------------------------------------------
-
     public @Nonnull Set<Vector3i> currentWave() {
         return currentWave;
     }
@@ -130,17 +126,7 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
     }
 
 
-    // --------------------------------------------------
-    // CURRENT WAVE SERIALIZATION
-    // --------------------------------------------------
-
     private Vector3i[] getCurrentWave() {
-        System.out.println(
-                "[FoG SAVE] SERIALIZE RESOURCE current="
-                        + currentWave
-                        + " next=" + nextWave
-        );
-
         return currentWave.toArray(
                 Vector3i[]::new
         );
@@ -165,10 +151,6 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
         }
     }
 
-
-    // --------------------------------------------------
-    // NEXT WAVE SERIALIZATION
-    // --------------------------------------------------
 
     private Vector3i[] getNextWave() {
         return nextWave.toArray(
@@ -195,10 +177,6 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
         }
     }
 
-
-    // --------------------------------------------------
-    // ACTIVE SOURCE SERIALIZATION
-    // --------------------------------------------------
 
     private ActiveSourceData[] getActiveSources() {
 
@@ -245,19 +223,11 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
     }
 
 
-    // --------------------------------------------------
-    // CLONE
-    // --------------------------------------------------
-
     @Override
     public @Nonnull SignalRuntimeResource clone() {
         return new SignalRuntimeResource(this);
     }
 
-
-    // --------------------------------------------------
-    // SERIALIZED ACTIVE SOURCE
-    // --------------------------------------------------
 
     public static final class ActiveSourceData {
 
