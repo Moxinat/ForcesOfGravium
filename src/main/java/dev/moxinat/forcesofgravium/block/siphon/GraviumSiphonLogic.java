@@ -63,7 +63,8 @@ public final class GraviumSiphonLogic {
                 world,
                 position,
                 node,
-                siphon
+                siphon,
+                entityStore
         )) {
             return;
         }
@@ -79,7 +80,8 @@ public final class GraviumSiphonLogic {
             @Nonnull World world,
             @Nonnull Vector3i position,
             @Nonnull NodeComponent node,
-            @Nonnull SiphonComponent siphon
+            @Nonnull SiphonComponent siphon,
+            @Nonnull Store<EntityStore> entityStore
     ) {
         boolean powered =
                 node.effectiveState() == SignalState.PUSH;
@@ -91,18 +93,77 @@ public final class GraviumSiphonLogic {
             return false;
         }
 
-        if (siphon.onCooldown()) {
-            siphon.tickCooldown();
+        if (!hasSourceItem(
+                world,
+                position,
+                entityStore
+        )) {
+            siphon.setCooldownTicks(0);
             return false;
         }
 
-        siphon.setCooldownTicks(
-                powered
-                        ? POWERED_TRANSFER_INTERVAL_TICKS
-                        : UNPOWERED_TRANSFER_INTERVAL_TICKS
-        );
+        if (!siphon.onCooldown()) {
+            siphon.setCooldownTicks(
+                    powered
+                            ? POWERED_TRANSFER_INTERVAL_TICKS
+                            : UNPOWERED_TRANSFER_INTERVAL_TICKS
+            );
 
-        return true;
+            return false;
+        }
+
+        siphon.tickCooldown();
+
+        return !siphon.onCooldown();
+    }
+
+    private static boolean hasSourceItem(
+            @Nonnull World world,
+            @Nonnull Vector3i siphonPosition,
+            @Nonnull Store<EntityStore> entityStore
+    ) {
+        Vector3i sourcePosition =
+                ConnectableNeighborResolver.adjacentPositionForLocalSide(
+                        world,
+                        siphonPosition,
+                        ConnectableRegistry.SIDE_BACK
+                );
+
+        SiphonEndpoint source =
+                SiphonEndpoint.at(
+                        world,
+                        sourcePosition
+                );
+
+        ItemContainer sourceContainer =
+                source.extractContainer();
+
+        if (sourceContainer != null) {
+            for (short slot = 0;
+                 slot < sourceContainer.getCapacity();
+                 slot++) {
+
+                if (!ItemStack.isEmpty(
+                        sourceContainer.getItemStack(slot)
+                )) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        if (!isDroppableTarget(
+                world,
+                sourcePosition
+        )) {
+            return false;
+        }
+
+        return worldItemSourceAt(
+                entityStore,
+                sourcePosition
+        ) != null;
     }
 
     public static @Nonnull SiphonMoveResult transferOneItem(
