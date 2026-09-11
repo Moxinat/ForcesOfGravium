@@ -34,7 +34,7 @@ public final class ConnectableSignalRecalculator {
         }
     }
 
-    public static void recompute(
+    public static void recomputeLoaded(
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
@@ -261,6 +261,16 @@ public final class ConnectableSignalRecalculator {
                 }
             }
         }
+    }
+
+    public static void recompute(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        ConnectableRecomputeCoordinator.request(
+                world,
+                position
+        );
     }
 
     private static NetworkResource networkResource(

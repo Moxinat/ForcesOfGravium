@@ -17,6 +17,7 @@ import dev.moxinat.forcesofgravium.data.*;
 import dev.moxinat.forcesofgravium.lifecycle.ForcesOfGraviumEvents;
 import dev.moxinat.forcesofgravium.lifecycle.*;
 import dev.moxinat.forcesofgravium.persistence.ChunkLoadSystem;
+import dev.moxinat.forcesofgravium.signal.ConnectableRecomputeCoordinator;
 
 import javax.annotation.Nonnull;
 
@@ -96,6 +97,7 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.ItemLifecycleSystem());
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.ItemTrackingSystem());
         this.getChunkStoreRegistry().registerSystem(new ChunkLoadSystem.SensorLoadSystem());
+        this.getChunkStoreRegistry().registerSystem(new ConnectableRecomputeCoordinator.SectionUnloadSystem());
 
         SensorLogic.registerTriggerEffects();
     }

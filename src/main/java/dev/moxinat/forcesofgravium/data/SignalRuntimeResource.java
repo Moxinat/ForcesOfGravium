@@ -65,6 +65,15 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
                             SignalRuntimeResource::getActiveSources
                     )
                     .add()
+                    .append(
+                            new KeyedCodec<>(
+                                    "PendingRecomputes",
+                                    POSITION_ARRAY_CODEC
+                            ),
+                            SignalRuntimeResource::setPendingRecomputes,
+                            SignalRuntimeResource::getPendingRecomputes
+                    )
+                    .add()
 
                     .build();
 
@@ -73,6 +82,9 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
             new LinkedHashSet<>();
 
     private final Set<Vector3i> nextWave =
+            new LinkedHashSet<>();
+
+    private final Set<Vector3i> pendingRecomputes =
             new LinkedHashSet<>();
 
     /**
@@ -102,6 +114,12 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
             );
         }
 
+        for (Vector3i position : other.pendingRecomputes) {
+            pendingRecomputes.add(
+                    new Vector3i(position)
+            );
+        }
+
         for (Map.Entry<Vector3i, Long> entry
                 : other.activeSources.entrySet()) {
 
@@ -120,6 +138,8 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
     public @Nonnull Set<Vector3i> nextWave() {
         return nextWave;
     }
+
+    public @Nonnull Set<Vector3i> pendingRecomputes() {return pendingRecomputes;}
 
     public @Nonnull Map<Vector3i, Long> activeSources() {
         return activeSources;
@@ -171,6 +191,31 @@ public final class SignalRuntimeResource implements Resource<ChunkStore> {
 
             if (position != null) {
                 nextWave.add(
+                        new Vector3i(position)
+                );
+            }
+        }
+    }
+
+    private Vector3i[] getPendingRecomputes() {
+        return pendingRecomputes.toArray(
+                Vector3i[]::new
+        );
+    }
+
+    private void setPendingRecomputes(
+            Vector3i[] positions
+    ) {
+        pendingRecomputes.clear();
+
+        if (positions == null) {
+            return;
+        }
+
+        for (Vector3i position : positions) {
+
+            if (position != null) {
+                pendingRecomputes.add(
                         new Vector3i(position)
                 );
             }
