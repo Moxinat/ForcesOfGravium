@@ -1,6 +1,7 @@
 package dev.moxinat.forcesofgravium.signal;
 
 import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.WorldEventSystem;
 import com.hypixel.hytale.math.util.ChunkUtil;
@@ -28,9 +29,6 @@ public final class ConnectableRecomputeCoordinator {
     private static final Map<World, Set<Long>> ACTIVE_NETWORKS =
             new ConcurrentHashMap<>();
 
-    private static final Map<World, Set<Long>> READY_NETWORKS =
-            new ConcurrentHashMap<>();
-
     private static final Map<World, Set<Vector3i>> PINNED_SECTIONS =
             new ConcurrentHashMap<>();
 
@@ -38,15 +36,6 @@ public final class ConnectableRecomputeCoordinator {
             @Nonnull World world
     ) {
         return ACTIVE_NETWORKS.computeIfAbsent(
-                world,
-                ignored -> ConcurrentHashMap.newKeySet()
-        );
-    }
-
-    private static Set<Long> readyNetworks(
-            @Nonnull World world
-    ) {
-        return READY_NETWORKS.computeIfAbsent(
                 world,
                 ignored -> ConcurrentHashMap.newKeySet()
         );
@@ -123,23 +112,30 @@ public final class ConnectableRecomputeCoordinator {
                 continue;
             }
 
-            activeNetworks.add(networkId);
+            if (activeNetworks.add(networkId)) {
+                startPendingRecompute(
+                        world,
+                        networkId
+                );
+            }
         }
 
         for (long networkId :
                 new LinkedHashSet<>(activeNetworks)) {
 
-            startPendingRecompute(
+            if (!isNetworkReady(
+                    world,
+                    networkId
+            )) {
+                continue;
+            }
+
+            finishPendingRecompute(
                     world,
                     networkId
             );
         }
     }
-
-
-    public static void shutdown() {
-    }
-
 
     private static void startPendingRecompute(
             @Nonnull World world,
@@ -179,21 +175,55 @@ public final class ConnectableRecomputeCoordinator {
                         )
                         .toArray(CompletableFuture[]::new);
 
-        CompletableFuture
-                .allOf(loads)
-                .thenRun(() ->
-                        readyNetworks(world)
-                                .add(networkId)
-                );
     }
 
 
     private static void finishPendingRecompute(
             @Nonnull World world,
-            @Nonnull Vector3i position
+            long networkId
     ) {
-    }
+        SignalRuntimeResource signal =
+                signalResource(world);
 
+        NetworkResource networks =
+                networkResource(world);
+
+        Set<Vector3i> sections =
+                requiredSections(
+                        world,
+                        networkId
+                );
+
+        Set<Vector3i> pending =
+                new LinkedHashSet<>(
+                        signal.pendingRecomputes()
+                );
+
+        for (Vector3i position : pending) {
+
+            if (networks.networkAt(position)
+                    != networkId) {
+                continue;
+            }
+
+            ConnectableSignalRecalculator
+                    .recomputeLoaded(
+                            world,
+                            position
+                    );
+
+            signal.pendingRecomputes()
+                    .remove(position);
+        }
+
+        unpinSections(
+                world,
+                sections
+        );
+
+        activeNetworks(world)
+                .remove(networkId);
+    }
 
     private static Set<Vector3i> requiredSections(
             @Nonnull World world,
@@ -255,15 +285,26 @@ public final class ConnectableRecomputeCoordinator {
             @Nonnull World world,
             long networkId
     ) {
-        Set<Vector3i> sections =
-                requiredSections(
-                        world,
-                        networkId
-                );
+        ChunkStore chunkStore =
+                world.getChunkStore();
 
-        // hier direkt prüfen,
-        // ob jede Section geladen ist
-        return false;
+        for (Vector3i section :
+                requiredSections(world, networkId)) {
+
+            Ref<ChunkStore> sectionRef =
+                    chunkStore.getChunkSectionReference(
+                            section.x(),
+                            section.y(),
+                            section.z()
+                    );
+
+            if (sectionRef == null
+                    || !sectionRef.isValid()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
 
