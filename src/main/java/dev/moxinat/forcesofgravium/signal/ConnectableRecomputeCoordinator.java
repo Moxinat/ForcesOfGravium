@@ -74,6 +74,13 @@ public final class ConnectableRecomputeCoordinator {
         SignalRuntimeResource signal =
                 signalResource(world);
 
+        System.out.println(
+                "[FoG Recompute] QUEUE network="
+                        + networkId
+                        + " position="
+                        + position
+        );
+
         signal.pendingRecomputes().add(
                 new Vector3i(position)
         );
@@ -159,6 +166,13 @@ public final class ConnectableRecomputeCoordinator {
                         networkId
                 );
 
+        System.out.println(
+                "[FoG Recompute] START LOAD network="
+                        + networkId
+                        + " sections="
+                        + sections.size()
+        );
+
         pinSections(
                 world,
                 sections
@@ -171,6 +185,11 @@ public final class ConnectableRecomputeCoordinator {
             @Nonnull World world,
             long networkId
     ) {
+        System.out.println(
+                "[FoG Recompute] FINISH network="
+                        + networkId
+        );
+
         SignalRuntimeResource signal =
                 signalResource(world);
 
@@ -289,6 +308,13 @@ public final class ConnectableRecomputeCoordinator {
 
             if (sectionRef == null
                     || !sectionRef.isValid()) {
+                System.out.println(
+                        "[FoG Recompute] WAITING network="
+                                + networkId
+                                + " missing="
+                                + section
+                );
+
                 return false;
             }
         }
