@@ -275,6 +275,15 @@ public final class ConnectableRecomputeCoordinator {
 
         activeNetworks(world)
                 .remove(networkId);
+
+        System.out.println(
+                "[FoG Recompute] CLEANUP network="
+                        + networkId
+                        + " pinned="
+                        + pinnedSections(world).size()
+                        + " active="
+                        + activeNetworks(world).size()
+        );
     }
 
     private static Set<Vector3i> requiredSections(
