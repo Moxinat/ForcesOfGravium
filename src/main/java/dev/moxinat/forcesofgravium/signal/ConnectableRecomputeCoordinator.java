@@ -5,12 +5,15 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.WorldEventSystem;
 import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.ChunkSection;
 import com.hypixel.hytale.server.core.universe.world.events.ecs.SectionUnloadEvent;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import com.hypixel.hytale.server.core.universe.world.storage.GetChunkFlags;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NetworkResource;
+import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SignalRuntimeResource;
 import org.joml.Vector3i;
 
@@ -178,6 +181,31 @@ public final class ConnectableRecomputeCoordinator {
                 sections
         );
 
+        ChunkStore chunkStore =
+                world.getChunkStore();
+
+        for (Vector3i section : sections) {
+
+            Ref<ChunkStore> sectionRef =
+                    chunkStore.getChunkSectionReference(
+                            section.x(),
+                            section.y(),
+                            section.z()
+                    );
+
+            if (sectionRef != null
+                    && sectionRef.isValid()) {
+                continue;
+            }
+
+            chunkStore.getChunkSectionReferenceAsync(
+                    section.x(),
+                    section.y(),
+                    section.z(),
+                    GetChunkFlags.SET_TICKING
+            );
+        }
+
     }
 
 
@@ -296,6 +324,9 @@ public final class ConnectableRecomputeCoordinator {
         ChunkStore chunkStore =
                 world.getChunkStore();
 
+        NetworkResource networks =
+                networkResource(world);
+
         for (Vector3i section :
                 requiredSections(world, networkId)) {
 
@@ -308,11 +339,37 @@ public final class ConnectableRecomputeCoordinator {
 
             if (sectionRef == null
                     || !sectionRef.isValid()) {
+
                 System.out.println(
-                        "[FoG Recompute] WAITING network="
+                        "[FoG Recompute] WAITING SECTION network="
                                 + networkId
                                 + " missing="
                                 + section
+                );
+
+                return false;
+            }
+        }
+
+        for (Vector3i position :
+                networks.members(networkId)) {
+
+            NodeComponent node =
+                    BlockModule.getComponent(
+                            ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                            world,
+                            position.x(),
+                            position.y(),
+                            position.z()
+                    );
+
+            if (node == null) {
+
+                System.out.println(
+                        "[FoG Recompute] WAITING NODE network="
+                                + networkId
+                                + " missing="
+                                + position
                 );
 
                 return false;
@@ -381,6 +438,8 @@ public final class ConnectableRecomputeCoordinator {
             if (!pinned.contains(sectionPosition)) {
                 return;
             }
+
+            section.resetActiveTimer();
 
             event.setCancelled(true);
             event.setResetKeepAlive(true);
