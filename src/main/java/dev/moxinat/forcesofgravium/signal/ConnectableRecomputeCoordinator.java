@@ -138,6 +138,33 @@ public final class ConnectableRecomputeCoordinator {
         for (long networkId :
                 new LinkedHashSet<>(activeNetworks)) {
 
+            ChunkStore chunkStore =
+                    world.getChunkStore();
+
+            for (Vector3i section : requiredSections(world, networkId)) {
+                Ref<ChunkStore> sectionRef =
+                        chunkStore.getChunkSectionReference(
+                                section.x(),
+                                section.y(),
+                                section.z()
+                        );
+
+                if (sectionRef == null || !sectionRef.isValid()) {
+                    continue;
+                }
+
+                ChunkSection chunkSection =
+                        sectionRef.getStore().getComponent(
+                                sectionRef,
+                                ChunkSection.getComponentType()
+                        );
+
+                if (chunkSection != null) {
+                    chunkSection.resetActiveTimer();
+                    chunkSection.resetKeepAlive();
+                }
+            }
+
             if (!isNetworkReady(
                     world,
                     networkId
@@ -186,18 +213,6 @@ public final class ConnectableRecomputeCoordinator {
                 world.getChunkStore();
 
         for (Vector3i section : sections) {
-
-            Ref<ChunkStore> sectionRef =
-                    chunkStore.getChunkSectionReference(
-                            section.x(),
-                            section.y(),
-                            section.z()
-                    );
-
-            if (sectionRef != null
-                    && sectionRef.isValid()) {
-                continue;
-            }
 
             chunkStore.getChunkSectionReferenceAsync(
                     section.x(),
