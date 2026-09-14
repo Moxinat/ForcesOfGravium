@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.system.WorldEventSystem;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockComponentSection;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.ChunkSection;
 import com.hypixel.hytale.server.core.universe.world.events.ecs.SectionUnloadEvent;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
@@ -364,12 +365,10 @@ public final class ConnectableRecomputeCoordinator {
                     );
 
             if (node == null) {
-
-                System.out.println(
-                        "[FoG Recompute] WAITING NODE network="
-                                + networkId
-                                + " missing="
-                                + position
+                logMissingNode(
+                        world,
+                        networkId,
+                        position
                 );
 
                 return false;
@@ -377,6 +376,84 @@ public final class ConnectableRecomputeCoordinator {
         }
 
         return true;
+    }
+
+    private static void logMissingNode(
+            @Nonnull World world,
+            long networkId,
+            @Nonnull Vector3i position
+    ) {
+        ChunkStore chunkStore =
+                world.getChunkStore();
+
+        Vector3i section =
+                new Vector3i(
+                        ChunkUtil.chunkCoordinate(position.x()),
+                        ChunkUtil.chunkCoordinate(position.y()),
+                        ChunkUtil.chunkCoordinate(position.z())
+                );
+
+        Ref<ChunkStore> sectionRef =
+                chunkStore.getChunkSectionReference(
+                        section.x(),
+                        section.y(),
+                        section.z()
+                );
+
+        if (sectionRef == null
+                || !sectionRef.isValid()) {
+            System.out.println(
+                    "[FoG Recompute] WAITING NODE network="
+                            + networkId
+                            + " missing="
+                            + position
+                            + " section="
+                            + section
+                            + " sectionRef=false"
+            );
+            return;
+        }
+
+        BlockComponentSection blockComponents =
+                sectionRef.getStore().getComponent(
+                        sectionRef,
+                        BlockComponentSection.getComponentType()
+                );
+
+        int blockIndex =
+                ChunkUtil.indexBlock(
+                        ChunkUtil.localCoordinate(position.x()),
+                        ChunkUtil.localCoordinate(position.y()),
+                        ChunkUtil.localCoordinate(position.z())
+                );
+
+        boolean hasHolder =
+                blockComponents != null
+                        && blockComponents.getBlockHolder(blockIndex) != null;
+
+        Ref<ChunkStore> blockRef =
+                blockComponents == null
+                        ? null
+                        : blockComponents.getBlockReference(blockIndex);
+
+        boolean hasLiveRef =
+                blockRef != null
+                        && blockRef.isValid();
+
+        System.out.println(
+                "[FoG Recompute] WAITING NODE network="
+                        + networkId
+                        + " missing="
+                        + position
+                        + " section="
+                        + section
+                        + " blockComponents="
+                        + (blockComponents != null)
+                        + " holder="
+                        + hasHolder
+                        + " liveRef="
+                        + hasLiveRef
+        );
     }
 
 
