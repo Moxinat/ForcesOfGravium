@@ -8,13 +8,10 @@ import com.hypixel.hytale.builtin.triggervolumes.shape.BoxShape;
 import com.hypixel.hytale.component.*;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.spatial.SpatialResource;
-import com.hypixel.hytale.component.system.EntityEventSystem;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.event.EventRegistration;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
-import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
@@ -931,15 +928,12 @@ public final class SensorLogic {
                 TriggerEventType.EXIT
         );
 
-/*
         SensorBlockUsedEffect blockUsedEffect =
                 new SensorBlockUsedEffect();
 
         blockUsedEffect.setEventType(
                 TriggerEventType.BLOCK_USED
         );
-
- */
 
         VolumeEntry volume = new VolumeEntry(
                 volumeId,
@@ -949,6 +943,7 @@ public final class SensorLogic {
                 List.of(
                         blockPlacedEffect,
                         blockBrokenEffect,
+                        blockUsedEffect,
                         entityEnterEffect,
                         entityExitEffect
                 ),
@@ -1232,24 +1227,21 @@ public final class SensorLogic {
         public void execute(
                 @Nonnull TriggerContext context
         ) {
+            Vector3d blockPosition =
+                    context.getBlockPosition();
+
+            if (blockPosition == null) {
+                return;
+            }
+
             World world =
                     context.getStore()
                             .getExternalData()
                             .getWorld();
 
-            Vector3d volumePosition =
-                    context.getVolume().getPosition();
-
-            Vector3i observedPosition =
-                    new Vector3i(
-                            (int) Math.floor(volumePosition.x()),
-                            (int) Math.floor(volumePosition.y()),
-                            (int) Math.floor(volumePosition.z())
-                    );
-
             SensorLogic.handleBlockUsed(
                     world,
-                    observedPosition
+                    blockPosition(blockPosition)
             );
         }
     }
@@ -1266,40 +1258,6 @@ public final class SensorLogic {
                 SensorBlockUsedEffect.class,
                 SensorBlockUsedEffect.CODEC
         );
-    }
-
-    //temp until trigger volumes can handle block use in update 6
-    public static final class BlockUseSystem
-            extends EntityEventSystem<EntityStore, UseBlockEvent.Post> {
-
-        public BlockUseSystem() {
-            super(UseBlockEvent.Post.class);
-        }
-
-        @Override
-        public @Nonnull Query<EntityStore> getQuery() {
-            return Player.getComponentType();
-        }
-
-        @Override
-        public void handle(
-                int index,
-                @Nonnull ArchetypeChunk<EntityStore> chunk,
-                @Nonnull Store<EntityStore> store,
-                @Nonnull CommandBuffer<EntityStore> commandBuffer,
-                @Nonnull UseBlockEvent.Post event
-        ) {
-            World world =
-                    store.getExternalData().getWorld();
-
-            Vector3i observedPosition =
-                    new Vector3i(event.getTargetBlock());
-
-            handleBlockUsed(
-                    world,
-                    observedPosition
-            );
-        }
     }
 
     public static final class ItemTrackingSystem
@@ -1472,6 +1430,61 @@ public final class SensorLogic {
                     position,
                     false
             );
+        }
+    }
+
+    public static final class ContainerLoadSystem
+            extends RefSystem<ChunkStore> {
+
+        @Override
+        public @Nonnull Query<ChunkStore> getQuery() {
+            return Query.and(
+                    BlockModule.get()
+                            .getItemContainerBlockComponentType(),
+                    BlockModule.BlockStateInfo.getComponentType()
+            );
+        }
+
+        @Override
+        public void onEntityAdded(
+                @Nonnull Ref<ChunkStore> ref,
+                @Nonnull AddReason reason,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
+            BlockModule.BlockStateInfo blockStateInfo =
+                    store.getComponent(
+                            ref,
+                            BlockModule.BlockStateInfo.getComponentType()
+                    );
+
+            if (blockStateInfo == null) {
+                return;
+            }
+
+            Vector3i position = new Vector3i();
+
+            if (!blockStateInfo.fillWorldPos(store, position)) {
+                return;
+            }
+
+            World world =
+                    store.getExternalData().getWorld();
+
+            compareSensorsObserving(
+                    world,
+                    position,
+                    true
+            );
+        }
+
+        @Override
+        public void onEntityRemove(
+                @Nonnull Ref<ChunkStore> ref,
+                @Nonnull RemoveReason reason,
+                @Nonnull Store<ChunkStore> store,
+                @Nonnull CommandBuffer<ChunkStore> commandBuffer
+        ) {
         }
     }
 

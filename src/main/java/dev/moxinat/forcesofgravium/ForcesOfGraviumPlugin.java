@@ -87,13 +87,13 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new CurveCasedGravityPowderRotationSystem.UseSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlaceSystem());
         this.getChunkStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlacedSystem());
+        this.getChunkStoreRegistry().registerSystem(new SensorLogic.ContainerLoadSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.BreakSystem());
         this.getChunkStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.BrokenSystem());
         this.getEntityStoreRegistry().registerSystem(new WorldTickSystem());
         this.getChunkStoreRegistry().registerSystem(new GraviumSiphonLogic.TickSystem());
         this.getEntityStoreRegistry().registerSystem(new WindGeneratorInteractionSystem());
         this.getEntityStoreRegistry().registerSystem(new SensorRotationSystem.UseSystem());
-        this.getEntityStoreRegistry().registerSystem(new SensorLogic.BlockUseSystem()); //temp
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.ItemLifecycleSystem());
         this.getEntityStoreRegistry().registerSystem(new SensorLogic.ItemTrackingSystem());
         this.getChunkStoreRegistry().registerSystem(new ChunkLoadSystem.SensorLoadSystem());
