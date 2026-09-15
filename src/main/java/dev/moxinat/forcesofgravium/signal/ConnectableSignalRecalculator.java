@@ -234,9 +234,8 @@ public final class ConnectableSignalRecalculator {
                         currentPosition
                 );
 
-                SignalState stateToApply = forwardState;
                 Nodes.mutate(world, currentPosition, nodeToMutate -> {
-                    nodeToMutate.setInstantState(stateToApply);
+                    nodeToMutate.setInstantState(forwardState);
                     nodeToMutate.setDirty(true);
                 });
 

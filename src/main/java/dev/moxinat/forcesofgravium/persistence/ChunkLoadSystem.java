@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
+import dev.moxinat.forcesofgravium.block.sensor.SensorBlockRefresher;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
 import org.joml.Vector3i;
@@ -70,6 +71,11 @@ public final class ChunkLoadSystem {
                     store.getExternalData().getWorld();
 
             SensorLogic.restoreRuntime(
+                    world,
+                    position
+            );
+
+            SensorBlockRefresher.restoreRuntime(
                     world,
                     position
             );

@@ -1,10 +1,11 @@
 package dev.moxinat.forcesofgravium.block.sensor;
 
-import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
@@ -166,18 +167,23 @@ public final class SensorBlockRefresher {
             return;
         }
 
-        WorldChunk chunk = world.getChunk(
-                ChunkUtil.indexChunkFromBlock(
-                        position.x(),
-                        position.z()
-                )
-        );
+        ChunkStore chunkStore =
+                world.getChunkStore();
 
-        if (chunk == null) {
+        Ref<ChunkStore> sectionRef =
+                chunkStore.getChunkSectionReferenceAtBlock(
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
+
+        if (sectionRef == null || !sectionRef.isValid()) {
             return;
         }
 
-        chunk.setBlockInteractionState(
+        BlockOperations.setBlockInteractionState(
+                chunkStore,
+                sectionRef,
                 position.x(),
                 position.y(),
                 position.z(),

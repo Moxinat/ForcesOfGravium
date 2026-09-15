@@ -54,9 +54,12 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
             return handleParticle(context, args, i);
         }
 
-        context.sendMessage(Message.raw("Usage: /fog node here|under|<x y z>"
-                + " | /fog rotation here|under|<x y z>"
-                + " | /fog sensor here|under|<x y z>"));
+        context.sendMessage(Message.raw(
+                "Usage: /fog node here|under|<x y z>"
+                        + " | /fog rotation here|under|<x y z>"
+                        + " | /fog sensor here|under|<x y z>"
+                        + " | /fog particle <particleId>"
+        ));
 
         return CompletableFuture.completedFuture(null);
     }
@@ -442,6 +445,13 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
                                 TransformComponent.getComponentType()
                         );
 
+                if (transform == null) {
+                    context.sendMessage(
+                            Message.raw("Player TransformComponent not found.")
+                    );
+                    return;
+                }
+
                 Vector3d position = transform.getPosition();
 
                 ParticleUtil.spawnParticleEffect(
@@ -473,6 +483,11 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
 
     private static Vector3i playerBlockPosition(Ref<EntityStore> ref) {
         TransformComponent transform = ref.getStore().getComponent(ref, TransformComponent.getComponentType());
+        if (transform == null) {
+            throw new IllegalStateException(
+                    "Player TransformComponent not found"
+            );
+        }
         Vector3d p = transform.getPosition();
         return new Vector3i((int) Math.floor(p.x()), (int) Math.floor(p.y()), (int) Math.floor(p.z()));
     }
@@ -486,7 +501,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
         Ref<EntityStore> ref = context.senderAsPlayerRef();
         if (ref == null || !ref.isValid()) return null;
         World world = ref.getStore().getExternalData().getWorld();
-        return world == null ? null : new PlayerCommandState(world, ref);
+        return new PlayerCommandState(world, ref);
     }
 
     private record PlayerCommandState(World world, Ref<EntityStore> ref) {}

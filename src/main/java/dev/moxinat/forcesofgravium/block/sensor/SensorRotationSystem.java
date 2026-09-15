@@ -6,15 +6,12 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
-import com.hypixel.hytale.math.Axis;
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -35,8 +32,6 @@ import java.util.Map;
 import java.util.Set;
 
 public final class SensorRotationSystem {
-
-    private static final Axis LOCAL_INTERACTION_ROTATION_AXIS = Axis.Z;
 
     private SensorRotationSystem() {
     }
@@ -61,8 +56,6 @@ public final class SensorRotationSystem {
                 @Nonnull CommandBuffer<EntityStore> commandBuffer,
                 @Nonnull UseBlockEvent.Post event
         ) {
-            BlockType blockType = event.getBlockType();
-
             Ref<EntityStore> entityRef =
                     chunk.getReferenceTo(index);
 
@@ -116,8 +109,7 @@ public final class SensorRotationSystem {
                             ConnectableNeighborResolver.rotationFor(
                                     world,
                                     position
-                            ),
-                            LOCAL_INTERACTION_ROTATION_AXIS
+                            )
                     );
 
             BlockModule.BlockStateInfo blockStateInfo =
@@ -133,7 +125,7 @@ public final class SensorRotationSystem {
             Ref<ChunkStore> sectionRef =
                     blockStateInfo.getSectionRef();
 
-            if (sectionRef == null || !sectionRef.isValid()) {
+            if (!sectionRef.isValid()) {
                 return;
             }
 
@@ -256,40 +248,16 @@ public final class SensorRotationSystem {
         }
 
         private static @Nonnull RotationTuple rotateAroundLocalAxis(
-                @Nonnull RotationTuple currentRotation,
-                @Nonnull Axis localAxis
+                @Nonnull RotationTuple currentRotation
         ) {
             return RotationTuple.compose(
                     currentRotation,
-                    localRotationStep(localAxis)
+                    RotationTuple.of(
+                            Rotation.None,
+                            Rotation.None,
+                            Rotation.Ninety
+                    )
             );
-        }
-
-        private static @Nonnull RotationTuple localRotationStep(
-                @Nonnull Axis localAxis
-        ) {
-            return switch (localAxis) {
-                case X ->
-                        RotationTuple.of(
-                                Rotation.None,
-                                Rotation.Ninety,
-                                Rotation.None
-                        );
-
-                case Y ->
-                        RotationTuple.of(
-                                Rotation.Ninety,
-                                Rotation.None,
-                                Rotation.None
-                        );
-
-                case Z ->
-                        RotationTuple.of(
-                                Rotation.None,
-                                Rotation.None,
-                                Rotation.Ninety
-                        );
-            };
         }
     }
 }

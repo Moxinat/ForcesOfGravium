@@ -203,7 +203,7 @@ public final class SensorLogic {
                         .add(new Vector3i(position));
             }
 
-            case PULL -> {
+            case PULL ->
                 NUMBER_UPDATE_SENSORS
                         .computeIfAbsent(
                                 world,
@@ -211,25 +211,6 @@ public final class SensorLogic {
                         )
                         .add(new Vector3i(position));
 
-                Vector3i observedPosition =
-                        ConnectableNeighborResolver.adjacentPositionForLocalSide(
-                                world,
-                                position,
-                                ConnectableRegistry.SIDE_BACK
-                        );
-
-                BlockType observedBlock =
-                        world.getBlockType(
-                                observedPosition.x(),
-                                observedPosition.y(),
-                                observedPosition.z()
-                        );
-
-                if (observedBlock != null
-                        && !BlockType.EMPTY_KEY.equals(observedBlock.getId())) {
-                    return;
-                }
-            }
         }
     }
 
@@ -511,7 +492,7 @@ public final class SensorLogic {
 
         EventRegistration<?, ?> registration =
                 itemContainer.registerChangeEvent(
-                        event -> compareSnapshot(
+                        ignored -> compareSnapshot(
                                 world,
                                 sensorKey
                         )
@@ -808,8 +789,10 @@ public final class SensorLogic {
                         != newSnapshot.entityCount()
 
                         || (oldSnapshot.blockUsed()
-                        && !oldSnapshot.blockStateId()
-                        .equals(newSnapshot.blockStateId()));
+                        && !Objects.equals(
+                        oldSnapshot.blockStateId(),
+                        newSnapshot.blockStateId()
+                ));
 
         if (changed) {
             handleSnapshotChanged(
@@ -1550,7 +1533,7 @@ public final class SensorLogic {
                         );
             }
 
-            case PULL -> {
+            case PULL ->
                 NUMBER_UPDATE_SENSORS
                         .computeIfAbsent(
                                 world,
@@ -1560,7 +1543,7 @@ public final class SensorLogic {
                         .add(
                                 new Vector3i(position)
                         );
-            }
+
         }
     }
 

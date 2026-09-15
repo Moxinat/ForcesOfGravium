@@ -166,17 +166,6 @@ public final class GraviumSiphonLogic {
         ) != null;
     }
 
-    public static @Nonnull SiphonMoveResult transferOneItem(
-            @Nonnull World world,
-            @Nonnull Vector3i siphonPosition
-    ) {
-        return transferOneItem(
-                world,
-                siphonPosition,
-                world.getEntityStore().getStore()
-        );
-    }
-
     private static @Nonnull SiphonMoveResult transferOneItem(
             @Nonnull World world,
             @Nonnull Vector3i siphonPosition,
@@ -646,7 +635,7 @@ public final class GraviumSiphonLogic {
             if (processingBenchBlock != null) {
                 return processingBenchBlock.getInputContainer() != null || processingBenchBlock.getFuelContainer() != null;
             }
-            return itemContainerBlock != null && itemContainerBlock.getItemContainer() != null;
+            return itemContainerBlock != null;
         }
 
         private boolean insertOneFrom(@Nonnull ItemContainer source, short sourceSlot) {

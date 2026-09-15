@@ -11,7 +11,7 @@
             "Name": "Gingledoof"
         }
     ],
-    "Website": "",
+    "Website": "https://www.curseforge.com/hytale/mods/forces-of-gravium",
     "DisabledByDefault": false,
     "IncludesAssetPack": true,
     "Dependencies": {
@@ -19,6 +19,6 @@
         "Hytale:TriggerVolumes": "*"
     },
     "OptionalDependencies": {},
-    "ServerVersion": "=0.6.1",
+    "ServerVersion": "^0.6.1",
     "Main": "dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin"
 }

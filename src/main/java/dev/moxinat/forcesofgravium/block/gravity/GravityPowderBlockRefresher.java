@@ -145,8 +145,6 @@ public final class GravityPowderBlockRefresher {
             return;
         }
 
-        ChunkStore chunkStore = world.getChunkStore();
-
         if (straight) {
             String straightBlockKey = stateBlockKey(baseType, STRAIGHT_STATE, modeStateSuffix);
             if (straightBlockKey == null) {
@@ -164,7 +162,6 @@ public final class GravityPowderBlockRefresher {
 
             setVisualBlock(
                     world,
-                    chunkStore,
                     position,
                     straightBlockKey,
                     targetRotation
@@ -195,7 +192,6 @@ public final class GravityPowderBlockRefresher {
 
             setVisualBlock(
                     world,
-                    chunkStore,
                     position,
                     oneConnectBlockKey,
                     targetRotation
@@ -226,7 +222,6 @@ public final class GravityPowderBlockRefresher {
 
             setVisualBlock(
                     world,
-                    chunkStore,
                     position,
                     fiveCrossBlockKey,
                     targetRotation
@@ -249,7 +244,6 @@ public final class GravityPowderBlockRefresher {
 
             setVisualBlock(
                     world,
-                    chunkStore,
                     position,
                     allConnectBlockKey,
                     targetRotation
@@ -292,7 +286,6 @@ public final class GravityPowderBlockRefresher {
 
             setVisualBlock(
                     world,
-                    chunkStore,
                     position,
                     fourCurveBlockKey,
                     targetRotation
@@ -309,7 +302,7 @@ public final class GravityPowderBlockRefresher {
             RotationTuple targetRotation;
             if (east && west && up && down) {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.Ninety, Rotation.None);
-            } else if (north && south && up && down) {
+            } else if (north && up ) {
                 targetRotation = RotationTuple.of(Rotation.Ninety, Rotation.Ninety, Rotation.None);
             } else {
                 targetRotation = RotationTuple.of(Rotation.None, Rotation.None, Rotation.None);
@@ -317,7 +310,6 @@ public final class GravityPowderBlockRefresher {
 
             setVisualBlock(
                     world,
-                    chunkStore,
                     position,
                     crossBlockKey,
                     targetRotation
@@ -364,7 +356,6 @@ public final class GravityPowderBlockRefresher {
 
             setVisualBlock(
                     world,
-                    chunkStore,
                     position,
                     tConnectBlockKey,
                     targetRotation
@@ -399,7 +390,6 @@ public final class GravityPowderBlockRefresher {
 
             setVisualBlock(
                     world,
-                    chunkStore,
                     position,
                     threeDCurveBlockKey,
                     targetRotation
@@ -448,7 +438,6 @@ public final class GravityPowderBlockRefresher {
 
             setVisualBlock(
                     world,
-                    chunkStore,
                     position,
                     curveBlockKey,
                     targetRotation
@@ -477,7 +466,6 @@ public final class GravityPowderBlockRefresher {
 
         setVisualBlock(
                 world,
-                chunkStore,
                 position,
                 defaultBlockKey,
                 targetRotation
@@ -520,7 +508,6 @@ public final class GravityPowderBlockRefresher {
 
     private static void setVisualBlock(
             World world,
-            ChunkStore chunkStore,
             Vector3i position,
             String blockKey,
             RotationTuple targetRotation

@@ -63,7 +63,7 @@ public class ConnectableNetworkManager {
                     networks.createNetwork();
         } else {
             targetNetworkId =
-                    neighborNetworkIds.iterator().next();
+                    neighborNetworkIds.getFirst();
 
             for (long sourceNetworkId : neighborNetworkIds) {
                 if (sourceNetworkId == targetNetworkId) {

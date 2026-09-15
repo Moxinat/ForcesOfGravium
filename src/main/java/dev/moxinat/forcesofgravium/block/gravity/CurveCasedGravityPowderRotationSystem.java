@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
-import com.hypixel.hytale.math.Axis;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
@@ -14,7 +13,6 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -35,8 +33,6 @@ import java.util.Map;
 import java.util.Set;
 
 public final class CurveCasedGravityPowderRotationSystem {
-
-    private static final Axis LOCAL_INTERACTION_ROTATION_AXIS = Axis.Y;
 
     private CurveCasedGravityPowderRotationSystem() {
     }
@@ -99,8 +95,7 @@ public final class CurveCasedGravityPowderRotationSystem {
                             ConnectableNeighborResolver.rotationFor(
                                     world,
                                     position
-                            ),
-                            LOCAL_INTERACTION_ROTATION_AXIS
+                            )
                     );
 
             BlockModule.BlockStateInfo blockStateInfo =
@@ -116,7 +111,7 @@ public final class CurveCasedGravityPowderRotationSystem {
             Ref<ChunkStore> sectionRef =
                     blockStateInfo.getSectionRef();
 
-            if (sectionRef == null || !sectionRef.isValid()) {
+            if (!sectionRef.isValid()) {
                 return;
             }
 
@@ -236,16 +231,17 @@ public final class CurveCasedGravityPowderRotationSystem {
             ConnectableVisualDispatcher.refreshTopologyAround(world, position);
         }
 
-        private static @Nonnull RotationTuple rotateAroundLocalAxis(@Nonnull RotationTuple currentRotation, @Nonnull Axis localAxis) {
-            return RotationTuple.compose(currentRotation, localRotationStep(localAxis));
-        }
-
-        private static @Nonnull RotationTuple localRotationStep(@Nonnull Axis localAxis) {
-            return switch (localAxis) {
-                case X -> RotationTuple.of(Rotation.None, Rotation.Ninety, Rotation.None);
-                case Y -> RotationTuple.of(Rotation.Ninety, Rotation.None, Rotation.None);
-                case Z -> RotationTuple.of(Rotation.None, Rotation.None, Rotation.Ninety);
-            };
+        private static @Nonnull RotationTuple rotateAroundLocalAxis(
+                @Nonnull RotationTuple currentRotation
+        ) {
+            return RotationTuple.compose(
+                    currentRotation,
+                    RotationTuple.of(
+                            Rotation.Ninety,
+                            Rotation.None,
+                            Rotation.None
+                    )
+            );
         }
     }
 }
