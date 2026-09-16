@@ -27,10 +27,6 @@
 
     "Group": "Stone",
 
-    "Flags": {
-      "IsUsable": true
-    },
-
     "BlockEntity": {
       "Components": {
         "forcesofgravium:sensor": {
@@ -161,7 +157,21 @@
 
     "Interactions": {
       "Use": {
-        "Interactions": []
+        "Interactions": [
+          {
+            "Type": "ChangeState",
+            "Changes": {
+              "default": "default",
+              "Off": "Off",
+              "PushOpen": "PushOpen",
+              "Push": "Push",
+              "PushClose": "PushClose",
+              "PullOpen": "PullOpen",
+              "Pull": "Pull",
+              "PullClose": "PullClose"
+            }
+          }
+        ]
       }
     },
 
