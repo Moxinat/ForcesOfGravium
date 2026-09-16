@@ -22,9 +22,6 @@
       }
     ],
     "Group": "Stone",
-    "Flags": {
-      "IsUsable": true
-    },
     "BlockEntity": {
       "Components": {
         "forcesofgravium:node": {
@@ -60,7 +57,14 @@
     "BlockBreakingDecalId": "Breaking_Decals_Rock",
     "Interactions": {
       "Use": {
-        "Interactions": []
+        "Interactions": [
+          {
+            "Type": "ChangeState",
+            "Changes": {
+              "default": "default"
+            }
+          }
+        ]
       }
     },
     "RotationYawPlacementOffset": "OneEighty",
