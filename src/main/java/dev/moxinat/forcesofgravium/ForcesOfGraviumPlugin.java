@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.block.button.ButtonInteractionSystem;
+import dev.moxinat.forcesofgravium.block.gravity.CableItemTransportSystem;
 import dev.moxinat.forcesofgravium.block.gravity.CurveCasedGravityPowderRotationSystem;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.block.sensor.SensorRotationSystem;
@@ -79,9 +80,12 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
                 );
 
 
+        CableItemTransportSystem.register(this.getChunkStoreRegistry());
+
         this.getCommandRegistry().registerCommand(
             new ForcesOfGraviumCommand("fog", "Main command for ForcesOfGravium")
         );
+        this.getEntityStoreRegistry().registerSystem(new CableItemTransportSystem.ItemTransportSystem());
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ForcesOfGraviumEvents::onPlayerReady);
         this.getEntityStoreRegistry().registerSystem(new ButtonInteractionSystem());
         this.getEntityStoreRegistry().registerSystem(new CurveCasedGravityPowderRotationSystem.UseSystem());
