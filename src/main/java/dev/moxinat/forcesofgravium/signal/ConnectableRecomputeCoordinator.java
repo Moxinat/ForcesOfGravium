@@ -204,6 +204,7 @@ public final class ConnectableRecomputeCoordinator {
                     section.y(),
                     section.z(),
                     GetChunkFlags.SET_TICKING
+                            | GetChunkFlags.NO_SET_TICKING_SYNC
             );
         }
 

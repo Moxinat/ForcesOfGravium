@@ -12,6 +12,7 @@ import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.math.iterator.BlockIterator;
 import com.hypixel.hytale.protocol.BlockMaterial;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.modules.entity.DespawnComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -21,6 +22,7 @@ import com.hypixel.hytale.server.core.modules.entity.item.ItemPrePhysicsSystem;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
@@ -32,7 +34,9 @@ import org.joml.Vector3i;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CableItemTransportSystem {
 
@@ -46,6 +50,9 @@ public class CableItemTransportSystem {
             ChunkStore,
             SpatialResource<Ref<ChunkStore>, ChunkStore>
             > CABLE_SPATIAL_RESOURCE_TYPE;
+
+    private static final Map<Ref<EntityStore>, Double> PRE_GRAVITY_Y =
+            new ConcurrentHashMap<>();
 
     public static void register(
             @Nonnull ComponentRegistryProxy<ChunkStore> registry
@@ -108,30 +115,31 @@ public class CableItemTransportSystem {
                 return null;
             }
 
-            Ref<ChunkStore> ref =
-                    archetypeChunk.getReferenceTo(index);
+            Ref<ChunkStore> sectionRef =
+                    blockStateInfo.getSectionRef();
 
-            Vector3i position =
-                    new Vector3i();
-
-            if (!blockStateInfo.fillWorldPos(
-                    ref.getStore(),
-                    position
-            )) {
+            if (!sectionRef.isValid()) {
                 return null;
             }
 
-            World world =
-                    ref.getStore()
-                            .getExternalData()
-                            .getWorld();
+            BlockSection blockSection =
+                    sectionRef.getStore().getComponent(
+                            sectionRef,
+                            BlockSection.getComponentType()
+                    );
+
+            if (blockSection == null) {
+                return null;
+            }
+
+            int blockId =
+                    blockSection.get(
+                            blockStateInfo.getIndex()
+                    );
 
             BlockType blockType =
-                    world.getBlockType(
-                            position.x(),
-                            position.y(),
-                            position.z()
-                    );
+                    BlockType.getAssetMap()
+                            .getAsset(blockId);
 
             if (blockType == null) {
                 return null;
@@ -146,10 +154,69 @@ public class CableItemTransportSystem {
                 return null;
             }
 
+            Vector3i position =
+                    new Vector3i();
+
+            if (!blockStateInfo.fillWorldPos(position)) {
+                return null;
+            }
+
             return new Vector3d(
                     position.x() + 0.5,
                     position.y() + 0.5,
                     position.z() + 0.5
+            );
+        }
+    }
+
+    public static final class PreGravityVelocityCaptureSystem
+            extends EntityTickingSystem<EntityStore> {
+
+        private static final Query<EntityStore> QUERY =
+                Query.and(
+                        ItemComponent.getComponentType(),
+                        Velocity.getComponentType()
+                );
+
+        @Override
+        public @Nonnull Query<EntityStore> getQuery() {
+            return QUERY;
+        }
+
+        @Override
+        public @Nonnull Set<Dependency<EntityStore>> getDependencies() {
+            return Set.of(
+                    new SystemDependency<>(
+                            Order.BEFORE,
+                            ItemPrePhysicsSystem.class
+                    )
+            );
+        }
+
+        @Override
+        public void tick(
+                float dt,
+                int index,
+                @Nonnull ArchetypeChunk<EntityStore> chunk,
+                @Nonnull Store<EntityStore> store,
+                @Nonnull CommandBuffer<EntityStore> commandBuffer
+        ) {
+            Velocity velocity =
+                    chunk.getComponent(
+                            index,
+                            Velocity.getComponentType()
+                    );
+
+            if (velocity == null) {
+                return;
+            }
+
+            Ref<EntityStore> ref =
+                    chunk.getReferenceTo(index);
+
+            PRE_GRAVITY_Y.put(
+                    ref,
+                    velocity.getY()
             );
         }
     }
@@ -219,7 +286,7 @@ public class CableItemTransportSystem {
                     .getSpatialStructure()
                     .collect(
                             itemPosition,
-                            2.0,
+                            1.5,
                             nearbyCables
                     );
 
@@ -335,6 +402,18 @@ public class CableItemTransportSystem {
                         );
                         continue;
                     }
+                    if (stateId.endsWith("StraightPush")) {
+                        applyStraightPush(
+                                world,
+                                cablePosition,
+                                itemPosition,
+                                velocity,
+                                itemRef,
+                                dt
+                        );
+                        continue;
+                    }
+
                 }
 
                 // OFF
@@ -420,6 +499,7 @@ public class CableItemTransportSystem {
                             cablePosition.z() + 0.5
                     );
 
+            ConnectableNeighborResolver.WorldSide nearestTargetSide = null;
             Vector3d nearestTarget = null;
             double nearestDistanceSq = Double.MAX_VALUE;
 
@@ -442,6 +522,7 @@ public class CableItemTransportSystem {
                 if (distanceSq < nearestDistanceSq) {
                     nearestDistanceSq = distanceSq;
                     nearestTarget = target;
+                    nearestTargetSide = side;
                 }
             }
 
@@ -467,6 +548,156 @@ public class CableItemTransportSystem {
             double az =
                     delta.z() * stiffness
                             - velocity.getZ() * damping;
+
+            ConnectableNeighborResolver.WorldSide oppositeSide =
+                    connectedSide.opposite();
+
+            if (nearestTargetSide != oppositeSide) {
+
+                switch (connectedSide) {
+
+                    case EAST -> {
+                        ax = Math.max(0.0, ax);
+                    }
+
+                    case WEST -> {
+                        ax = Math.min(0.0, ax);
+                    }
+
+                    case UP -> {
+                        ay = Math.max(0.0, ay);
+                    }
+
+                    case DOWN -> {
+                        ay = Math.min(0.0, ay);
+                    }
+
+                    case SOUTH -> {
+                        az = Math.max(0.0, az);
+                    }
+
+                    case NORTH -> {
+                        az = Math.min(0.0, az);
+                    }
+                }
+            }
+
+
+            velocity.addVelocity(
+                    ax * dt,
+                    ay * dt,
+                    az * dt
+            );
+        }
+
+        private static void applyStraightPush(
+                World world,
+                Vector3i cablePosition,
+                Vector3d itemPosition,
+                Velocity velocity,
+                Ref<EntityStore> itemRef,
+                float dt
+        ) {
+
+            RotationTuple rotation =
+                    ConnectableNeighborResolver.rotationFor(
+                            world,
+                            cablePosition
+                    );
+
+            ConnectableNeighborResolver.WorldSide axisSide =
+                    ConnectableNeighborResolver.worldSideForLocalSide(
+                            rotation,
+                            ConnectableRegistry.SIDE_FRONT
+                    );
+
+            ConnectableNeighborResolver.WorldSide oppositeAxisSide =
+                    axisSide.opposite();
+
+            Vector3d center =
+                    new Vector3d(
+                            cablePosition.x() + 0.5,
+                            cablePosition.y() + 0.5,
+                            cablePosition.z() + 0.5
+                    );
+
+            Vector3d nearestTarget = null;
+            double nearestDistanceSq = Double.MAX_VALUE;
+
+            for (ConnectableNeighborResolver.WorldSide side :
+                    ConnectableNeighborResolver.WorldSide.values()) {
+
+                if (side == axisSide
+                        || side == oppositeAxisSide) {
+                    continue;
+                }
+
+                Vector3d target =
+                        targetForSide(center, side);
+
+                double distanceSq =
+                        itemPosition.distanceSquared(target);
+
+                if (distanceSq < nearestDistanceSq) {
+                    nearestDistanceSq = distanceSq;
+                    nearestTarget = target;
+                }
+            }
+
+            if (nearestTarget == null) {
+                return;
+            }
+
+            Vector3d delta =
+                    new Vector3d(nearestTarget)
+                            .sub(itemPosition);
+
+            double stiffness = 100.0;
+            double damping = 20.0;
+
+            double ax = 0.0;
+            double ay = 0.0;
+            double az = 0.0;
+
+            switch (axisSide) {
+
+                case EAST, WEST -> {
+                    ay =
+                            delta.y() * stiffness
+                                    - velocity.getY() * damping;
+
+                    az =
+                            delta.z() * stiffness
+                                    - velocity.getZ() * damping;
+                }
+
+                case NORTH, SOUTH -> {
+                    ax =
+                            delta.x() * stiffness
+                                    - velocity.getX() * damping;
+
+                    ay =
+                            delta.y() * stiffness
+                                    - velocity.getY() * damping;
+                }
+
+                case UP, DOWN -> {
+                    ax =
+                            delta.x() * stiffness
+                                    - velocity.getX() * damping;
+
+                    az =
+                            delta.z() * stiffness
+                                    - velocity.getZ() * damping;
+
+                    Double originalY =
+                            PRE_GRAVITY_Y.get(itemRef);
+
+                    if (originalY != null) {
+                        velocity.setY(originalY);
+                    }
+                }
+            }
 
             velocity.addVelocity(
                     ax * dt,

@@ -85,6 +85,7 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getCommandRegistry().registerCommand(
             new ForcesOfGraviumCommand("fog", "Main command for ForcesOfGravium")
         );
+        this.getEntityStoreRegistry().registerSystem(new CableItemTransportSystem.PreGravityVelocityCaptureSystem());
         this.getEntityStoreRegistry().registerSystem(new CableItemTransportSystem.ItemTransportSystem());
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ForcesOfGraviumEvents::onPlayerReady);
         this.getEntityStoreRegistry().registerSystem(new ButtonInteractionSystem());
