@@ -315,6 +315,18 @@ public class CableItemTransportSystem {
             Ref<EntityStore> itemRef =
                     chunk.getReferenceTo(index);
 
+            Vector3d originalVelocity =
+                    new Vector3d(
+                            velocity.getX(),
+                            velocity.getY(),
+                            velocity.getZ()
+                    );
+
+            Vector3d totalAcceleration =
+                    new Vector3d();
+
+            boolean cancelGravityY = false;
+
             for (Ref<ChunkStore> cableRef : nearbyCables) {
 
                 if (!cableRef.isValid()) {
@@ -397,20 +409,21 @@ public class CableItemTransportSystem {
                                 world,
                                 cablePosition,
                                 itemPosition,
-                                velocity,
-                                dt
+                                originalVelocity,
+                                totalAcceleration
                         );
                         continue;
                     }
                     if (stateId.endsWith("StraightPush")) {
-                        applyStraightPush(
+                        if (applyStraightPush(
                                 world,
                                 cablePosition,
                                 itemPosition,
-                                velocity,
-                                itemRef,
-                                dt
-                        );
+                                originalVelocity,
+                                totalAcceleration
+                        )) {
+                            cancelGravityY = true;
+                        }
                         continue;
                     }
                     if (stateId.endsWith("CurvePush")) {
@@ -418,8 +431,8 @@ public class CableItemTransportSystem {
                                 world,
                                 cablePosition,
                                 itemPosition,
-                                velocity,
-                                dt
+                                originalVelocity,
+                                totalAcceleration
                         );
                         continue;
                     }
@@ -428,8 +441,8 @@ public class CableItemTransportSystem {
                                 world,
                                 cablePosition,
                                 itemPosition,
-                                velocity,
-                                dt
+                                originalVelocity,
+                                totalAcceleration
                         );
                         continue;
                     }
@@ -437,6 +450,25 @@ public class CableItemTransportSystem {
                 }
 
                 // OFF
+            }
+
+            velocity.addVelocity(
+                    totalAcceleration.x() * dt,
+                    totalAcceleration.y() * dt,
+                    totalAcceleration.z() * dt
+            );
+
+            if (cancelGravityY) {
+                Double preGravityY =
+                        PRE_GRAVITY_Y.get(itemRef);
+
+                if (preGravityY != null) {
+                    velocity.addVelocity(
+                            0.0,
+                            preGravityY - originalVelocity.y(),
+                            0.0
+                    );
+                }
             }
         }
 
@@ -490,8 +522,8 @@ public class CableItemTransportSystem {
                 World world,
                 Vector3i cablePosition,
                 Vector3d itemPosition,
-                Velocity velocity,
-                float dt
+                Vector3d originalVelocity,
+                Vector3d totalAcceleration
         ) {
             Set<Vector3i> neighbors =
                     ConnectableNeighborResolver.allNetworkNeighbors(
@@ -560,13 +592,13 @@ public class CableItemTransportSystem {
             Vector3d acceleration =
                     new Vector3d(
                             delta.x() * stiffness
-                                    - velocity.getX() * damping,
+                                    - originalVelocity.x() * damping,
 
                             delta.y() * stiffness
-                                    - velocity.getY() * damping,
+                                    - originalVelocity.y() * damping,
 
                             delta.z() * stiffness
-                                    - velocity.getZ() * damping
+                                    - originalVelocity.z() * damping
                     );
 
             ConnectableNeighborResolver.WorldSide oppositeSide =
@@ -581,20 +613,15 @@ public class CableItemTransportSystem {
                 );
             }
 
-            velocity.addVelocity(
-                    acceleration.x() * dt,
-                    acceleration.y() * dt,
-                    acceleration.z() * dt
-            );
+            totalAcceleration.add(acceleration);
         }
 
-        private static void applyStraightPush(
+        private static boolean applyStraightPush(
                 World world,
                 Vector3i cablePosition,
                 Vector3d itemPosition,
-                Velocity velocity,
-                Ref<EntityStore> itemRef,
-                float dt
+                Vector3d originalVelocity,
+                Vector3d totalAcceleration
         ) {
 
             RotationTuple rotation =
@@ -643,7 +670,7 @@ public class CableItemTransportSystem {
             }
 
             if (nearestTarget == null) {
-                return;
+                return false;
             }
 
             Vector3d delta =
@@ -662,54 +689,50 @@ public class CableItemTransportSystem {
                 case EAST, WEST -> {
                     ay =
                             delta.y() * stiffness
-                                    - velocity.getY() * damping;
+                                    - originalVelocity.y() * damping;
 
                     az =
                             delta.z() * stiffness
-                                    - velocity.getZ() * damping;
+                                    - originalVelocity.z() * damping;
                 }
 
                 case NORTH, SOUTH -> {
                     ax =
                             delta.x() * stiffness
-                                    - velocity.getX() * damping;
+                                    - originalVelocity.x() * damping;
 
                     ay =
                             delta.y() * stiffness
-                                    - velocity.getY() * damping;
+                                    - originalVelocity.y() * damping;
                 }
 
                 case UP, DOWN -> {
                     ax =
                             delta.x() * stiffness
-                                    - velocity.getX() * damping;
+                                    - originalVelocity.x() * damping;
 
                     az =
                             delta.z() * stiffness
-                                    - velocity.getZ() * damping;
-
-                    Double originalY =
-                            PRE_GRAVITY_Y.get(itemRef);
-
-                    if (originalY != null) {
-                        velocity.setY(originalY);
-                    }
+                                    - originalVelocity.z() * damping;
                 }
             }
 
-            velocity.addVelocity(
-                    ax * dt,
-                    ay * dt,
-                    az * dt
+            totalAcceleration.add(
+                    ax,
+                    ay,
+                    az
             );
+
+            return axisSide == ConnectableNeighborResolver.WorldSide.UP
+                    || axisSide == ConnectableNeighborResolver.WorldSide.DOWN;
         }
 
         private static void applyCurvePush(
                 World world,
                 Vector3i cablePosition,
                 Vector3d itemPosition,
-                Velocity velocity,
-                float dt
+                Vector3d originalVelocity,
+                Vector3d totalAcceleration
         ) {
             RotationTuple rotation =
                     ConnectableNeighborResolver.rotationFor(
@@ -778,13 +801,13 @@ public class CableItemTransportSystem {
             Vector3d acceleration =
                     new Vector3d(
                             delta.x() * stiffness
-                                    - velocity.getX() * damping,
+                                    - originalVelocity.x() * damping,
 
                             delta.y() * stiffness
-                                    - velocity.getY() * damping,
+                                    - originalVelocity.y() * damping,
 
                             delta.z() * stiffness
-                                    - velocity.getZ() * damping
+                                    - originalVelocity.z() * damping
                     );
 
             if (nearestTargetSide == firstConnection.opposite()) {
@@ -822,19 +845,15 @@ public class CableItemTransportSystem {
                 );
             }
 
-            velocity.addVelocity(
-                    acceleration.x() * dt,
-                    acceleration.y() * dt,
-                    acceleration.z() * dt
-            );
+            totalAcceleration.add(acceleration);
         }
 
         private static void applyTConnectPush(
                 World world,
                 Vector3i cablePosition,
                 Vector3d itemPosition,
-                Velocity velocity,
-                float dt
+                Vector3d originalVelocity,
+                Vector3d totalAcceleration
         ) {
             RotationTuple rotation =
                     ConnectableNeighborResolver.rotationFor(
@@ -910,13 +929,13 @@ public class CableItemTransportSystem {
             Vector3d acceleration =
                     new Vector3d(
                             delta.x() * stiffness
-                                    - velocity.getX() * damping,
+                                    - originalVelocity.x() * damping,
 
                             delta.y() * stiffness
-                                    - velocity.getY() * damping,
+                                    - originalVelocity.y() * damping,
 
                             delta.z() * stiffness
-                                    - velocity.getZ() * damping
+                                    - originalVelocity.z() * damping
                     );
 
             if (nearestTargetSide == stemConnection.opposite()) {
@@ -959,11 +978,7 @@ public class CableItemTransportSystem {
                 );
             }
 
-            velocity.addVelocity(
-                    acceleration.x() * dt,
-                    acceleration.y() * dt,
-                    acceleration.z() * dt
-            );
+            totalAcceleration.add(acceleration);
         }
 
 
