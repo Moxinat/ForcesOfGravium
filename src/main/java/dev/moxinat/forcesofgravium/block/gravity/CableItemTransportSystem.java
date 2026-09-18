@@ -413,6 +413,26 @@ public class CableItemTransportSystem {
                         );
                         continue;
                     }
+                    if (stateId.endsWith("CurvePush")) {
+                        applyCurvePush(
+                                world,
+                                cablePosition,
+                                itemPosition,
+                                velocity,
+                                dt
+                        );
+                        continue;
+                    }
+                    if (stateId.endsWith("TConnectPush")) {
+                        applyTConnectPush(
+                                world,
+                                cablePosition,
+                                itemPosition,
+                                velocity,
+                                dt
+                        );
+                        continue;
+                    }
 
                 }
 
@@ -535,58 +555,36 @@ public class CableItemTransportSystem {
                             .sub(itemPosition);
 
             double stiffness = 100.0;
-            double damping = 20.0;
+            double damping = 8.0;
 
-            double ax =
-                    delta.x() * stiffness
-                            - velocity.getX() * damping;
+            Vector3d acceleration =
+                    new Vector3d(
+                            delta.x() * stiffness
+                                    - velocity.getX() * damping,
 
-            double ay =
-                    delta.y() * stiffness
-                            - velocity.getY() * damping;
+                            delta.y() * stiffness
+                                    - velocity.getY() * damping,
 
-            double az =
-                    delta.z() * stiffness
-                            - velocity.getZ() * damping;
+                            delta.z() * stiffness
+                                    - velocity.getZ() * damping
+                    );
 
             ConnectableNeighborResolver.WorldSide oppositeSide =
                     connectedSide.opposite();
 
             if (nearestTargetSide != oppositeSide) {
-
-                switch (connectedSide) {
-
-                    case EAST -> {
-                        ax = Math.max(0.0, ax);
-                    }
-
-                    case WEST -> {
-                        ax = Math.min(0.0, ax);
-                    }
-
-                    case UP -> {
-                        ay = Math.max(0.0, ay);
-                    }
-
-                    case DOWN -> {
-                        ay = Math.min(0.0, ay);
-                    }
-
-                    case SOUTH -> {
-                        az = Math.max(0.0, az);
-                    }
-
-                    case NORTH -> {
-                        az = Math.min(0.0, az);
-                    }
-                }
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        nearestTarget,
+                        connectedSide
+                );
             }
 
-
             velocity.addVelocity(
-                    ax * dt,
-                    ay * dt,
-                    az * dt
+                    acceleration.x() * dt,
+                    acceleration.y() * dt,
+                    acceleration.z() * dt
             );
         }
 
@@ -653,7 +651,7 @@ public class CableItemTransportSystem {
                             .sub(itemPosition);
 
             double stiffness = 100.0;
-            double damping = 20.0;
+            double damping = 8.0;
 
             double ax = 0.0;
             double ay = 0.0;
@@ -704,6 +702,315 @@ public class CableItemTransportSystem {
                     ay * dt,
                     az * dt
             );
+        }
+
+        private static void applyCurvePush(
+                World world,
+                Vector3i cablePosition,
+                Vector3d itemPosition,
+                Velocity velocity,
+                float dt
+        ) {
+            RotationTuple rotation =
+                    ConnectableNeighborResolver.rotationFor(
+                            world,
+                            cablePosition
+                    );
+
+            ConnectableNeighborResolver.WorldSide firstConnection =
+                    ConnectableNeighborResolver.worldSideForLocalSide(
+                            rotation,
+                            ConnectableRegistry.SIDE_BACK
+                    );
+
+            ConnectableNeighborResolver.WorldSide secondConnection =
+                    ConnectableNeighborResolver.worldSideForLocalSide(
+                            rotation,
+                            ConnectableRegistry.SIDE_LEFT
+                    );
+
+            Vector3d center =
+                    new Vector3d(
+                            cablePosition.x() + 0.5,
+                            cablePosition.y() + 0.5,
+                            cablePosition.z() + 0.5
+                    );
+
+            Vector3d nearestTarget = null;
+            ConnectableNeighborResolver.WorldSide nearestTargetSide = null;
+            double nearestDistanceSq = Double.MAX_VALUE;
+
+            for (ConnectableNeighborResolver.WorldSide side :
+                    ConnectableNeighborResolver.WorldSide.values()) {
+
+                if (side == firstConnection
+                        || side == secondConnection) {
+                    continue;
+                }
+
+                Vector3d target =
+                        targetForSide(
+                                center,
+                                side
+                        );
+
+                double distanceSq =
+                        itemPosition.distanceSquared(target);
+
+                if (distanceSq < nearestDistanceSq) {
+                    nearestDistanceSq = distanceSq;
+                    nearestTarget = target;
+                    nearestTargetSide = side;
+                }
+            }
+
+            if (nearestTarget == null) {
+                return;
+            }
+
+            Vector3d delta =
+                    new Vector3d(nearestTarget)
+                            .sub(itemPosition);
+
+            double stiffness = 100.0;
+            double damping = 8.0;
+
+            Vector3d acceleration =
+                    new Vector3d(
+                            delta.x() * stiffness
+                                    - velocity.getX() * damping,
+
+                            delta.y() * stiffness
+                                    - velocity.getY() * damping,
+
+                            delta.z() * stiffness
+                                    - velocity.getZ() * damping
+                    );
+
+            if (nearestTargetSide == firstConnection.opposite()) {
+
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        nearestTarget,
+                        secondConnection
+                );
+
+            } else if (nearestTargetSide == secondConnection.opposite()) {
+
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        nearestTarget,
+                        firstConnection
+                );
+
+            } else {
+
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        nearestTarget,
+                        firstConnection
+                );
+
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        nearestTarget,
+                        secondConnection
+                );
+            }
+
+            velocity.addVelocity(
+                    acceleration.x() * dt,
+                    acceleration.y() * dt,
+                    acceleration.z() * dt
+            );
+        }
+
+        private static void applyTConnectPush(
+                World world,
+                Vector3i cablePosition,
+                Vector3d itemPosition,
+                Velocity velocity,
+                float dt
+        ) {
+            RotationTuple rotation =
+                    ConnectableNeighborResolver.rotationFor(
+                            world,
+                            cablePosition
+                    );
+
+            ConnectableNeighborResolver.WorldSide stemConnection =
+                    ConnectableNeighborResolver.worldSideForLocalSide(
+                            rotation,
+                            ConnectableRegistry.SIDE_BACK
+                    );
+
+            ConnectableNeighborResolver.WorldSide firstCrossConnection =
+                    ConnectableNeighborResolver.worldSideForLocalSide(
+                            rotation,
+                            ConnectableRegistry.SIDE_LEFT
+                    );
+
+            ConnectableNeighborResolver.WorldSide secondCrossConnection =
+                    ConnectableNeighborResolver.worldSideForLocalSide(
+                            rotation,
+                            ConnectableRegistry.SIDE_RIGHT
+                    );
+
+            Vector3d center =
+                    new Vector3d(
+                            cablePosition.x() + 0.5,
+                            cablePosition.y() + 0.5,
+                            cablePosition.z() + 0.5
+                    );
+
+            Vector3d nearestTarget = null;
+            ConnectableNeighborResolver.WorldSide nearestTargetSide = null;
+            double nearestDistanceSq = Double.MAX_VALUE;
+
+            for (ConnectableNeighborResolver.WorldSide side :
+                    ConnectableNeighborResolver.WorldSide.values()) {
+
+                if (side == stemConnection
+                        || side == firstCrossConnection
+                        || side == secondCrossConnection) {
+                    continue;
+                }
+
+                Vector3d target =
+                        targetForSide(
+                                center,
+                                side
+                        );
+
+                double distanceSq =
+                        itemPosition.distanceSquared(target);
+
+                if (distanceSq < nearestDistanceSq) {
+                    nearestDistanceSq = distanceSq;
+                    nearestTarget = target;
+                    nearestTargetSide = side;
+                }
+            }
+
+            if (nearestTarget == null) {
+                return;
+            }
+
+            Vector3d delta =
+                    new Vector3d(nearestTarget)
+                            .sub(itemPosition);
+
+            double stiffness = 100.0;
+            double damping = 8.0;
+
+            Vector3d acceleration =
+                    new Vector3d(
+                            delta.x() * stiffness
+                                    - velocity.getX() * damping,
+
+                            delta.y() * stiffness
+                                    - velocity.getY() * damping,
+
+                            delta.z() * stiffness
+                                    - velocity.getZ() * damping
+                    );
+
+            if (nearestTargetSide == stemConnection.opposite()) {
+
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        nearestTarget,
+                        firstCrossConnection
+                );
+
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        nearestTarget,
+                        secondCrossConnection
+                );
+
+            } else {
+
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        nearestTarget,
+                        stemConnection
+                );
+
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        nearestTarget,
+                        firstCrossConnection
+                );
+
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        nearestTarget,
+                        secondCrossConnection
+                );
+            }
+
+            velocity.addVelocity(
+                    acceleration.x() * dt,
+                    acceleration.y() * dt,
+                    acceleration.z() * dt
+            );
+        }
+
+
+        private static void openTowards(
+                Vector3d acceleration,
+                Vector3d itemPosition,
+                Vector3d target,
+                ConnectableNeighborResolver.WorldSide openSide
+        ) {
+            switch (openSide) {
+
+                case EAST -> {
+                    if (itemPosition.x() >= target.x()) {
+                        acceleration.x = 0.0;
+                    }
+                }
+
+                case WEST -> {
+                    if (itemPosition.x() <= target.x()) {
+                        acceleration.x = 0.0;
+                    }
+                }
+
+                case UP -> {
+                    if (itemPosition.y() >= target.y()) {
+                        acceleration.y = 0.0;
+                    }
+                }
+
+                case DOWN -> {
+                    if (itemPosition.y() <= target.y()) {
+                        acceleration.y = 0.0;
+                    }
+                }
+
+                case SOUTH -> {
+                    if (itemPosition.z() >= target.z()) {
+                        acceleration.z = 0.0;
+                    }
+                }
+
+                case NORTH -> {
+                    if (itemPosition.z() <= target.z()) {
+                        acceleration.z = 0.0;
+                    }
+                }
+            }
         }
 
     }
