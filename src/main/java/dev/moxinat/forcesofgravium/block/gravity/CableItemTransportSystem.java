@@ -523,6 +523,58 @@ public class CableItemTransportSystem {
                 Vector3d totalAcceleration,
                 DampingCandidate dampingCandidate
         ) {
+            int itemBlockX =
+                    (int) Math.floor(itemPosition.x());
+
+            int itemBlockY =
+                    (int) Math.floor(itemPosition.y());
+
+            int itemBlockZ =
+                    (int) Math.floor(itemPosition.z());
+
+            for (ConnectableNeighborResolver.WorldSide connectionSide :
+                    connectionSides) {
+
+                switch (connectionSide) {
+
+                    case EAST -> {
+                        if (itemBlockX > cablePosition.x()) {
+                            return;
+                        }
+                    }
+
+                    case WEST -> {
+                        if (itemBlockX < cablePosition.x()) {
+                            return;
+                        }
+                    }
+
+                    case UP -> {
+                        if (itemBlockY > cablePosition.y()) {
+                            return;
+                        }
+                    }
+
+                    case DOWN -> {
+                        if (itemBlockY < cablePosition.y()) {
+                            return;
+                        }
+                    }
+
+                    case SOUTH -> {
+                        if (itemBlockZ > cablePosition.z()) {
+                            return;
+                        }
+                    }
+
+                    case NORTH -> {
+                        if (itemBlockZ < cablePosition.z()) {
+                            return;
+                        }
+                    }
+                }
+            }
+
             Vector3d target =
                     new Vector3d(
                             cablePosition.x() + 0.5,
