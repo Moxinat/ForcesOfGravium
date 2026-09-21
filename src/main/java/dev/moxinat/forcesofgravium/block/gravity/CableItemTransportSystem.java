@@ -147,7 +147,12 @@ public class CableItemTransportSystem {
                             blockType.getId()
                     );
 
-            if (!ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID.equals(rawBlockId)) {
+            boolean isTransportCable =
+                    ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID.equals(rawBlockId)
+                            || ConnectableRegistry.STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID.equals(rawBlockId)
+                            || ConnectableRegistry.CURVE_CASED_GRAVITY_POWDER_BLOCK_ID.equals(rawBlockId);
+
+            if (!isTransportCable) {
                 return null;
             }
 
