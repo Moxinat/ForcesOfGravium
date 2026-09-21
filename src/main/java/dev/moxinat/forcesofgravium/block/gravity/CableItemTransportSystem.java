@@ -32,10 +32,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class CableItemTransportSystem {
@@ -405,49 +402,35 @@ public class CableItemTransportSystem {
 
                 // PUSH
                 if (stateId.endsWith("Push")) {
-                    if (stateId.endsWith("OneConnectPush")) {
-                        applyOneConnectPush(
-                                world,
-                                cablePosition,
-                                itemPosition,
-                                totalAcceleration,
-                                dampingCandidate
+                    Set<Vector3i> neighbors =
+                            ConnectableNeighborResolver.allNetworkNeighbors(
+                                    world,
+                                    cablePosition
+                            );
+
+                    Set<ConnectableNeighborResolver.WorldSide> connectionSides =
+                            new HashSet<>();
+
+                    for (Vector3i neighbor : neighbors) {
+                        connectionSides.add(
+                                ConnectableNeighborResolver.worldSideFromSourceToTarget(
+                                        cablePosition,
+                                        neighbor
+                                )
                         );
-                        continue;
-                    }
-                    if (stateId.endsWith("StraightPush")) {
-                        applyStraightPush(
-                                world,
-                                cablePosition,
-                                itemPosition,
-                                velocity,
-                                itemRef,
-                                totalAcceleration,
-                                dampingCandidate
-                        );
-                        continue;
-                    }
-                    if (stateId.endsWith("CurvePush")) {
-                        applyCurvePush(
-                                world,
-                                cablePosition,
-                                itemPosition,
-                                totalAcceleration,
-                                dampingCandidate
-                        );
-                        continue;
-                    }
-                    if (stateId.endsWith("TConnectPush")) {
-                        applyTConnectPush(
-                                world,
-                                cablePosition,
-                                itemPosition,
-                                totalAcceleration,
-                                dampingCandidate
-                        );
-                        continue;
                     }
 
+                    applyCablePush(
+                            cablePosition,
+                            itemPosition,
+                            connectionSides,
+                            velocity,
+                            itemRef,
+                            totalAcceleration,
+                            dampingCandidate
+                    );
+
+                    continue;
                 }
 
                 // OFF
@@ -493,6 +476,10 @@ public class CableItemTransportSystem {
                             cablePosition.z() + 0.5
                     );
 
+            if (itemPosition.distanceSquared(cableCenter) < 0.000001) {
+                return true;
+            }
+
             int startX = (int) Math.floor(itemPosition.x());
             int startY = (int) Math.floor(itemPosition.y());
             int startZ = (int) Math.floor(itemPosition.z());
@@ -527,473 +514,58 @@ public class CableItemTransportSystem {
             );
         }
 
-        private static void applyOneConnectPush(
-                World world,
+        private static void applyCablePush(
                 Vector3i cablePosition,
                 Vector3d itemPosition,
-                Vector3d totalAcceleration,
-                DampingCandidate dampingCandidate
-        ) {
-            Set<Vector3i> neighbors =
-                    ConnectableNeighborResolver.allNetworkNeighbors(
-                            world,
-                            cablePosition
-                    );
-
-            if (neighbors.size() != 1) {
-                return;
-            }
-
-            Vector3i connectedNeighbor =
-                    neighbors.iterator().next();
-
-            ConnectableNeighborResolver.WorldSide connectedSide =
-                    ConnectableNeighborResolver.worldSideFromSourceToTarget(
-                            cablePosition,
-                            connectedNeighbor
-                    );
-
-            Vector3d center =
-                    new Vector3d(
-                            cablePosition.x() + 0.5,
-                            cablePosition.y() + 0.5,
-                            cablePosition.z() + 0.5
-                    );
-
-            ConnectableNeighborResolver.WorldSide nearestTargetSide = null;
-            Vector3d nearestTarget = null;
-            double nearestDistanceSq = Double.MAX_VALUE;
-
-            for (ConnectableNeighborResolver.WorldSide side :
-                    ConnectableNeighborResolver.WorldSide.values()) {
-
-                if (side == connectedSide) {
-                    continue;
-                }
-
-                Vector3d target =
-                        targetForSide(
-                                center,
-                                side
-                        );
-
-                double distanceSq =
-                        itemPosition.distanceSquared(target);
-
-                if (distanceSq < nearestDistanceSq) {
-                    nearestDistanceSq = distanceSq;
-                    nearestTarget = target;
-                    nearestTargetSide = side;
-                }
-            }
-
-            if (nearestTarget == null) {
-                return;
-            }
-
-            Vector3d delta =
-                    new Vector3d(nearestTarget)
-                            .sub(itemPosition);
-
-            double stiffness = 100.0;
-
-            Vector3d acceleration =
-                    new Vector3d(delta)
-                            .mul(stiffness);
-
-            ConnectableNeighborResolver.WorldSide oppositeSide =
-                    connectedSide.opposite();
-
-            if (nearestTargetSide != oppositeSide) {
-                dampingCandidate.consider(
-                        itemPosition,
-                        nearestTarget,
-                        connectedSide
-                );
-            } else {
-                dampingCandidate.consider(
-                        itemPosition,
-                        nearestTarget
-                );
-            }
-
-            if (nearestTargetSide != oppositeSide) {
-                openTowards(
-                        acceleration,
-                        itemPosition,
-                        nearestTarget,
-                        connectedSide
-                );
-            }
-
-            totalAcceleration.add(acceleration);
-        }
-
-        private static void applyStraightPush(
-                World world,
-                Vector3i cablePosition,
-                Vector3d itemPosition,
+                Set<ConnectableNeighborResolver.WorldSide> connectionSides,
                 Velocity velocity,
                 Ref<EntityStore> itemRef,
                 Vector3d totalAcceleration,
                 DampingCandidate dampingCandidate
         ) {
-
-            RotationTuple rotation =
-                    ConnectableNeighborResolver.rotationFor(
-                            world,
-                            cablePosition
-                    );
-
-            ConnectableNeighborResolver.WorldSide axisSide =
-                    ConnectableNeighborResolver.worldSideForLocalSide(
-                            rotation,
-                            ConnectableRegistry.SIDE_FRONT
-                    );
-
-            ConnectableNeighborResolver.WorldSide oppositeAxisSide =
-                    axisSide.opposite();
-
-            Vector3d center =
+            Vector3d target =
                     new Vector3d(
                             cablePosition.x() + 0.5,
                             cablePosition.y() + 0.5,
                             cablePosition.z() + 0.5
                     );
 
-            Vector3d nearestTarget = null;
-            double nearestDistanceSq = Double.MAX_VALUE;
-
-            for (ConnectableNeighborResolver.WorldSide side :
-                    ConnectableNeighborResolver.WorldSide.values()) {
-
-                if (side == axisSide
-                        || side == oppositeAxisSide) {
-                    continue;
-                }
-
-                Vector3d target =
-                        targetForSide(center, side);
-
-                double distanceSq =
-                        itemPosition.distanceSquared(target);
-
-                if (distanceSq < nearestDistanceSq) {
-                    nearestDistanceSq = distanceSq;
-                    nearestTarget = target;
-                }
-            }
-
-            if (nearestTarget == null) {
-                return;
-            }
-
-            Vector3d delta =
-                    new Vector3d(nearestTarget)
-                            .sub(itemPosition);
-
-            switch (axisSide) {
-                case EAST, WEST ->
-                        delta.x = 0.0;
-
-                case NORTH, SOUTH ->
-                        delta.z = 0.0;
-
-                case UP, DOWN -> {
-                    delta.y = 0.0;
-
-                    Double preGravityY =
-                            PRE_GRAVITY_Y.get(itemRef);
-
-                    if (preGravityY != null) {
-                        velocity.setY(preGravityY);
-                    }
-                }
-            }
-
-            double stiffness = 100.0;
-
             Vector3d acceleration =
-                    new Vector3d(delta)
-                            .mul(stiffness);
+                    new Vector3d(target)
+                            .sub(itemPosition)
+                            .mul(100.0);
+
+            for (ConnectableNeighborResolver.WorldSide connectionSide :
+                    connectionSides) {
+
+                openTowards(
+                        acceleration,
+                        itemPosition,
+                        target,
+                        connectionSide
+                );
+            }
+
+            if (connectionSides.contains(
+                    ConnectableNeighborResolver.WorldSide.UP
+            ) || connectionSides.contains(
+                    ConnectableNeighborResolver.WorldSide.DOWN
+            )) {
+                Double preGravityY =
+                        PRE_GRAVITY_Y.get(itemRef);
+
+                if (preGravityY != null) {
+                    velocity.setY(preGravityY);
+                }
+            }
 
             dampingCandidate.consider(
                     itemPosition,
-                    nearestTarget,
-                    axisSide,
-                    oppositeAxisSide
+                    target,
+                    connectionSides.toArray(
+                            ConnectableNeighborResolver.WorldSide[]::new
+                    )
             );
-
-            totalAcceleration.add(acceleration);
-
-        }
-
-        private static void applyCurvePush(
-                World world,
-                Vector3i cablePosition,
-                Vector3d itemPosition,
-                Vector3d totalAcceleration,
-                DampingCandidate dampingCandidate
-        ) {
-            RotationTuple rotation =
-                    ConnectableNeighborResolver.rotationFor(
-                            world,
-                            cablePosition
-                    );
-
-            ConnectableNeighborResolver.WorldSide firstConnection =
-                    ConnectableNeighborResolver.worldSideForLocalSide(
-                            rotation,
-                            ConnectableRegistry.SIDE_BACK
-                    );
-
-            ConnectableNeighborResolver.WorldSide secondConnection =
-                    ConnectableNeighborResolver.worldSideForLocalSide(
-                            rotation,
-                            ConnectableRegistry.SIDE_LEFT
-                    );
-
-            Vector3d center =
-                    new Vector3d(
-                            cablePosition.x() + 0.5,
-                            cablePosition.y() + 0.5,
-                            cablePosition.z() + 0.5
-                    );
-
-            Vector3d nearestTarget = null;
-            ConnectableNeighborResolver.WorldSide nearestTargetSide = null;
-            double nearestDistanceSq = Double.MAX_VALUE;
-
-            for (ConnectableNeighborResolver.WorldSide side :
-                    ConnectableNeighborResolver.WorldSide.values()) {
-
-                if (side == firstConnection
-                        || side == secondConnection) {
-                    continue;
-                }
-
-                Vector3d target =
-                        targetForSide(
-                                center,
-                                side
-                        );
-
-                double distanceSq =
-                        itemPosition.distanceSquared(target);
-
-                if (distanceSq < nearestDistanceSq) {
-                    nearestDistanceSq = distanceSq;
-                    nearestTarget = target;
-                    nearestTargetSide = side;
-                }
-            }
-
-            if (nearestTarget == null) {
-                return;
-            }
-
-            Vector3d delta =
-                    new Vector3d(nearestTarget)
-                            .sub(itemPosition);
-
-            double stiffness = 100.0;
-
-            Vector3d acceleration =
-                    new Vector3d(delta)
-                            .mul(stiffness);
-
-            if (nearestTargetSide == firstConnection.opposite()) {
-
-                dampingCandidate.consider(
-                        itemPosition,
-                        nearestTarget,
-                        secondConnection
-                );
-
-                openTowards(
-                        acceleration,
-                        itemPosition,
-                        nearestTarget,
-                        secondConnection
-                );
-
-            } else if (nearestTargetSide == secondConnection.opposite()) {
-
-                dampingCandidate.consider(
-                        itemPosition,
-                        nearestTarget,
-                        firstConnection
-                );
-
-                openTowards(
-                        acceleration,
-                        itemPosition,
-                        nearestTarget,
-                        firstConnection
-                );
-
-            } else {
-
-                dampingCandidate.consider(
-                        itemPosition,
-                        nearestTarget,
-                        firstConnection,
-                        secondConnection
-                );
-
-                openTowards(
-                        acceleration,
-                        itemPosition,
-                        nearestTarget,
-                        firstConnection
-                );
-
-                openTowards(
-                        acceleration,
-                        itemPosition,
-                        nearestTarget,
-                        secondConnection
-                );
-            }
-
-            totalAcceleration.add(acceleration);
-        }
-
-        private static void applyTConnectPush(
-                World world,
-                Vector3i cablePosition,
-                Vector3d itemPosition,
-                Vector3d totalAcceleration,
-                DampingCandidate dampingCandidate
-        ) {
-            RotationTuple rotation =
-                    ConnectableNeighborResolver.rotationFor(
-                            world,
-                            cablePosition
-                    );
-
-            ConnectableNeighborResolver.WorldSide stemConnection =
-                    ConnectableNeighborResolver.worldSideForLocalSide(
-                            rotation,
-                            ConnectableRegistry.SIDE_BACK
-                    );
-
-            ConnectableNeighborResolver.WorldSide firstCrossConnection =
-                    ConnectableNeighborResolver.worldSideForLocalSide(
-                            rotation,
-                            ConnectableRegistry.SIDE_LEFT
-                    );
-
-            ConnectableNeighborResolver.WorldSide secondCrossConnection =
-                    ConnectableNeighborResolver.worldSideForLocalSide(
-                            rotation,
-                            ConnectableRegistry.SIDE_RIGHT
-                    );
-
-            Vector3d center =
-                    new Vector3d(
-                            cablePosition.x() + 0.5,
-                            cablePosition.y() + 0.5,
-                            cablePosition.z() + 0.5
-                    );
-
-            Vector3d nearestTarget = null;
-            ConnectableNeighborResolver.WorldSide nearestTargetSide = null;
-            double nearestDistanceSq = Double.MAX_VALUE;
-
-            for (ConnectableNeighborResolver.WorldSide side :
-                    ConnectableNeighborResolver.WorldSide.values()) {
-
-                if (side == stemConnection
-                        || side == firstCrossConnection
-                        || side == secondCrossConnection) {
-                    continue;
-                }
-
-                Vector3d target =
-                        targetForSide(
-                                center,
-                                side
-                        );
-
-                double distanceSq =
-                        itemPosition.distanceSquared(target);
-
-                if (distanceSq < nearestDistanceSq) {
-                    nearestDistanceSq = distanceSq;
-                    nearestTarget = target;
-                    nearestTargetSide = side;
-                }
-            }
-
-            if (nearestTarget == null) {
-                return;
-            }
-
-            Vector3d delta =
-                    new Vector3d(nearestTarget)
-                            .sub(itemPosition);
-
-            double stiffness = 100.0;
-
-            Vector3d acceleration =
-                    new Vector3d(delta)
-                            .mul(stiffness);
-
-            if (nearestTargetSide == stemConnection.opposite()) {
-
-                dampingCandidate.consider(
-                        itemPosition,
-                        nearestTarget,
-                        firstCrossConnection,
-                        secondCrossConnection
-                );
-
-                openTowards(
-                        acceleration,
-                        itemPosition,
-                        nearestTarget,
-                        firstCrossConnection
-                );
-
-                openTowards(
-                        acceleration,
-                        itemPosition,
-                        nearestTarget,
-                        secondCrossConnection
-                );
-
-            } else {
-
-                dampingCandidate.consider(
-                        itemPosition,
-                        nearestTarget,
-                        stemConnection,
-                        firstCrossConnection,
-                        secondCrossConnection
-                );
-
-                openTowards(
-                        acceleration,
-                        itemPosition,
-                        nearestTarget,
-                        stemConnection
-                );
-
-                openTowards(
-                        acceleration,
-                        itemPosition,
-                        nearestTarget,
-                        firstCrossConnection
-                );
-
-                openTowards(
-                        acceleration,
-                        itemPosition,
-                        nearestTarget,
-                        secondCrossConnection
-                );
-            }
 
             totalAcceleration.add(acceleration);
         }
