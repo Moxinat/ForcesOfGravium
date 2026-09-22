@@ -3,6 +3,7 @@ package dev.moxinat.forcesofgravium.spatial;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
+import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import org.joml.Vector3d;
 
 import javax.annotation.Nonnull;
@@ -11,11 +12,11 @@ import java.util.Set;
 public final class BlockPlacementRotationSystem {
 
     private static final Set<String> ROTATION_CONTROLLED_BLOCKS = Set.of(
-            "Inverter_Block",
-            "Gravium_Siphon_Block",
-            "Straight_Cased_Gravity_Powder",
-            "Gravium_Sensor_Block",
-            "Gravium_Shifter_Block"
+            ConnectableRegistry.INVERTER_BLOCK_ID,
+            ConnectableRegistry.GRAVIUM_SIPHON_BLOCK_ID,
+            ConnectableRegistry.STRAIGHT_CASED_GRAVITY_POWDER_BLOCK_ID,
+            ConnectableRegistry.GRAVIUM_SENSOR_BLOCK_ID,
+            ConnectableRegistry.GRAVIUM_SHIFTER_BLOCK_ID
     );
     private static final double VERTICAL_DIRECTION_THRESHOLD = 0.9D;
 
