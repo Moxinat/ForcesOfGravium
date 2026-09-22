@@ -145,7 +145,7 @@
       ]
     },
     "PlacementSettings": {
-      "RotationMode": "BlockNormal"
+      "RotationMode": "FacingPlayer"
     }
   },
   "Tags": {

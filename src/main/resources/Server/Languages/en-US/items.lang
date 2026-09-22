@@ -14,6 +14,8 @@ Wooden_Button_Block.name = Wooden Button
 Wooden_Button_Block.description = A small wooden button
 Gravium_Sensor_Block.name = Gravium Sensor
 Gravium_Sensor_Block.description = Observes changes in the world and converts them into gravium signals
+Gravium_Shifter_Block.name = Gravium Shifter
+Gravium_Shifter_Block.description = Pushes and pulls blocks and entities using gravium forces
 
 
 ui.ForcesOfGraviumCategory.items=Gravium Items

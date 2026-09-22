@@ -175,8 +175,6 @@
       }
     },
 
-    "RotationYawPlacementOffset": "OneEighty",
-
     "Supporting": {
       "Down": [
         {
@@ -211,7 +209,7 @@
     },
 
     "PlacementSettings": {
-      "RotationMode": "BlockNormal"
+      "RotationMode": "FacingPlayer"
     }
   },
 

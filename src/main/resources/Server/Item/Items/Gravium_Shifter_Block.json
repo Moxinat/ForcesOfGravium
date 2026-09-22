@@ -1,84 +1,108 @@
 {
   "TranslationProperties": {
-    "Name": "items.Gravium_Siphon_Block.name",
-    "Description": "items.Gravium_Siphon_Block.description"
+    "Name": "items.Gravium_Shifter_Block.name",
+    "Description": "items.Gravium_Shifter_Block.description"
   },
+
   "ItemLevel": 10,
   "MaxStack": 100,
-  "Icon": "Icons/ItemsGenerated/Gravium_Siphon_Block.png",
+
+  "Icon": "Icons/ItemsGenerated/Gravium_Shifter_Block.png",
+
   "Categories": [
     "ForcesOfGraviumCategory.items"
   ],
+
   "PlayerAnimationsId": "Block",
-  "Set": "Gravium_Siphon_Block",
+  "Set": "Gravium_Shifter_Block",
+
   "BlockType": {
     "Material": "Solid",
     "DrawType": "Model",
-    "CustomModel": "Blocks/Gravium_Siphon/Gravium_Siphon_Block.blockymodel",
+
+    "CustomModel": "Blocks/Gravium_Shifter/Gravium_Shifter.blockymodel",
+
     "CustomModelTexture": [
       {
-        "Texture": "BlockTextures/Gravium_Siphon.png",
+        "Texture": "BlockTextures/Gravium_Shifter_Texture.png",
         "Weight": 1
       }
     ],
+
     "Group": "Stone",
-    "Flags": {},
+
     "BlockEntity": {
       "Components": {
         "forcesofgravium:node": {
-          "SignalInputSides": 60,
+          "SignalInputSides": 62,
           "SignalOutputSides": 0,
           "ControlInputSides": 0,
+
           "PreviousInstantState": "Off",
           "InstantState": "Off",
+
           "PreviousEffectiveState": "Off",
           "EffectiveState": "Off",
+
           "Dirty": false,
           "InvertEnabled": false,
-          "Passing": false,
-          "EnergyDelta": -1,
-          "NetworkId": 0
-        },
-        "forcesofgravium:siphon": {
-          "CooldownTicks": 0
+          "Passing": false
         }
       }
     },
+
     "Gathering": {
       "Breaking": {
         "GatherType": "Rocks"
       }
     },
+
     "State": {
       "Definitions": {
-        "Locked": {
-          "CustomModel": "Blocks/Gravium_Siphon/Gravium_Siphon_Block.blockymodel",
+        "Off": {
+          "CustomModel": "Blocks/Gravium_Shifter/Gravium_Shifter.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/Gravium_Siphon_locked.png",
+              "Texture": "BlockTextures/Gravium_Shifter_Texture.png",
               "Weight": 1
             }
           ]
         },
-        "Powered": {
-          "CustomModel": "Blocks/Gravium_Siphon/Gravium_Siphon_Block.blockymodel",
+
+        "Push": {
+          "CustomModel": "Blocks/Gravium_Shifter/Gravium_Shifter.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/Gravium_Siphon_powered.png",
+              "Texture": "BlockTextures/Gravium_Shifter_Texture.png",
+              "Weight": 1
+            }
+          ]
+        },
+
+        "Pull": {
+          "CustomModel": "Blocks/Gravium_Shifter/Gravium_Shifter.blockymodel",
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/Gravium_Shifter_Texture.png",
               "Weight": 1
             }
           ]
         }
       }
     },
+
     "ParticleColor": "#737055",
     "VariantRotation": "All",
     "BlockSoundSetId": "Stone",
+
     "Aliases": [
-      "Gravium_Siphon_Block"
+      "Gravium_Shifter_Block"
     ],
+
     "BlockBreakingDecalId": "Breaking_Decals_Rock",
+
     "RotationYawPlacementOffset": "OneEighty",
+
     "Supporting": {
       "Down": [
         {
@@ -111,49 +135,30 @@
         }
       ]
     },
+
     "PlacementSettings": {
       "RotationMode": "FacingPlayer"
     }
   },
+
   "Tags": {
     "Type": [
       "Rock"
     ]
   },
+
   "ItemSoundSetId": "ISS_Blocks_Stone",
+
   "IconProperties": {
     "Scale": 0.58823,
     "Rotation": [
-      23,
+      22.5,
       45,
       22.5
     ],
     "Translation": [
       0,
       -13.5
-    ]
-  },
-  "Recipe": {
-    "PrimaryOutput": {
-      "ItemId": "Gravium_Siphon_Block"
-    },
-    "BenchRequirement": [
-      {
-        "Id": "Workbench",
-        "Categories": [
-          "Workbench_Tinkering"
-        ]
-      }
-    ],
-    "Input": [
-      {
-        "ItemId": "Gravity_Powder_Default",
-        "Quantity": 2
-      },
-      {
-        "ItemId": "Ingredient_Bar_Iron",
-        "Quantity": 10
-      }
     ]
   }
 }

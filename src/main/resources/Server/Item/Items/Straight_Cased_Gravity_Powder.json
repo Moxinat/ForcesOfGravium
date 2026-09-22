@@ -104,7 +104,7 @@
     "PlacementSettings": {
       "AllowBreakReplace": false,
       "PlaceInEmptyBlocks": true,
-      "RotationMode": "BlockNormal"
+      "RotationMode": "FacingPlayer"
     }
   },
   "Tags": {
