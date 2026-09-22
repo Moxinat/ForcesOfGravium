@@ -14,7 +14,8 @@ public final class BlockPlacementRotationSystem {
             "Inverter_Block",
             "Gravium_Siphon_Block",
             "Straight_Cased_Gravity_Powder",
-            "Gravium_Sensor_Block"
+            "Gravium_Sensor_Block",
+            "Gravium_Shifter_Block"
     );
     private static final double VERTICAL_DIRECTION_THRESHOLD = 0.9D;
 
