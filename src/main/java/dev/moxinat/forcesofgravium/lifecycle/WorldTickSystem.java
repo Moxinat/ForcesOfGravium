@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.block.sensor.SensorBlockRefresher;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
+import dev.moxinat.forcesofgravium.block.shifter.ShifterLogic;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualRefreshScheduler;
 import dev.moxinat.forcesofgravium.dispatcher.NodeControlDispatcher;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
@@ -58,6 +59,7 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
         NodeControlDispatcher.tickWorld(world);
         SensorLogic.tickWorld(world);
         SensorBlockRefresher.tickWorld(world);
+        ShifterLogic.tickShifter(world);
     }
 
     private static boolean markWorldTickProcessed(

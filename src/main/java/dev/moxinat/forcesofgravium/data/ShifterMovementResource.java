@@ -399,6 +399,18 @@ public final class ShifterMovementResource
                 : new Vector3i(position);
     }
 
+    public @Nullable Vector3i heldBlockFor(
+            @Nonnull Vector3i shifterPosition
+    ) {
+        for (Map.Entry<Vector3i, Vector3i> entry : heldBlocks.entrySet()) {
+            if (entry.getValue().equals(shifterPosition)) {
+                return new Vector3i(entry.getKey());
+            }
+        }
+
+        return null;
+    }
+
 
     /**
      * Call only after movement completion

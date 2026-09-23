@@ -1,9 +1,14 @@
 package dev.moxinat.forcesofgravium.block.shifter;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.protocol.BlockMaterial;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import com.hypixel.hytale.server.core.util.FillerBlockUtil;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
@@ -16,10 +21,8 @@ import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import javax.annotation.Nullable;
+import java.util.*;
 
 public class ShifterLogic {
 
@@ -27,8 +30,6 @@ public class ShifterLogic {
 
     private ShifterLogic() {
     }
-
-    List<ShifterMovementResource.MovementEntry> movementQueue = new ArrayList<>();
 
     public static void handleStateChange(
             @Nonnull World world,
@@ -161,7 +162,6 @@ public class ShifterLogic {
                             new ArrayList<>();
 
                     boolean valid = false;
-
                     while (true) {
 
                         BlockType targetBlock =
@@ -184,15 +184,12 @@ public class ShifterLogic {
                             valid = true;
                             break;
                         }
-
-                        // Continue the chain.
                         sourcePosition = new Vector3i(targetPosition);
 
                         targetPosition =
                                 new Vector3i(targetPosition)
                                         .add(direction);
                     }
-
                     if (valid) {
                         movementQueue.addAll(shifterQueue);
                     }
@@ -214,8 +211,6 @@ public class ShifterLogic {
                     if (frontBlock == null) {
                         continue;
                     }
-
-                    // A block is directly in front of the Shifter.
                     if (frontBlock.getMaterial() != BlockMaterial.Empty) {
 
                         movements.holdBlock(
@@ -226,7 +221,6 @@ public class ShifterLogic {
                         continue;
                     }
 
-                    // No block is currently being held.
                     movements.releaseHeldBlocks(shifterPosition);
 
                     Vector3i direction =
@@ -266,13 +260,104 @@ public class ShifterLogic {
         // PROCESS MOVEMENT QUEUE
         // --------------------------------------------------
 
-        // TODO:
-        // All active Shifters have now been processed.
-        // Validate movement dependencies, multiblocks
-        // and conflicts before starting movements.
+        // Find Shifters that are being moved by another Shifter.
+        Set<Vector3i> movedShifters = new HashSet<>();
+
+        for (ShifterMovementResource.MovementEntry entry : movementQueue) {
+
+            Vector3i source = entry.sourcePosition();
+
+            if (activeShifters.contains(source)
+                    && !source.equals(entry.shifterPosition())) {
+
+                movedShifters.add(source);
+            }
+        }
+
+        // Remove all movements initiated by those Shifters.
+        movementQueue.removeIf(
+                entry -> movedShifters.contains(entry.shifterPosition())
+        );
+
+        Map<Vector3i, Vector3i> directions = new HashMap<>();
+        Map<Vector3i, Set<Vector3i>> shiftersByBlock = new HashMap<>();
+
+        Set<Vector3i> conflictingBlocks = new HashSet<>();
+
+        for (ShifterMovementResource.MovementEntry entry : movementQueue) {
+
+            Vector3i source = entry.sourcePosition();
+
+            Vector3i direction =
+                    entry.targetPosition()
+                            .sub(source);
+
+            // Remember every Shifter trying to move this block.
+            shiftersByBlock
+                    .computeIfAbsent(source, ignored -> new HashSet<>())
+                    .add(entry.shifterPosition());
+
+            // Remember the first movement direction.
+            Vector3i previousDirection =
+                    directions.putIfAbsent(source, direction);
+
+            // Different movement directions for the same block.
+            if (previousDirection != null
+                    && !previousDirection.equals(direction)) {
+
+                conflictingBlocks.add(source);
+            }
+        }
+
+        // Collect every Shifter involved in a conflict.
+        Set<Vector3i> conflictingShifters = new HashSet<>();
+
+        for (Vector3i block : conflictingBlocks) {
+            conflictingShifters.addAll(
+                    shiftersByBlock.get(block)
+            );
+        }
+
+        // Remove their entire movement queues.
+        movementQueue.removeIf(
+                entry -> conflictingShifters.contains(
+                        entry.shifterPosition()
+                )
+        );
+
+        // Collect all positions occupied by ongoing movements.
+        Set<Vector3i> reservedPositions = new HashSet<>();
+
+        for (ShifterMovementResource.ActiveMovement movement
+                : movements.activeMovements().values()) {
+
+            for (ShifterMovementResource.MovementEntry entry
+                    : movement.entries()) {
+
+                reservedPositions.add(entry.sourcePosition());
+                reservedPositions.add(entry.targetPosition());
+            }
+        }
+
+        // Find Shifters trying to use reserved positions.
+        Set<Vector3i> reservedConflictingShifters = new HashSet<>();
+
+        for (ShifterMovementResource.MovementEntry entry : movementQueue) {
+
+            if (reservedPositions.contains(entry.sourcePosition())
+                    || reservedPositions.contains(entry.targetPosition())) {
+
+                reservedConflictingShifters.add(entry.shifterPosition());
+            }
+        }
+
+        movementQueue.removeIf(
+                entry -> reservedConflictingShifters.contains(
+                        entry.shifterPosition()
+                )
+        );
+
     }
-
-
 
 
 
