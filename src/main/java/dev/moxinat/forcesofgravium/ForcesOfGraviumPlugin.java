@@ -34,6 +34,7 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
     public static ResourceType<ChunkStore, NetworkResource> NETWORK_RESOURCE_TYPE;
     public static ResourceType<ChunkStore, SignalRuntimeResource> SIGNAL_RESOURCE_TYPE;
     public static ComponentType<ChunkStore, SiphonComponent> SIPHON_COMPONENT_TYPE;
+    public static ResourceType<ChunkStore, ShifterMovementResource> SHIFTER_MOVEMENT_RESOURCE_TYPE;
 
     @Override
     protected void setup() {
@@ -77,6 +78,13 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
                         SignalRuntimeResource.class,
                         "forcesofgravium_signal",
                         SignalRuntimeResource.CODEC
+                );
+
+        SHIFTER_MOVEMENT_RESOURCE_TYPE =
+                this.getChunkStoreRegistry().registerResource(
+                        ShifterMovementResource.class,
+                        "forcesofgravium_shifter_movements",
+                        ShifterMovementResource.CODEC
                 );
 
 
