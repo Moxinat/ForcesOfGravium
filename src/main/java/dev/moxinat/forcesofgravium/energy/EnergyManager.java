@@ -6,6 +6,7 @@ import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.Nodes;
+import dev.moxinat.forcesofgravium.dispatcher.NodeStateDispatcher;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import org.joml.Vector3i;
@@ -169,6 +170,8 @@ public final class EnergyManager {
                         currentNode.setDirty(false);
                     });
 
+                    NodeStateDispatcher.dispatch(world, position);
+
                     ConnectableVisualDispatcher.refreshAt(
                             world,
                             position
@@ -270,6 +273,8 @@ public final class EnergyManager {
                 currentNode.setEffectiveState(SignalState.OFF);
                 currentNode.setDirty(false);
             });
+
+            NodeStateDispatcher.dispatch(world, position);
 
             ConnectableVisualDispatcher.refreshAt(
                     world,

@@ -12,7 +12,6 @@ import com.hypixel.hytale.server.core.util.FillerBlockUtil;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
-import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.data.ShifterMovementResource;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -25,6 +24,8 @@ import javax.annotation.Nullable;
 import java.util.*;
 
 public class ShifterLogic {
+
+    private static final int MAX_MOVED_BLOCKS = 100;
 
     private static final int BASE_ENERGY_COST = 1;
 
@@ -84,7 +85,12 @@ public class ShifterLogic {
                 energyDelta
         );
 
-        EnergyManager.checkNetwork(world, position);
+        if (!networks.isFailing(networkId)) {
+            EnergyManager.checkNetwork(
+                    world,
+                    position
+            );
+        }
     }
 
     public static void tickShifter(
@@ -153,6 +159,7 @@ public class ShifterLogic {
                             world.getBlockType(sourcePosition);
 
                     if (sourceBlock == null
+                            || isUnbreakable(sourceBlock)
                             || sourceBlock.getMaterial() == BlockMaterial.Empty) {
                         continue;
                     }
@@ -167,7 +174,12 @@ public class ShifterLogic {
                         BlockType targetBlock =
                                 world.getBlockType(targetPosition);
 
-                        if (targetBlock == null) {
+                        if (targetBlock == null
+                                || isUnbreakable(targetBlock)) {
+                            break;
+                        }
+
+                        if (shifterQueue.size() >= MAX_MOVED_BLOCKS) {
                             break;
                         }
 
@@ -179,7 +191,7 @@ public class ShifterLogic {
                                 )
                         );
 
-                        // End of the block chain.
+                        // End of the blockchain.
                         if (targetBlock.getMaterial() == BlockMaterial.Empty) {
                             valid = true;
                             break;
@@ -208,7 +220,8 @@ public class ShifterLogic {
                             world.getBlockType(frontPosition);
 
                     // Position unavailable.
-                    if (frontBlock == null) {
+                    if (frontBlock == null
+                            || isUnbreakable(frontBlock)) {
                         continue;
                     }
                     if (frontBlock.getMaterial() != BlockMaterial.Empty) {
@@ -236,6 +249,7 @@ public class ShifterLogic {
 
                     // Nothing to pull or position unavailable.
                     if (sourceBlock == null
+                            || isUnbreakable(sourceBlock)
                             || sourceBlock.getMaterial() == BlockMaterial.Empty) {
 
                         continue;
@@ -357,8 +371,333 @@ public class ShifterLogic {
                 )
         );
 
+        // --------------------------------------------------
+        // DETECT TARGET POSITION CONFLICTS
+        // --------------------------------------------------
+
+        Map<Vector3i, Map<Vector3i, Set<Vector3i>>> targetClaims =
+                new HashMap<>();
+
+        for (ShifterMovementResource.MovementEntry entry : movementQueue) {
+
+            targetClaims
+                    .computeIfAbsent(
+                            entry.targetPosition(),
+                            ignored -> new HashMap<>()
+                    )
+                    .computeIfAbsent(
+                            entry.sourcePosition(),
+                            ignored -> new HashSet<>()
+                    )
+                    .add(entry.shifterPosition());
+        }
+
+        Set<Vector3i> targetConflictingShifters = new HashSet<>();
+
+        for (Map<Vector3i, Set<Vector3i>> claims
+                : targetClaims.values()) {
+
+            // Multiple different blocks claim the same target.
+            if (claims.size() > 1) {
+
+                for (Set<Vector3i> owners : claims.values()) {
+                    targetConflictingShifters.addAll(owners);
+                }
+            }
+        }
+
+        movementQueue.removeIf(
+                entry -> targetConflictingShifters.contains(
+                        entry.shifterPosition()
+                )
+        );
+
+        // --------------------------------------------------
+        // VALIDATE MULTIBLOCKS AND HOLDING RELATIONSHIPS
+        // --------------------------------------------------
+
+        boolean changed;
+
+        do {
+            changed = false;
+
+            Map<Vector3i, Vector3i> directionBySource =
+                    new HashMap<>();
+
+            Map<Vector3i, Set<Vector3i>> ownersBySource =
+                    new HashMap<>();
+
+            // Index the remaining movements.
+            for (ShifterMovementResource.MovementEntry entry : movementQueue) {
+
+                Vector3i source = entry.sourcePosition();
+
+                Vector3i direction =
+                        entry.targetPosition().sub(source);
+
+                directionBySource.put(source, direction);
+
+                ownersBySource
+                        .computeIfAbsent(source, ignored -> new HashSet<>())
+                        .add(entry.shifterPosition());
+            }
+
+            Set<Vector3i> invalidShifters = new HashSet<>();
+
+            // Every multiblock only needs to be checked once per iteration.
+            Set<Vector3i> checkedOrigins = new HashSet<>();
+
+            for (ShifterMovementResource.MovementEntry entry : movementQueue) {
+
+                Vector3i source = entry.sourcePosition();
+
+                Vector3i direction =
+                        directionBySource.get(source);
+
+
+                // ----------------------------------------------
+                // MULTIBLOCK VALIDATION
+                // ----------------------------------------------
+
+                Vector3i origin =
+                        multiblockOrigin(world, source);
+
+                if (origin == null) {
+                    invalidShifters.addAll(
+                            ownersBySource.get(source)
+                    );
+                    continue;
+                }
+
+                if (checkedOrigins.add(origin)) {
+
+                    Set<Vector3i> cells =
+                            multiblockCells(world, origin);
+
+                    if (cells == null) {
+
+                        invalidShifters.addAll(
+                                ownersBySource.get(source)
+                        );
+
+                    } else if (cells.size() > 1) {
+
+                        Vector3i expectedDirection = null;
+                        boolean valid = true;
+
+                        for (Vector3i cell : cells) {
+
+                            Vector3i cellDirection =
+                                    directionBySource.get(cell);
+
+                            if (cellDirection == null) {
+                                valid = false;
+                                continue;
+                            }
+
+                            if (expectedDirection == null) {
+                                expectedDirection = cellDirection;
+
+                            } else if (!expectedDirection.equals(cellDirection)) {
+                                valid = false;
+                            }
+                        }
+
+                        if (!valid) {
+
+                            // Cancel every Shifter moving any part
+                            // of this incomplete multiblock.
+                            for (Vector3i cell : cells) {
+
+                                invalidShifters.addAll(
+                                        ownersBySource.getOrDefault(
+                                                cell,
+                                                Set.of()
+                                        )
+                                );
+                            }
+                        }
+                    }
+                }
+
+
+                // ----------------------------------------------
+                // HOLDING RELATIONSHIPS
+                // ----------------------------------------------
+
+                Set<Vector3i> partners = new HashSet<>();
+
+                Vector3i holdingShifter =
+                        movements.holdingShifter(source);
+
+                if (holdingShifter != null) {
+                    partners.add(holdingShifter);
+                }
+
+                Vector3i heldBlock =
+                        movements.heldBlockFor(source);
+
+                if (heldBlock != null) {
+                    partners.add(heldBlock);
+                }
+
+                for (Vector3i partner : partners) {
+
+                    Vector3i partnerDirection =
+                            directionBySource.get(partner);
+
+                    if (!direction.equals(partnerDirection)) {
+
+                        // Cancel Shifters moving this block.
+                        invalidShifters.addAll(
+                                ownersBySource.get(source)
+                        );
+
+                        // Also cancel Shifters moving the partner,
+                        // if it was queued in another direction.
+                        invalidShifters.addAll(
+                                ownersBySource.getOrDefault(
+                                        partner,
+                                        Set.of()
+                                )
+                        );
+                    }
+                }
+            }
+
+            // Remove every invalid Shifter queue simultaneously.
+            if (!invalidShifters.isEmpty()) {
+
+                changed = movementQueue.removeIf(
+                        entry -> invalidShifters.contains(
+                                entry.shifterPosition()
+                        )
+                );
+            }
+
+        } while (changed);
+
     }
 
+    private static @Nullable Vector3i multiblockOrigin(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        BlockSection section =
+                blockSectionAt(world, position);
 
+        if (section == null) {
+            return null;
+        }
+
+        int filler =
+                section.getFiller(
+                        ChunkUtil.indexBlock(
+                                position.x(),
+                                position.y(),
+                                position.z()
+                        )
+                );
+
+        if (filler == FillerBlockUtil.NO_FILLER) {
+            return new Vector3i(position);
+        }
+
+        return new Vector3i(position).sub(
+                FillerBlockUtil.unpackX(filler),
+                FillerBlockUtil.unpackY(filler),
+                FillerBlockUtil.unpackZ(filler)
+        );
+    }
+
+    private static @Nullable Set<Vector3i> multiblockCells(
+            @Nonnull World world,
+            @Nonnull Vector3i origin
+    ) {
+        BlockSection section =
+                blockSectionAt(world, origin);
+
+        if (section == null) {
+            return null;
+        }
+
+        int index =
+                ChunkUtil.indexBlock(
+                        origin.x(),
+                        origin.y(),
+                        origin.z()
+                );
+
+        int blockId = section.get(index);
+        int rotation = section.getRotationIndex(index);
+
+        var footprint =
+                FillerBlockUtil.multiCellFootprint(
+                        blockId,
+                        rotation
+                );
+
+        Set<Vector3i> cells = new HashSet<>();
+
+        cells.add(new Vector3i(origin));
+
+        if (footprint == null) {
+            return cells;
+        }
+
+        FillerBlockUtil.forEachFillerBlock(
+                footprint,
+                (x, y, z) -> cells.add(
+                        new Vector3i(origin).add(x, y, z)
+                )
+        );
+
+        // Do not validate an incomplete or unloaded footprint.
+        for (Vector3i cell : cells) {
+            if (blockSectionAt(world, cell) == null) {
+                return null;
+            }
+        }
+
+        return cells;
+    }
+
+    private static @Nullable BlockSection blockSectionAt(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        Ref<ChunkStore> sectionRef =
+                world.getChunkStore()
+                        .getChunkSectionReferenceAtBlock(
+                                position.x(),
+                                position.y(),
+                                position.z()
+                        );
+
+        if (sectionRef == null || !sectionRef.isValid()) {
+            return null;
+        }
+
+        return sectionRef.getStore().getComponent(
+                sectionRef,
+                BlockSection.getComponentType()
+        );
+    }
+
+    private static boolean isUnbreakable(
+            @Nonnull BlockType block
+    ) {
+        // Actual air is never unbreakable.
+        if (BlockType.EMPTY_KEY.equals(block.getId())) {
+            return false;
+        }
+
+        var gathering = block.getGathering();
+
+        return gathering == null
+                || (gathering.getBreaking() == null
+                && gathering.getHarvest() == null
+                && gathering.getSoft() == null);
+    }
 
 }
