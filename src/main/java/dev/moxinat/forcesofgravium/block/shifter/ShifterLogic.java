@@ -427,6 +427,9 @@ public class ShifterLogic {
             Map<Vector3i, Set<Vector3i>> ownersBySource =
                     new HashMap<>();
 
+            Map<Vector3i, Integer> movedBlocksByShifter =
+                    new HashMap<>();
+
             // Index the remaining movements.
             for (ShifterMovementResource.MovementEntry entry : movementQueue) {
 
@@ -440,6 +443,24 @@ public class ShifterLogic {
                 ownersBySource
                         .computeIfAbsent(source, ignored -> new HashSet<>())
                         .add(entry.shifterPosition());
+
+                movedBlocksByShifter.merge(
+                        entry.shifterPosition(),
+                        1,
+                        Integer::sum
+                );
+            }
+
+            Map<Vector3i, Integer> energyCostByShifter =
+                    new HashMap<>();
+
+            for (Map.Entry<Vector3i, Integer> entry
+                    : movedBlocksByShifter.entrySet()) {
+
+                energyCostByShifter.put(
+                        entry.getKey(),
+                        movementEnergyCost(entry.getValue())
+                );
             }
 
             Set<Vector3i> invalidShifters = new HashSet<>();
@@ -682,6 +703,14 @@ public class ShifterLogic {
                 sectionRef,
                 BlockSection.getComponentType()
         );
+    }
+
+    private static int movementEnergyCost(
+            int blockCount
+    ) {
+        return BASE_ENERGY_COST
+                + 2 * blockCount
+                + blockCount * blockCount;
     }
 
     private static boolean isUnbreakable(
