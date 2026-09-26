@@ -103,6 +103,13 @@ public class ShifterLogic {
                                 ForcesOfGraviumPlugin.SHIFTER_MOVEMENT_RESOURCE_TYPE
                         );
 
+        NetworkResource networks =
+                world.getChunkStore()
+                        .getStore()
+                        .getResource(
+                                ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
+                        );
+
         Set<Vector3i> pushShifters =
                 movements.pushShifters();
 
@@ -593,6 +600,48 @@ public class ShifterLogic {
                         entry -> invalidShifters.contains(
                                 entry.shifterPosition()
                         )
+                );
+
+                if (changed) {
+                    continue;
+                }
+            }
+
+            Map<Long, Vector3i> networksToCheck =
+                    new HashMap<>();
+
+            // Apply all movement energy costs first.
+            for (Map.Entry<Vector3i, Integer> entry
+                    : energyCostByShifter.entrySet()) {
+
+                Vector3i shifterPosition =
+                        entry.getKey();
+
+                long networkId =
+                        networks.networkAt(shifterPosition);
+
+                if (networkId == NetworkResource.NO_NETWORK) {
+                    continue;
+                }
+
+                networks.setEnergyDelta(
+                        networkId,
+                        shifterPosition,
+                        -entry.getValue()
+                );
+
+                networksToCheck.putIfAbsent(
+                        networkId,
+                        shifterPosition
+                );
+            }
+
+            // Only after every Shifter cost is applied,
+            // evaluate each affected network once.
+            for (Vector3i shifterPosition : networksToCheck.values()) {
+                EnergyManager.checkNetwork(
+                        world,
+                        shifterPosition
                 );
             }
 
