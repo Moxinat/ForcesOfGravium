@@ -603,6 +603,41 @@ public class ShifterLogic {
                 );
 
                 if (changed) {
+                    Map<Long, Vector3i> resetNetworksToCheck =
+                            new HashMap<>();
+
+                    for (Vector3i shifterPosition : invalidShifters) {
+
+                        long networkId =
+                                networks.networkAt(shifterPosition);
+
+                        if (networkId == NetworkResource.NO_NETWORK) {
+                            continue;
+                        }
+
+                        networks.setEnergyDelta(
+                                networkId,
+                                shifterPosition,
+                                -BASE_ENERGY_COST
+                        );
+
+                        if (!networks.isFailing(networkId)) {
+                            resetNetworksToCheck.putIfAbsent(
+                                    networkId,
+                                    shifterPosition
+                            );
+                        }
+                    }
+
+                    for (Vector3i shifterPosition
+                            : resetNetworksToCheck.values()) {
+
+                        EnergyManager.checkNetwork(
+                                world,
+                                shifterPosition
+                        );
+                    }
+
                     continue;
                 }
             }
@@ -642,6 +677,36 @@ public class ShifterLogic {
                 EnergyManager.checkNetwork(
                         world,
                         shifterPosition
+                );
+            }
+
+            Set<Vector3i> failingShifters =
+                    new HashSet<>();
+
+            for (Vector3i shifterPosition
+                    : energyCostByShifter.keySet()) {
+
+                long networkId =
+                        networks.networkAt(shifterPosition);
+
+                if (networkId != NetworkResource.NO_NETWORK
+                        && networks.isFailing(networkId)) {
+
+                    failingShifters.add(shifterPosition);
+
+                    networks.setEnergyDelta(
+                            networkId,
+                            shifterPosition,
+                            -BASE_ENERGY_COST
+                    );
+                }
+            }
+
+            if (!failingShifters.isEmpty()) {
+                changed = movementQueue.removeIf(
+                        entry -> failingShifters.contains(
+                                entry.shifterPosition()
+                        )
                 );
             }
 
