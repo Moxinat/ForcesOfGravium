@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.modules.interaction.components.PlacedByInt
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
+import dev.moxinat.forcesofgravium.block.shifter.ShifterLogic;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
@@ -361,6 +362,11 @@ public final class ConnectableBlockLifecycleSystem {
                         target
                 );
             }
+
+            ShifterLogic.handleBroken(
+                    world,
+                    target
+            );
 
             commandBuffer.run(ignored -> {
 

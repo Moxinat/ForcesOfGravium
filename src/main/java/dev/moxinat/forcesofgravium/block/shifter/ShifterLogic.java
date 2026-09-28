@@ -111,6 +111,53 @@ public class ShifterLogic {
         }
     }
 
+    public static void handleBroken(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        ShifterMovementResource movements =
+                world.getChunkStore()
+                        .getStore()
+                        .getResource(
+                                ForcesOfGraviumPlugin.SHIFTER_MOVEMENT_RESOURCE_TYPE
+                        );
+
+        ShifterMovementResource.ActiveMovement movement =
+                movements.movementAt(position);
+
+        if (movement != null) {
+
+            if (movement.stage()
+                    == ShifterMovementResource.MovementStage.PREPARED) {
+
+                /*
+                 * PREPARED means the real blocks have not yet been
+                 * replaced by moving entities. There is therefore
+                 * nothing to restore.
+                 */
+                movements.finishMovement(
+                        position
+                );
+
+            } else {
+
+                movements.setMovementStage(
+                        position,
+                        ShifterMovementResource.MovementStage.ROLLING_BACK
+                );
+            }
+        }
+
+        /*
+         * Remove the broken Shifter from PUSH/PULL and release
+         * anything it was holding.
+         */
+        movements.setShifterState(
+                position,
+                SignalState.OFF
+        );
+    }
+
     public static void tickShifter(
             @Nonnull World world
     ) {
@@ -1323,7 +1370,143 @@ public class ShifterLogic {
                 }
 
                 case ROLLING_BACK -> {
-                    // später
+
+                    for (ShifterMovementResource.MovementEntry movementEntry
+                            : movement.entries()) {
+
+                        Vector3i source =
+                                movementEntry.sourcePosition();
+
+                        String blockTypeKey =
+                                movements.movementBlockType(source);
+
+                        Integer rotationIndex =
+                                movements.movementBlockRotation(source);
+
+                        if (blockTypeKey == null
+                                || rotationIndex == null) {
+                            continue;
+                        }
+
+                        BlockType blockType =
+                                BlockType.getAssetMap()
+                                        .getAsset(blockTypeKey);
+
+                        if (blockType == null) {
+                            continue;
+                        }
+
+                        Ref<ChunkStore> sourceSectionRef =
+                                loadedSectionRefAt(
+                                        world,
+                                        source
+                                );
+
+                        if (sourceSectionRef == null) {
+                            return;
+                        }
+
+                        Store<ChunkStore> chunkStore =
+                                world.getChunkStore()
+                                        .getStore();
+
+                        Holder<ChunkStore> components =
+                                movements.movementBlockComponents(source);
+
+                        int settings = 4;
+
+                        if (components != null) {
+                            settings |= 2;
+                        }
+
+                        int blockId =
+                                BlockType.getAssetMap()
+                                        .getIndex(blockTypeKey);
+
+                        BlockOperations.setBlock(
+                                world.getChunkStore(),
+                                sourceSectionRef,
+                                source.x(),
+                                source.y(),
+                                source.z(),
+                                blockId,
+                                blockType,
+                                rotationIndex,
+                                0,
+                                settings
+                        );
+
+                        if (components != null) {
+
+                            BlockComponentSection sourceComponentSection =
+                                    chunkStore.getComponent(
+                                            sourceSectionRef,
+                                            BlockComponentSection.getComponentType()
+                                    );
+
+                            if (sourceComponentSection == null) {
+                                return;
+                            }
+
+                            BlockEntity.setBlockEntity(
+                                    chunkStore,
+                                    sourceSectionRef,
+                                    sourceComponentSection,
+                                    source.x(),
+                                    source.y(),
+                                    source.z(),
+                                    blockType,
+                                    rotationIndex,
+                                    components.clone()
+                            );
+                        }
+
+                        Ref<EntityStore> visualEntity =
+                                movements.movementVisualEntity(source);
+
+                        if (visualEntity != null
+                                && visualEntity.isValid()) {
+
+                            commandBuffer.removeEntity(
+                                    visualEntity,
+                                    RemoveReason.REMOVE
+                            );
+                        }
+
+                        movements.clearMovementRuntime(
+                                source
+                        );
+                    }
+
+                    NetworkResource networks =
+                            world.getChunkStore()
+                                    .getStore()
+                                    .getResource(
+                                            ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
+                                    );
+
+                    long networkId =
+                            networks.networkAt(shifterPosition);
+
+                    if (networkId != NetworkResource.NO_NETWORK) {
+
+                        networks.setEnergyDelta(
+                                networkId,
+                                shifterPosition,
+                                -BASE_ENERGY_COST
+                        );
+
+                        if (!networks.isFailing(networkId)) {
+                            EnergyManager.checkNetwork(
+                                    world,
+                                    shifterPosition
+                            );
+                        }
+                    }
+
+                    movements.finishMovement(
+                            shifterPosition
+                    );
                 }
             }
         }
