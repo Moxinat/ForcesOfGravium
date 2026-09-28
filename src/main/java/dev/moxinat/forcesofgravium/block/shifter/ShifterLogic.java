@@ -236,8 +236,8 @@ public class ShifterLogic {
                             );
 
                     if (sourceBlock == null
-                            || isUnbreakable(sourceBlock)
-                            || sourceBlock.getMaterial() == BlockMaterial.Empty) {
+                            || isReplaceable(sourceBlock)
+                            || isUnbreakable(sourceBlock)) {
                         continue;
                     }
 
@@ -254,12 +254,34 @@ public class ShifterLogic {
                                         targetPosition
                                 );
 
-                        if (targetBlock == null
-                                || isUnbreakable(targetBlock)) {
+                        if (targetBlock == null) {
                             break;
                         }
 
                         if (shifterQueue.size() >= MAX_MOVED_BLOCKS) {
+                            break;
+                        }
+
+                        /*
+                         * Replaceable blocks behave like free space:
+                         * the moving block commits into this position and
+                         * the existing replaceable block is overwritten.
+                         * The replaceable block itself is never moved.
+                         */
+                        if (isReplaceable(targetBlock)) {
+                            shifterQueue.add(
+                                    new ShifterMovementResource.MovementEntry(
+                                            shifterPosition,
+                                            sourcePosition,
+                                            targetPosition
+                                    )
+                            );
+
+                            valid = true;
+                            break;
+                        }
+
+                        if (isUnbreakable(targetBlock)) {
                             break;
                         }
 
@@ -271,11 +293,6 @@ public class ShifterLogic {
                                 )
                         );
 
-                        // End of the blockchain.
-                        if (targetBlock.getMaterial() == BlockMaterial.Empty) {
-                            valid = true;
-                            break;
-                        }
                         sourcePosition = new Vector3i(targetPosition);
 
                         targetPosition =
@@ -303,11 +320,22 @@ public class ShifterLogic {
                             );
 
                     // Position unavailable.
-                    if (frontBlock == null
-                            || isUnbreakable(frontBlock)) {
+                    if (frontBlock == null) {
                         continue;
                     }
-                    if (frontBlock.getMaterial() != BlockMaterial.Empty) {
+
+                    /*
+                     * Replaceable blocks count as free space and are never
+                     * held or moved themselves.
+                     */
+                    if (isReplaceable(frontBlock)) {
+                        movements.releaseHeldBlocks(
+                                shifterPosition
+                        );
+                    } else {
+                        if (isUnbreakable(frontBlock)) {
+                            continue;
+                        }
 
                         movements.holdBlock(
                                 frontPosition,
@@ -316,8 +344,6 @@ public class ShifterLogic {
 
                         continue;
                     }
-
-                    movements.releaseHeldBlocks(shifterPosition);
 
                     Vector3i direction =
                             new Vector3i(frontPosition)
@@ -335,8 +361,8 @@ public class ShifterLogic {
 
                     // Nothing to pull or position unavailable.
                     if (sourceBlock == null
-                            || isUnbreakable(sourceBlock)
-                            || sourceBlock.getMaterial() == BlockMaterial.Empty) {
+                            || isReplaceable(sourceBlock)
+                            || isUnbreakable(sourceBlock)) {
 
                         continue;
                     }
@@ -987,7 +1013,7 @@ public class ShifterLogic {
                         );
 
                 if (blockType == null
-                        || blockType.getMaterial() == BlockMaterial.Empty) {
+                        || isReplaceable(blockType)) {
 
                     return;
                 }
@@ -1928,6 +1954,32 @@ public class ShifterLogic {
         return BASE_ENERGY_COST
                 + 2 * blockCount
                 + blockCount * blockCount;
+    }
+
+    private static boolean isReplaceable(
+            @Nonnull BlockType block
+    ) {
+        if (BlockType.EMPTY_KEY.equals(block.getId())) {
+            return true;
+        }
+
+        if (block.getMaterial() != BlockMaterial.Empty) {
+            return false;
+        }
+
+        var placementSettings =
+                block.getPlacementSettings();
+
+        /*
+         * Vanilla plant-style Empty blocks commonly have no explicit
+         * placement settings and are replaceable by normal placement.
+         *
+         * Blocks such as Gravity Powder explicitly opt out through
+         * AllowBreakReplace = false and therefore remain real movable
+         * blocks despite using BlockMaterial.Empty.
+         */
+        return placementSettings == null
+                || placementSettings.toPacket().allowBreakReplace;
     }
 
     private static boolean isUnbreakable(
