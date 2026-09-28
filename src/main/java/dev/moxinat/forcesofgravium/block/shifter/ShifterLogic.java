@@ -61,8 +61,18 @@ public class ShifterLogic {
                 );
 
         if (node == null) {
+            debug(world, position, "handleStateChange node=null");
             return;
         }
+
+        debug(
+                world,
+                position,
+                "handleStateChange"
+                        + " instant=" + node.instantState()
+                        + " effective=" + node.effectiveState()
+                        + " dirty=" + node.dirty()
+        );
 
         var store = world.getChunkStore().getStore();
 
@@ -77,6 +87,16 @@ public class ShifterLogic {
                 node.effectiveState()
         );
 
+        debug(
+                world,
+                position,
+                "setShifterState=" + node.effectiveState()
+                        + " pushRegistered="
+                        + movements.pushShifters().contains(position)
+                        + " pullRegistered="
+                        + movements.pullShifters().contains(position)
+        );
+
         // Update base energy consumption.
         NetworkResource networks =
                 store.getResource(
@@ -86,6 +106,7 @@ public class ShifterLogic {
         long networkId = networks.networkAt(position);
 
         if (networkId == NetworkResource.NO_NETWORK) {
+            debug(world, position, "handleStateChange NO_NETWORK");
             return;
         }
 
@@ -147,8 +168,23 @@ public class ShifterLogic {
 
         for (Vector3i shifterPosition : activeShifters) {
 
+            debug(
+                    world,
+                    shifterPosition,
+                    "tickShifter active"
+                            + " push=" + pushShifters.contains(shifterPosition)
+                            + " pull=" + pullShifters.contains(shifterPosition)
+                            + " hasActiveMovement="
+                            + movements.hasActiveMovement(shifterPosition)
+            );
+
             // Do not create another plan during an active movement.
             if (movements.hasActiveMovement(shifterPosition)) {
+                debug(
+                        world,
+                        shifterPosition,
+                        "SKIP planning: active movement already exists"
+                );
                 continue;
             }
 
@@ -183,6 +219,18 @@ public class ShifterLogic {
                     if (sourceBlock == null
                             || isUnbreakable(sourceBlock)
                             || sourceBlock.getMaterial() == BlockMaterial.Empty) {
+
+                        debug(
+                                world,
+                                shifterPosition,
+                                "PUSH no movable source"
+                                        + " sourcePos=" + sourcePosition
+                                        + " sourceBlock="
+                                        + (sourceBlock == null ? "null" : sourceBlock.getId())
+                                        + " material="
+                                        + (sourceBlock == null ? "null" : sourceBlock.getMaterial())
+                        );
+
                         continue;
                     }
 
@@ -225,7 +273,19 @@ public class ShifterLogic {
                                         .add(direction);
                     }
                     if (valid) {
+                        debug(
+                                world,
+                                shifterPosition,
+                                "PUSH planned entries=" + shifterQueue.size()
+                        );
                         movementQueue.addAll(shifterQueue);
+                    } else {
+                        debug(
+                                world,
+                                shifterPosition,
+                                "PUSH planning invalid/blocked entries="
+                                        + shifterQueue.size()
+                        );
                     }
                 }
 
@@ -291,6 +351,18 @@ public class ShifterLogic {
             }
         }
 
+
+        for (Vector3i shifterPosition : activeShifters) {
+            long count = movementQueue.stream()
+                    .filter(entry -> entry.shifterPosition().equals(shifterPosition))
+                    .count();
+
+            debug(
+                    world,
+                    shifterPosition,
+                    "movementQueue before validation entries=" + count
+            );
+        }
 
         // --------------------------------------------------
         // PROCESS MOVEMENT QUEUE
@@ -774,11 +846,20 @@ public class ShifterLogic {
                 }
             }
 
-            movements.startMovement(
+            boolean started =
+                    movements.startMovement(
+                            shifterPosition,
+                            entries,
+                            multiblockBases,
+                            MOVEMENT_DURATION_TICKS
+                    );
+
+            debug(
+                    world,
                     shifterPosition,
-                    entries,
-                    multiblockBases,
-                    MOVEMENT_DURATION_TICKS
+                    "startMovement"
+                            + " entries=" + entries.size()
+                            + " started=" + started
             );
         }
 
@@ -1350,6 +1431,19 @@ public class ShifterLogic {
         return sectionRef.getStore().getComponent(
                 sectionRef,
                 BlockSection.getComponentType()
+        );
+    }
+
+    private static void debug(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull String message
+    ) {
+        System.out.println(
+                "[SHIFTER-DEBUG][LOGIC]"
+                        + " tick=" + world.getTick()
+                        + " pos=" + position
+                        + " " + message
         );
     }
 
