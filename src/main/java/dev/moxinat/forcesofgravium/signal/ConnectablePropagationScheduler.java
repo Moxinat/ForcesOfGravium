@@ -12,7 +12,6 @@ import dev.moxinat.forcesofgravium.data.SignalRuntimeResource;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.dispatcher.NodeControlDispatcher;
 import dev.moxinat.forcesofgravium.dispatcher.NodeStateDispatcher;
-import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import org.joml.Vector3i;
 
@@ -29,14 +28,6 @@ public final class ConnectablePropagationScheduler {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        if (isShifter(world, position)) {
-            debug(
-                    world,
-                    position,
-                    "scheduleAdoption node=" + nodeState(nodeAt(world, position))
-            );
-        }
-
         signalResource(world)
                 .currentWave()
                 .add(new Vector3i(position));
@@ -78,20 +69,7 @@ public final class ConnectablePropagationScheduler {
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        boolean debugShifter = isShifter(world, position);
-
-        if (debugShifter) {
-            debug(
-                    world,
-                    position,
-                    "adoption attempt node=" + nodeState(nodeAt(world, position))
-            );
-        }
-
         if (!isBubbleLoaded(world, position)) {
-            if (debugShifter) {
-                debug(world, position, "adoption deferred: bubble not loaded");
-            }
             signalResource(world)
                     .currentWave()
                     .add(new Vector3i(position));
@@ -101,10 +79,6 @@ public final class ConnectablePropagationScheduler {
         NodeComponent node = nodeAt(world, position);
 
         if (node == null) {
-            if (debugShifter) {
-                debug(world, position, "adoption deferred: node=null");
-            }
-
             signalResource(world)
                     .currentWave()
                     .add(new Vector3i(position));
@@ -112,28 +86,10 @@ public final class ConnectablePropagationScheduler {
         }
 
         if (!node.dirty()) {
-            if (debugShifter) {
-                debug(
-                        world,
-                        position,
-                        "adoption dropped: node not dirty " + nodeState(node)
-                );
-            }
             return;
         }
 
         SignalState previousEffectiveState = node.effectiveState();
-
-        if (debugShifter) {
-            debug(
-                    world,
-                    position,
-                    "adopting instant state; previousEffective="
-                            + previousEffectiveState
-                            + " instant="
-                            + node.instantState()
-            );
-        }
 
         Nodes.mutate(
                 world,
@@ -141,23 +97,7 @@ public final class ConnectablePropagationScheduler {
                 NodeComponent::adoptInstantState
         );
 
-        if (debugShifter) {
-            debug(
-                    world,
-                    position,
-                    "after adopt node=" + nodeState(node)
-            );
-        }
-
         if (node.effectiveState() != previousEffectiveState) {
-
-            if (debugShifter) {
-                debug(
-                        world,
-                        position,
-                        "effective changed -> NodeStateDispatcher"
-                );
-            }
 
             NodeStateDispatcher.dispatch(world, position);
 
@@ -279,43 +219,6 @@ public final class ConnectablePropagationScheduler {
 
         signal.currentWave().remove(position);
         signal.nextWave().remove(position);
-    }
-
-    private static boolean isShifter(
-            @Nonnull World world,
-            @Nonnull Vector3i position
-    ) {
-        var blockType = world.getBlockType(position);
-
-        return blockType != null
-                && ConnectableRegistry.GRAVIUM_SHIFTER_BLOCK_ID.equals(
-                        ConnectableRegistry.rawBlockId(
-                                blockType.getId()
-                        )
-                );
-    }
-
-    private static String nodeState(NodeComponent node) {
-        if (node == null) {
-            return "null";
-        }
-
-        return "instant=" + node.instantState()
-                + " effective=" + node.effectiveState()
-                + " dirty=" + node.dirty();
-    }
-
-    private static void debug(
-            @Nonnull World world,
-            @Nonnull Vector3i position,
-            @Nonnull String message
-    ) {
-        System.out.println(
-                "[SHIFTER-DEBUG][WAVE]"
-                        + " tick=" + world.getTick()
-                        + " pos=" + position
-                        + " " + message
-        );
     }
 
     private static NodeComponent nodeAt(
