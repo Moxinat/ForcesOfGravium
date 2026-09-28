@@ -183,16 +183,6 @@ public final class ConnectableBlockLifecycleSystem {
             World world =
                     store.getExternalData().getWorld();
 
-            boolean debugShifter =
-                    isShifter(world, target);
-
-            if (debugShifter) {
-                debug(
-                        world,
-                        target,
-                        "PLACED begin"
-                );
-            }
 
             ConnectableNetworkManager.onNodePlaced(
                     world,
@@ -200,14 +190,6 @@ public final class ConnectableBlockLifecycleSystem {
                     0
             );
 
-            if (debugShifter) {
-                NodeComponent node = nodeAt(world, target);
-                debug(
-                        world,
-                        target,
-                        "after onNodePlaced node=" + nodeState(node)
-                );
-            }
 
             EnergyManager.checkNetwork(
                     world,
@@ -219,14 +201,6 @@ public final class ConnectableBlockLifecycleSystem {
                     target
             );
 
-            if (debugShifter) {
-                NodeComponent node = nodeAt(world, target);
-                debug(
-                        world,
-                        target,
-                        "after recompute request node=" + nodeState(node)
-                );
-            }
 
             boolean hasStableBackwardNeighbor = false;
 
@@ -242,16 +216,6 @@ public final class ConnectableBlockLifecycleSystem {
                                 neighborPosition
                         );
 
-                if (debugShifter) {
-                    debug(
-                            world,
-                            target,
-                            "backward neighbor "
-                                    + neighborPosition
-                                    + " -> "
-                                    + nodeState(neighbor)
-                    );
-                }
 
                 if (neighbor != null && !neighbor.dirty()) {
                     hasStableBackwardNeighbor = true;
@@ -259,35 +223,11 @@ public final class ConnectableBlockLifecycleSystem {
                 }
             }
 
-            if (debugShifter) {
-                debug(
-                        world,
-                        target,
-                        "hasStableBackwardNeighbor="
-                                + hasStableBackwardNeighbor
-                                + " node="
-                                + nodeState(nodeAt(world, target))
-                );
-            }
 
             if (hasStableBackwardNeighbor) {
-                if (debugShifter) {
-                    debug(
-                            world,
-                            target,
-                            "scheduling placement adoption"
-                    );
-                }
-
                 ConnectablePropagationScheduler.scheduleAdoption(
                         world,
                         target
-                );
-            } else if (debugShifter) {
-                debug(
-                        world,
-                        target,
-                        "NO placement adoption scheduled"
                 );
             }
 
@@ -553,45 +493,6 @@ public final class ConnectableBlockLifecycleSystem {
         }
 
         return Set.copyOf(copy);
-    }
-
-    private static boolean isShifter(
-            @Nonnull World world,
-            @Nonnull Vector3i position
-    ) {
-        var blockType = world.getBlockType(position);
-
-        return blockType != null
-                && ConnectableRegistry.GRAVIUM_SHIFTER_BLOCK_ID.equals(
-                        ConnectableRegistry.rawBlockId(
-                                blockType.getId()
-                        )
-                );
-    }
-
-    private static String nodeState(
-            @Nullable NodeComponent node
-    ) {
-        if (node == null) {
-            return "null";
-        }
-
-        return "instant=" + node.instantState()
-                + " effective=" + node.effectiveState()
-                + " dirty=" + node.dirty();
-    }
-
-    private static void debug(
-            @Nonnull World world,
-            @Nonnull Vector3i position,
-            @Nonnull String message
-    ) {
-        System.out.println(
-                "[SHIFTER-DEBUG][PLACEMENT]"
-                        + " tick=" + world.getTick()
-                        + " pos=" + position
-                        + " " + message
-        );
     }
 
     private static NodeComponent nodeAt(
