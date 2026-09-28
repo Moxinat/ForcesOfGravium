@@ -33,8 +33,16 @@ public final class NodeStateDispatcher {
         switch (blockId) {
             case ConnectableRegistry.GRAVIUM_SENSOR_BLOCK_ID ->
                     SensorLogic.handleStateChange(world, position);
-            case ConnectableRegistry.GRAVIUM_SHIFTER_BLOCK_ID ->
-                    ShifterLogic.handleStateChange(world, position);
+            case ConnectableRegistry.GRAVIUM_SHIFTER_BLOCK_ID -> {
+                System.out.println(
+                        "[SHIFTER-DEBUG][DISPATCH]"
+                                + " tick=" + world.getTick()
+                                + " pos=" + position
+                                + " NodeStateDispatcher -> ShifterLogic.handleStateChange"
+                );
+
+                ShifterLogic.handleStateChange(world, position);
+            }
 
             default -> {
             }
