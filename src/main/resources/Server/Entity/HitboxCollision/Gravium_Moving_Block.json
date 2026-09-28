@@ -1,0 +1,6 @@
+{
+  "CollisionType": "Hard",
+  "RotateHitbox": false,
+  "AllowEntityAnchoring": true,
+  "RotateAnchoredEntities": false
+}
