@@ -14,7 +14,6 @@ import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.block.shifter.ShifterLogic;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
-import dev.moxinat.forcesofgravium.data.SensorComponent;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
@@ -350,24 +349,6 @@ public final class ConnectableBlockLifecycleSystem {
                 return;
             }
 
-            SensorComponent sensor =
-                    store.getComponent(
-                            ref,
-                            ForcesOfGraviumPlugin.SENSOR_COMPONENT_TYPE
-                    );
-
-            if (sensor != null) {
-                SensorLogic.handleBroken(
-                        world,
-                        target
-                );
-            }
-
-            ShifterLogic.handleBroken(
-                    world,
-                    target
-            );
-
             commandBuffer.run(ignored -> {
 
                 handleBroken(
@@ -440,6 +421,16 @@ public final class ConnectableBlockLifecycleSystem {
             @Nonnull Vector3i position,
             @Nonnull Set<Vector3i> formerForwardNeighbors
     ) {
+        SensorLogic.handleBroken(
+                world,
+                position
+        );
+
+        ShifterLogic.handleBroken(
+                world,
+                position
+        );
+
         Set<Vector3i> formerNetworkNeighbors =
                 ConnectableNetworkManager.onNodeBroken(
                         world,
