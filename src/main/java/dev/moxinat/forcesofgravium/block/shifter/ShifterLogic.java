@@ -28,6 +28,7 @@ import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.ShifterMovementResource;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
+import dev.moxinat.forcesofgravium.lifecycle.ConnectableBlockLifecycleSystem;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
@@ -964,6 +965,12 @@ public class ShifterLogic {
             Map<Vector3i, Holder<ChunkStore>> componentSnapshots =
                     new HashMap<>();
 
+            Map<Vector3i, Set<Vector3i>> formerForwardNeighborsBySource =
+                    new HashMap<>();
+
+            Map<Vector3i, Integer> nodeEnergyDeltas =
+                    new HashMap<>();
+
             for (Vector3i sourcePosition
                     : blocksToPrepare.keySet()) {
 
@@ -1027,6 +1034,49 @@ public class ShifterLogic {
                     componentSnapshots.put(
                             new Vector3i(sourcePosition),
                             components
+                    );
+                }
+
+                NodeComponent sourceNode =
+                        BlockModule.getComponent(
+                                ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                                world,
+                                sourcePosition.x(),
+                                sourcePosition.y(),
+                                sourcePosition.z()
+                        );
+
+                if (sourceNode != null) {
+                    formerForwardNeighborsBySource.put(
+                            new Vector3i(sourcePosition),
+                            new LinkedHashSet<>(
+                                    ConnectableNeighborResolver.allForwardSignalNeighbors(
+                                            world,
+                                            sourcePosition
+                                    )
+                            )
+                    );
+
+                    NetworkResource networks =
+                            world.getChunkStore()
+                                    .getStore()
+                                    .getResource(
+                                            ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
+                                    );
+
+                    long networkId =
+                            networks.networkAt(
+                                    sourcePosition
+                            );
+
+                    nodeEnergyDeltas.put(
+                            new Vector3i(sourcePosition),
+                            networkId == NetworkResource.NO_NETWORK
+                                    ? 0
+                                    : networks.energyDelta(
+                                            networkId,
+                                            sourcePosition
+                                    )
                     );
                 }
             }
@@ -1096,6 +1146,18 @@ public class ShifterLogic {
                         4
                 );
 
+                Set<Vector3i> formerForwardNeighbors =
+                        formerForwardNeighborsBySource.get(
+                                sourcePosition
+                        );
+
+                if (formerForwardNeighbors != null) {
+                    ConnectableBlockLifecycleSystem.handleBroken(
+                            world,
+                            sourcePosition,
+                            formerForwardNeighbors
+                    );
+                }
             }
 
             // --------------------------------------------------
@@ -1124,6 +1186,18 @@ public class ShifterLogic {
                         sourcePosition,
                         rotations.get(sourcePosition)
                 );
+
+                Integer nodeEnergyDelta =
+                        nodeEnergyDeltas.get(
+                                sourcePosition
+                        );
+
+                if (nodeEnergyDelta != null) {
+                    movements.setMovementNodeEnergyDelta(
+                            sourcePosition,
+                            nodeEnergyDelta
+                    );
+                }
             }
 
             // Every physical block has now successfully entered
@@ -1320,6 +1394,19 @@ public class ShifterLogic {
                             );
                         }
 
+                        Integer nodeEnergyDelta =
+                                movements.movementNodeEnergyDelta(
+                                        source
+                                );
+
+                        if (nodeEnergyDelta != null) {
+                            ConnectableBlockLifecycleSystem.handlePlaced(
+                                    world,
+                                    target,
+                                    nodeEnergyDelta
+                            );
+                        }
+
                         Ref<EntityStore> visualEntity =
                                 movements.movementVisualEntity(source);
 
@@ -1458,6 +1545,19 @@ public class ShifterLogic {
                                     blockType,
                                     rotationIndex,
                                     components.clone()
+                            );
+                        }
+
+                        Integer nodeEnergyDelta =
+                                movements.movementNodeEnergyDelta(
+                                        source
+                                );
+
+                        if (nodeEnergyDelta != null) {
+                            ConnectableBlockLifecycleSystem.handlePlaced(
+                                    world,
+                                    source,
+                                    nodeEnergyDelta
                             );
                         }
 
