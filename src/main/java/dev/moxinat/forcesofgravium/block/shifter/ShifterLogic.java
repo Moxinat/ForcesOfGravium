@@ -1050,19 +1050,6 @@ public class ShifterLogic {
                         rotationIndex
                 );
 
-                Holder<ChunkStore> components =
-                        blockComponentsAtLoaded(
-                                world,
-                                sourcePosition
-                        );
-
-                if (components != null) {
-                    componentSnapshots.put(
-                            new Vector3i(sourcePosition),
-                            components
-                    );
-                }
-
                 NodeComponent sourceNode =
                         BlockModule.getComponent(
                                 ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
@@ -1157,6 +1144,20 @@ public class ShifterLogic {
 
                 if (sourceSectionRef == null) {
                     return;
+                }
+
+                Holder<ChunkStore> components =
+                        takeBlockComponents(
+                                world,
+                                sourceSectionRef,
+                                sourcePosition
+                        );
+
+                if (components != null) {
+                    componentSnapshots.put(
+                            new Vector3i(sourcePosition),
+                            components
+                    );
                 }
 
                 BlockOperations.setBlock(
@@ -1890,20 +1891,11 @@ public class ShifterLogic {
                 .getAsset(blockId);
     }
 
-    private static @Nullable Holder<ChunkStore> blockComponentsAtLoaded(
+    private static @Nullable Holder<ChunkStore> takeBlockComponents(
             @Nonnull World world,
+            @Nonnull Ref<ChunkStore> sectionRef,
             @Nonnull Vector3i position
     ) {
-        Ref<ChunkStore> sectionRef =
-                loadedSectionRefAt(
-                        world,
-                        position
-                );
-
-        if (sectionRef == null) {
-            return null;
-        }
-
         Store<ChunkStore> store =
                 world.getChunkStore()
                         .getStore();
@@ -1918,34 +1910,19 @@ public class ShifterLogic {
             return null;
         }
 
-        int index =
-                ChunkUtil.indexBlock(
-                        position.x(),
-                        position.y(),
-                        position.z()
-                );
-
-        Ref<ChunkStore> componentRef =
-                componentSection.getBlockReference(
-                        index
-                );
-
-        if (componentRef != null
-                && componentRef.isValid()) {
-
-            return store.copyEntity(
-                    componentRef
-            );
-        }
-
-        Holder<ChunkStore> holder =
-                componentSection.getBlockHolder(
-                        index
-                );
-
-        return holder == null
-                ? null
-                : holder.clone();
+        /*
+         * Detach instead of copy. Hytale removes a live block entity
+         * with RemoveReason.UNLOAD here, so destruction systems such
+         * as container item drops are not triggered while the block
+         * is being moved.
+         */
+        return BlockEntity.takeBlockEntity(
+                store,
+                componentSection,
+                position.x(),
+                position.y(),
+                position.z()
+        );
     }
 
     private static int movementEnergyCost(
