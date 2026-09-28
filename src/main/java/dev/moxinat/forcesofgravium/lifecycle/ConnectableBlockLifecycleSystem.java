@@ -184,56 +184,10 @@ public final class ConnectableBlockLifecycleSystem {
                     store.getExternalData().getWorld();
 
 
-            ConnectableNetworkManager.onNodePlaced(
+            handlePlaced(
                     world,
                     target,
                     0
-            );
-
-
-            EnergyManager.checkNetwork(
-                    world,
-                    target
-            );
-
-            ConnectableSignalRecalculator.recompute(
-                    world,
-                    target
-            );
-
-
-            boolean hasStableBackwardNeighbor = false;
-
-            for (Vector3i neighborPosition :
-                    ConnectableNeighborResolver.allBackwardSignalNeighbors(
-                            world,
-                            target
-                    )) {
-
-                NodeComponent neighbor =
-                        nodeAt(
-                                world,
-                                neighborPosition
-                        );
-
-
-                if (neighbor != null && !neighbor.dirty()) {
-                    hasStableBackwardNeighbor = true;
-                    break;
-                }
-            }
-
-
-            if (hasStableBackwardNeighbor) {
-                ConnectablePropagationScheduler.scheduleAdoption(
-                        world,
-                        target
-                );
-            }
-
-            ConnectableVisualDispatcher.refreshTopologyAround(
-                    world,
-                    target
             );
         }
     }
@@ -410,48 +364,116 @@ public final class ConnectableBlockLifecycleSystem {
 
             commandBuffer.run(ignored -> {
 
-                Set<Vector3i> formerNetworkNeighbors =
-                        ConnectableNetworkManager.onNodeBroken(
-                                world,
-                                target
-                        );
-
-                for (Vector3i neighbor : formerNetworkNeighbors) {
-                    EnergyManager.checkNetwork(
-                            world,
-                            neighbor
-                    );
-                }
-
-                for (Vector3i position : snapshot.formerForwardNeighbors()) {
-
-                    ConnectableSignalRecalculator.recompute(
-                            world,
-                            position
-                    );
-
-                    NodeComponent recomputedNode =
-                            nodeAt(
-                                    world,
-                                    position
-                            );
-
-                    if (recomputedNode != null
-                            && recomputedNode.dirty()) {
-
-                        ConnectablePropagationScheduler.scheduleAdoption(
-                                world,
-                                position
-                        );
-                    }
-                }
-
-                ConnectableVisualDispatcher.refreshTopologyAround(
+                handleBroken(
                         world,
-                        target
+                        target,
+                        snapshot.formerForwardNeighbors()
                 );
             });
         }
+    }
+
+    public static void handlePlaced(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            int energyDelta
+    ) {
+        ConnectableNetworkManager.onNodePlaced(
+                world,
+                position,
+                energyDelta
+        );
+
+        EnergyManager.checkNetwork(
+                world,
+                position
+        );
+
+        ConnectableSignalRecalculator.recompute(
+                world,
+                position
+        );
+
+        boolean hasStableBackwardNeighbor = false;
+
+        for (Vector3i neighborPosition :
+                ConnectableNeighborResolver.allBackwardSignalNeighbors(
+                        world,
+                        position
+                )) {
+
+            NodeComponent neighbor =
+                    nodeAt(
+                            world,
+                            neighborPosition
+                    );
+
+            if (neighbor != null
+                    && !neighbor.dirty()) {
+
+                hasStableBackwardNeighbor = true;
+                break;
+            }
+        }
+
+        if (hasStableBackwardNeighbor) {
+            ConnectablePropagationScheduler.scheduleAdoption(
+                    world,
+                    position
+            );
+        }
+
+        ConnectableVisualDispatcher.refreshTopologyAround(
+                world,
+                position
+        );
+    }
+
+    public static void handleBroken(
+            @Nonnull World world,
+            @Nonnull Vector3i position,
+            @Nonnull Set<Vector3i> formerForwardNeighbors
+    ) {
+        Set<Vector3i> formerNetworkNeighbors =
+                ConnectableNetworkManager.onNodeBroken(
+                        world,
+                        position
+                );
+
+        for (Vector3i neighbor : formerNetworkNeighbors) {
+            EnergyManager.checkNetwork(
+                    world,
+                    neighbor
+            );
+        }
+
+        for (Vector3i forwardNeighbor : formerForwardNeighbors) {
+
+            ConnectableSignalRecalculator.recompute(
+                    world,
+                    forwardNeighbor
+            );
+
+            NodeComponent recomputedNode =
+                    nodeAt(
+                            world,
+                            forwardNeighbor
+                    );
+
+            if (recomputedNode != null
+                    && recomputedNode.dirty()) {
+
+                ConnectablePropagationScheduler.scheduleAdoption(
+                        world,
+                        forwardNeighbor
+                );
+            }
+        }
+
+        ConnectableVisualDispatcher.refreshTopologyAround(
+                world,
+                position
+        );
     }
 
     private static @Nullable BreakSnapshot consumePendingBreak(
