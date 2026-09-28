@@ -146,6 +146,14 @@ public final class ShifterMovementResource
     private final Map<Vector3i, Integer> movementBlockRotations =
             new HashMap<>();
 
+    /*
+     * Present only for moved FoG nodes.
+     * The value is the node's NetworkResource energy delta at its source
+     * before the source is removed from the network.
+     */
+    private final Map<Vector3i, Integer> movementNodeEnergyDeltas =
+            new HashMap<>();
+
     private final Map<Vector3i, Vector3i> heldBlocks =
             new HashMap<>();
 
@@ -510,6 +518,26 @@ public final class ShifterMovementResource
     }
 
 
+    public void setMovementNodeEnergyDelta(
+            @Nonnull Vector3i sourcePosition,
+            int energyDelta
+    ) {
+        movementNodeEnergyDeltas.put(
+                new Vector3i(sourcePosition),
+                energyDelta
+        );
+    }
+
+
+    public @Nullable Integer movementNodeEnergyDelta(
+            @Nonnull Vector3i sourcePosition
+    ) {
+        return movementNodeEnergyDeltas.get(
+                sourcePosition
+        );
+    }
+
+
     public void setMovementVisualEntity(
             @Nonnull Vector3i sourcePosition,
             @Nonnull Ref<EntityStore> entityRef
@@ -546,6 +574,10 @@ public final class ShifterMovementResource
         );
 
         movementBlockRotations.remove(
+                sourcePosition
+        );
+
+        movementNodeEnergyDeltas.remove(
                 sourcePosition
         );
     }
