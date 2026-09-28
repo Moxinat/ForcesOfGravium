@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.entity.hitboxcollision.HitboxCollision;
 import com.hypixel.hytale.server.core.modules.entity.hitboxcollision.HitboxCollisionConfig;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
@@ -968,23 +969,20 @@ public class ShifterLogic {
                         rotationIndex
                 );
 
-                WorldChunk chunk =
-                        world.getChunkIfLoaded(
-                                ChunkUtil.indexChunkFromBlock(
-                                        sourcePosition.x(),
-                                        sourcePosition.z()
-                                )
+                Ref<ChunkStore> sourceChunkRef =
+                        loadedChunkRefAt(
+                                world,
+                                sourcePosition
                         );
 
-                if (chunk == null) {
+                if (sourceChunkRef == null) {
                     return;
                 }
 
                 Holder<ChunkStore> components =
-                        chunk.getBlockComponentHolder(
-                                sourcePosition.x(),
-                                sourcePosition.y(),
-                                sourcePosition.z()
+                        blockComponentsAtLoaded(
+                                world,
+                                sourcePosition
                         );
 
                 if (components != null) {
@@ -1051,7 +1049,10 @@ public class ShifterLogic {
                         sourcePosition.x(),
                         sourcePosition.y(),
                         sourcePosition.z(),
-                        BlockType.EMPTY_KEY,
+                        0,
+                        BlockType.EMPTY,
+                        0,
+                        0,
                         4
                 );
 
@@ -1216,18 +1217,33 @@ public class ShifterLogic {
                             continue;
                         }
 
-                        long targetChunkIndex =
-                                ChunkUtil.indexChunkFromBlock(
-                                        target.x(),
-                                        target.z()
+                        Ref<ChunkStore> targetChunkRef =
+                                loadedChunkRefAt(
+                                        world,
+                                        target
                                 );
+
+                        if (targetChunkRef == null) {
+                            return;
+                        }
+
+                        Store<ChunkStore> chunkStore =
+                                world.getChunkStore().getStore();
 
                         WorldChunk targetChunk =
-                                world.getChunkIfLoaded(
-                                        targetChunkIndex
+                                chunkStore.getComponent(
+                                        targetChunkRef,
+                                        WorldChunk.getComponentType()
                                 );
 
-                        if (targetChunk == null) {
+                        BlockComponentChunk targetComponentChunk =
+                                chunkStore.getComponent(
+                                        targetChunkRef,
+                                        BlockComponentChunk.getComponentType()
+                                );
+
+                        if (targetChunk == null
+                                || targetComponentChunk == null) {
                             return;
                         }
 
@@ -1256,14 +1272,18 @@ public class ShifterLogic {
                         );
 
                         if (components != null) {
-                            targetChunk.setState(
-                                    target.x(),
-                                    target.y(),
-                                    target.z(),
-                                    blockType,
-                                    rotationIndex,
-                                    components.clone()
-                            );
+                            com.hypixel.hytale.server.core.modules.block.BlockEntity
+                                    .setBlockEntity(
+                                            chunkStore,
+                                            targetChunkRef,
+                                            targetComponentChunk,
+                                            target.x(),
+                                            target.y(),
+                                            target.z(),
+                                            blockType,
+                                            rotationIndex,
+                                            components.clone()
+                                    );
                         }
 
                         Ref<EntityStore> visualEntity =
@@ -1515,37 +1535,145 @@ public class ShifterLogic {
         );
     }
 
+    private static @Nullable Ref<ChunkStore> loadedChunkRefAt(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        var chunkStore =
+                world.getChunkStore();
+
+        Ref<ChunkStore> chunkRef =
+                chunkStore.getChunkReference(
+                        ChunkUtil.indexChunkFromBlock(
+                                position.x(),
+                                position.z()
+                        )
+                );
+
+        if (chunkRef == null || !chunkRef.isValid()) {
+            return null;
+        }
+
+        Store<ChunkStore> store =
+                chunkStore.getStore();
+
+        if (store.getArchetype(chunkRef)
+                .contains(
+                        ChunkStore.REGISTRY
+                                .getNonTickingComponentType()
+                )) {
+
+            return null;
+        }
+
+        return chunkRef;
+    }
+
     private static @Nullable WorldChunk loadedChunkAt(
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        return world.getChunkIfLoaded(
-                ChunkUtil.indexChunkFromBlock(
-                        position.x(),
-                        position.z()
-                )
-        );
+        Ref<ChunkStore> chunkRef =
+                loadedChunkRefAt(
+                        world,
+                        position
+                );
+
+        if (chunkRef == null) {
+            return null;
+        }
+
+        return world.getChunkStore()
+                .getStore()
+                .getComponent(
+                        chunkRef,
+                        WorldChunk.getComponentType()
+                );
     }
 
     private static @Nullable BlockType blockTypeAtLoaded(
             @Nonnull World world,
             @Nonnull Vector3i position
     ) {
-        WorldChunk chunk =
-                loadedChunkAt(
+        BlockSection section =
+                blockSectionAt(
                         world,
                         position
                 );
 
-        if (chunk == null) {
+        if (section == null) {
             return null;
         }
 
-        return chunk.getBlockType(
-                position.x(),
-                position.y(),
-                position.z()
-        );
+        int blockId =
+                section.get(
+                        ChunkUtil.indexBlock(
+                                position.x(),
+                                position.y(),
+                                position.z()
+                        )
+                );
+
+        return BlockType.getAssetMap()
+                .getAsset(blockId);
+    }
+
+    private static @Nullable Holder<ChunkStore> blockComponentsAtLoaded(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        Ref<ChunkStore> chunkRef =
+                loadedChunkRefAt(
+                        world,
+                        position
+                );
+
+        if (chunkRef == null) {
+            return null;
+        }
+
+        Store<ChunkStore> store =
+                world.getChunkStore()
+                        .getStore();
+
+        BlockComponentChunk componentChunk =
+                store.getComponent(
+                        chunkRef,
+                        BlockComponentChunk.getComponentType()
+                );
+
+        if (componentChunk == null) {
+            return null;
+        }
+
+        int index =
+                ChunkUtil.indexBlockInColumn(
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
+
+        Ref<ChunkStore> componentRef =
+                componentChunk.getEntityReference(
+                        index
+                );
+
+        if (componentRef != null
+                && componentRef.isValid()) {
+
+            return store.copyEntity(
+                    componentRef
+            );
+        }
+
+        Holder<ChunkStore> holder =
+                componentChunk.getEntityHolder(
+                        index
+                );
+
+        return holder == null
+                ? null
+                : holder.clone();
     }
 
     private static int movementEnergyCost(
