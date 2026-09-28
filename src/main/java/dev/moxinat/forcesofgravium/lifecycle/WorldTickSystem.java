@@ -59,6 +59,7 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
         NodeControlDispatcher.tickWorld(world);
         SensorLogic.tickWorld(world);
         SensorBlockRefresher.tickWorld(world);
+        ShifterLogic.tickActiveMovements(world, commandBuffer);
         ShifterLogic.tickShifter(world);
     }
 

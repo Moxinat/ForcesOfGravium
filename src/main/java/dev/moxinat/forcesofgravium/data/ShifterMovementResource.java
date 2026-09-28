@@ -5,10 +5,13 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.math.vector.Vector3iUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 
 import org.joml.Vector3i;
@@ -129,6 +132,12 @@ public final class ShifterMovementResource
             new LinkedHashSet<>();
 
     private final Map<Vector3i, ActiveMovement> activeMovements =
+            new HashMap<>();
+
+    private final Map<Vector3i, Holder<ChunkStore>> movementBlockComponents =
+            new HashMap<>();
+
+    private final Map<Vector3i, Ref<EntityStore>> movementVisualEntities =
             new HashMap<>();
 
     private final Map<Vector3i, Vector3i> heldBlocks =
@@ -421,6 +430,70 @@ public final class ShifterMovementResource
     ) {
         activeMovements.remove(
                 shifterPosition
+        );
+    }
+
+    // --------------------------------------------------
+    // MOVEMENT RUNTIME DATA
+    // --------------------------------------------------
+
+    public void setMovementBlockComponents(
+            @Nonnull Vector3i sourcePosition,
+            @Nullable Holder<ChunkStore> components
+    ) {
+        if (components == null) {
+            movementBlockComponents.remove(
+                    sourcePosition
+            );
+
+            return;
+        }
+
+        movementBlockComponents.put(
+                new Vector3i(sourcePosition),
+                components
+        );
+    }
+
+
+    public @Nullable Holder<ChunkStore> movementBlockComponents(
+            @Nonnull Vector3i sourcePosition
+    ) {
+        return movementBlockComponents.get(
+                sourcePosition
+        );
+    }
+
+
+    public void setMovementVisualEntity(
+            @Nonnull Vector3i sourcePosition,
+            @Nonnull Ref<EntityStore> entityRef
+    ) {
+        movementVisualEntities.put(
+                new Vector3i(sourcePosition),
+                entityRef
+        );
+    }
+
+
+    public @Nullable Ref<EntityStore> movementVisualEntity(
+            @Nonnull Vector3i sourcePosition
+    ) {
+        return movementVisualEntities.get(
+                sourcePosition
+        );
+    }
+
+
+    public void clearMovementRuntime(
+            @Nonnull Vector3i sourcePosition
+    ) {
+        movementBlockComponents.remove(
+                sourcePosition
+        );
+
+        movementVisualEntities.remove(
+                sourcePosition
         );
     }
 

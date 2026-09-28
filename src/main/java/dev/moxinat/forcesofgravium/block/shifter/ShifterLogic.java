@@ -1,13 +1,23 @@
 package dev.moxinat.forcesofgravium.block.shifter;
 
-import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.*;
+import com.hypixel.hytale.math.shape.Box;
 import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.BlockMaterial;
+import com.hypixel.hytale.server.core.asset.type.blockhitbox.BlockBoundingBoxes;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
+import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import com.hypixel.hytale.server.core.modules.entity.component.BoundingBox;
+import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.FillerBlockUtil;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NetworkResource;
@@ -17,6 +27,7 @@ import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
+import org.joml.Vector3d;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -28,6 +39,8 @@ public class ShifterLogic {
     private static final int MAX_MOVED_BLOCKS = 100;
 
     private static final int BASE_ENERGY_COST = 1;
+
+    private static final int MOVEMENT_DURATION_TICKS = 10;
 
     private ShifterLogic() {
     }
@@ -712,6 +725,415 @@ public class ShifterLogic {
 
         } while (changed);
 
+
+
+        Map<Vector3i, List<ShifterMovementResource.MovementEntry>> entriesByShifter =
+                new HashMap<>();
+
+        for (ShifterMovementResource.MovementEntry entry : movementQueue) {
+
+            entriesByShifter
+                    .computeIfAbsent(
+                            entry.shifterPosition(),
+                            ignored -> new ArrayList<>()
+                    )
+                    .add(entry);
+        }
+
+        for (Map.Entry<Vector3i, List<ShifterMovementResource.MovementEntry>> entry
+                : entriesByShifter.entrySet()) {
+
+            Vector3i shifterPosition =
+                    entry.getKey();
+
+            List<ShifterMovementResource.MovementEntry> entries =
+                    entry.getValue();
+
+            Set<Vector3i> multiblockBases =
+                    new HashSet<>();
+
+            for (ShifterMovementResource.MovementEntry movementEntry : entries) {
+
+                Vector3i origin =
+                        multiblockOrigin(
+                                world,
+                                movementEntry.sourcePosition()
+                        );
+
+                if (origin == null) {
+                    continue;
+                }
+
+                Set<Vector3i> cells =
+                        multiblockCells(world, origin);
+
+                if (cells != null && cells.size() > 1) {
+                    multiblockBases.add(origin);
+                }
+            }
+
+            movements.startMovement(
+                    shifterPosition,
+                    entries,
+                    multiblockBases,
+                    MOVEMENT_DURATION_TICKS
+            );
+        }
+
+    }
+
+    public static void tickActiveMovements(
+            @Nonnull World world,
+            @Nonnull CommandBuffer<EntityStore> commandBuffer
+    ) {
+        ShifterMovementResource movements =
+                world.getChunkStore()
+                        .getStore()
+                        .getResource(
+                                ForcesOfGraviumPlugin.SHIFTER_MOVEMENT_RESOURCE_TYPE
+                        );
+
+        Map<Vector3i, ShifterMovementResource.ActiveMovement> activeMovements =
+                movements.activeMovements();
+
+        if (activeMovements.isEmpty()) {
+            return;
+        }
+
+        // --------------------------------------------------
+        // PREPARED
+        // --------------------------------------------------
+
+        Set<Vector3i> preparedShifters =
+                new HashSet<>();
+
+        /*
+         * Physical source -> physical target.
+         *
+         * For normal blocks:
+         *     source -> target
+         *
+         * For multiblocks:
+         *     origin -> origin + direction
+         *
+         * This also deduplicates the same block being moved
+         * by multiple Shifters.
+         */
+        Map<Vector3i, Vector3i> blocksToPrepare =
+                new LinkedHashMap<>();
+
+        for (Map.Entry<Vector3i, ShifterMovementResource.ActiveMovement> activeEntry
+                : activeMovements.entrySet()) {
+
+            Vector3i shifterPosition =
+                    activeEntry.getKey();
+
+            ShifterMovementResource.ActiveMovement movement =
+                    activeEntry.getValue();
+
+            if (movement.stage()
+                    != ShifterMovementResource.MovementStage.PREPARED) {
+                continue;
+            }
+
+            preparedShifters.add(
+                    shifterPosition
+            );
+
+            for (ShifterMovementResource.MovementEntry movementEntry
+                    : movement.entries()) {
+
+                Vector3i source =
+                        movementEntry.sourcePosition();
+
+                Vector3i direction =
+                        movementEntry.targetPosition()
+                                .sub(source);
+
+                Vector3i origin =
+                        multiblockOrigin(
+                                world,
+                                source
+                        );
+
+                // This should already have been validated.
+                if (origin == null) {
+                    return;
+                }
+
+                Vector3i physicalTarget =
+                        new Vector3i(origin)
+                                .add(direction);
+
+                Vector3i existingTarget =
+                        blocksToPrepare.putIfAbsent(
+                                origin,
+                                physicalTarget
+                        );
+
+                /*
+                 * Should be impossible after queue validation.
+                 * Do not mutate the world if something unexpected
+                 * happened between planning and preparation.
+                 */
+                if (existingTarget != null
+                        && !existingTarget.equals(physicalTarget)) {
+
+                    return;
+                }
+            }
+        }
+
+        if (preparedShifters.isEmpty()) {
+            return;
+        }
+
+        // --------------------------------------------------
+        // VALIDATE EVERYTHING BEFORE CHANGING THE WORLD
+        // --------------------------------------------------
+
+        Map<Vector3i, BlockType> blockTypes =
+                new LinkedHashMap<>();
+
+        Map<Vector3i, Integer> rotations =
+                new LinkedHashMap<>();
+
+        Map<Vector3i, Holder<ChunkStore>> componentSnapshots =
+                new HashMap<>();
+
+        for (Vector3i sourcePosition
+                : blocksToPrepare.keySet()) {
+
+            // Should never already exist because active movement
+            // positions are reserved.
+            if (movements.movementVisualEntity(sourcePosition) != null) {
+                return;
+            }
+
+            BlockType blockType =
+                    world.getBlockType(sourcePosition);
+
+            if (blockType == null
+                    || blockType.getMaterial() == BlockMaterial.Empty) {
+
+                return;
+            }
+
+            BlockSection section =
+                    blockSectionAt(
+                            world,
+                            sourcePosition
+                    );
+
+            if (section == null) {
+                return;
+            }
+
+            int blockIndex =
+                    ChunkUtil.indexBlock(
+                            sourcePosition.x(),
+                            sourcePosition.y(),
+                            sourcePosition.z()
+                    );
+
+            int rotationIndex =
+                    section.getRotationIndex(
+                            blockIndex
+                    );
+
+            blockTypes.put(
+                    new Vector3i(sourcePosition),
+                    blockType
+            );
+
+            rotations.put(
+                    new Vector3i(sourcePosition),
+                    rotationIndex
+            );
+
+            WorldChunk chunk =
+                    world.getChunk(
+                            ChunkUtil.indexChunkFromBlock(
+                                    sourcePosition.x(),
+                                    sourcePosition.z()
+                            )
+                    );
+
+            if (chunk == null) {
+                return;
+            }
+
+            Holder<ChunkStore> components =
+                    chunk.getBlockComponentHolder(
+                            sourcePosition.x(),
+                            sourcePosition.y(),
+                            sourcePosition.z()
+                    );
+
+            if (components != null) {
+                componentSnapshots.put(
+                        new Vector3i(sourcePosition),
+                        components
+                );
+            }
+        }
+
+        // --------------------------------------------------
+        // CREATE VISUAL ENTITIES
+        // --------------------------------------------------
+
+        Map<Vector3i, Ref<EntityStore>> visualEntities =
+                new LinkedHashMap<>();
+
+        for (Vector3i sourcePosition
+                : blocksToPrepare.keySet()) {
+
+            BlockType blockType =
+                    blockTypes.get(sourcePosition);
+
+            int rotationIndex =
+                    rotations.get(sourcePosition);
+
+            Holder<EntityStore> visualHolder =
+                    createMovingBlockVisual(
+                            blockType,
+                            rotationIndex,
+                            sourcePosition
+                    );
+
+            Ref<EntityStore> visualRef =
+                    commandBuffer.addEntity(
+                            visualHolder,
+                            AddReason.SPAWN
+                    );
+
+            visualEntities.put(
+                    new Vector3i(sourcePosition),
+                    visualRef
+            );
+        }
+
+        // --------------------------------------------------
+        // REMOVE REAL BLOCKS
+        // --------------------------------------------------
+
+        for (Vector3i sourcePosition
+                : blocksToPrepare.keySet()) {
+
+            world.setBlock(
+                    sourcePosition.x(),
+                    sourcePosition.y(),
+                    sourcePosition.z(),
+                    BlockType.EMPTY_KEY,
+                    4
+            );
+
+        }
+
+        // --------------------------------------------------
+        // REGISTER RUNTIME MOVEMENT DATA
+        // --------------------------------------------------
+
+        for (Vector3i sourcePosition
+                : blocksToPrepare.keySet()) {
+
+            movements.setMovementBlockComponents(
+                    sourcePosition,
+                    componentSnapshots.get(sourcePosition)
+            );
+
+            movements.setMovementVisualEntity(
+                    sourcePosition,
+                    visualEntities.get(sourcePosition)
+            );
+        }
+
+        // Every physical block has now successfully entered
+        // the moving-entity state.
+        for (Vector3i shifterPosition : preparedShifters) {
+
+            movements.setMovementStage(
+                    shifterPosition,
+                    ShifterMovementResource.MovementStage.MOVING
+            );
+        }
+    }
+
+    private static @Nonnull Holder<EntityStore> createMovingBlockVisual(
+            @Nonnull BlockType blockType,
+            int rotationIndex,
+            @Nonnull Vector3i position
+    ) {
+        RotationTuple rotation =
+                RotationTuple.get(rotationIndex);
+
+        Holder<EntityStore> holder =
+                EntityStore.REGISTRY.newHolder();
+
+        holder.addComponent(
+                com.hypixel.hytale.server.core.entity.entities.BlockEntity
+                        .getComponentType(),
+                new com.hypixel.hytale.server.core.entity.entities.BlockEntity(
+                        blockType.getId()
+                )
+        );
+
+        holder.addComponent(
+                TransformComponent.getComponentType(),
+                new TransformComponent(
+                        new Vector3d(
+                                position.x() + 0.5,
+                                position.y(),
+                                position.z() + 0.5
+                        ),
+                        new Rotation3f()
+                )
+        );
+
+        holder.addComponent(
+                HeadRotation.getComponentType(),
+                new HeadRotation(
+                        new Rotation3f(
+                                (float) rotation.pitch().getRadians(),
+                                (float) rotation.yaw().getRadians()
+                                        + (float) Math.PI,
+                                (float) rotation.roll().getRadians()
+                        )
+                )
+        );
+
+        holder.ensureComponent(
+                UUIDComponent.getComponentType()
+        );
+
+        BlockBoundingBoxes hitboxes =
+                BlockBoundingBoxes.getAssetMap()
+                        .getAsset(
+                                blockType.getHitboxTypeIndex()
+                        );
+
+        if (hitboxes != null) {
+
+            Box blockBox =
+                    hitboxes.get(rotationIndex)
+                            .getBoundingBox();
+
+            Box entityBox =
+                    new Box(blockBox);
+
+            entityBox.offset(
+                    -0.5,
+                    0.0,
+                    -0.5
+            );
+
+            holder.addComponent(
+                    BoundingBox.getComponentType(),
+                    new BoundingBox(entityBox)
+            );
+        }
+
+        return holder;
     }
 
     private static @Nullable Vector3i multiblockOrigin(
