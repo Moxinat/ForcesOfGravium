@@ -42,7 +42,7 @@ public class ShifterLogic {
 
     private static final int BASE_ENERGY_COST = 1;
 
-    private static final int MOVEMENT_DURATION_TICKS = 10;
+    private static final int MOVEMENT_DURATION_TICKS = 5;
 
     private ShifterLogic() {
     }
@@ -180,7 +180,10 @@ public class ShifterLogic {
 
                     // Check whether there is a block to push.
                     BlockType sourceBlock =
-                            world.getBlockType(sourcePosition);
+                            blockTypeAtLoaded(
+                                    world,
+                                    sourcePosition
+                            );
 
                     if (sourceBlock == null
                             || isUnbreakable(sourceBlock)
@@ -196,7 +199,10 @@ public class ShifterLogic {
                     while (true) {
 
                         BlockType targetBlock =
-                                world.getBlockType(targetPosition);
+                                blockTypeAtLoaded(
+                                        world,
+                                        targetPosition
+                                );
 
                         if (targetBlock == null
                                 || isUnbreakable(targetBlock)) {
@@ -241,7 +247,10 @@ public class ShifterLogic {
                             );
 
                     BlockType frontBlock =
-                            world.getBlockType(frontPosition);
+                            blockTypeAtLoaded(
+                                    world,
+                                    frontPosition
+                            );
 
                     // Position unavailable.
                     if (frontBlock == null
@@ -269,7 +278,10 @@ public class ShifterLogic {
                                     .add(direction);
 
                     BlockType sourceBlock =
-                            world.getBlockType(sourcePosition);
+                            blockTypeAtLoaded(
+                                    world,
+                                    sourcePosition
+                            );
 
                     // Nothing to pull or position unavailable.
                     if (sourceBlock == null
@@ -913,7 +925,10 @@ public class ShifterLogic {
                 }
 
                 BlockType blockType =
-                        world.getBlockType(sourcePosition);
+                        blockTypeAtLoaded(
+                                world,
+                                sourcePosition
+                        );
 
                 if (blockType == null
                         || blockType.getMaterial() == BlockMaterial.Empty) {
@@ -954,7 +969,7 @@ public class ShifterLogic {
                 );
 
                 WorldChunk chunk =
-                        world.getChunk(
+                        world.getChunkIfLoaded(
                                 ChunkUtil.indexChunkFromBlock(
                                         sourcePosition.x(),
                                         sourcePosition.z()
@@ -1022,7 +1037,17 @@ public class ShifterLogic {
             for (Vector3i sourcePosition
                     : blocksToPrepare.keySet()) {
 
-                world.setBlock(
+                WorldChunk sourceChunk =
+                        loadedChunkAt(
+                                world,
+                                sourcePosition
+                        );
+
+                if (sourceChunk == null) {
+                    return;
+                }
+
+                sourceChunk.setBlock(
                         sourcePosition.x(),
                         sourcePosition.y(),
                         sourcePosition.z(),
@@ -1047,6 +1072,16 @@ public class ShifterLogic {
                 movements.setMovementVisualEntity(
                         sourcePosition,
                         visualEntities.get(sourcePosition)
+                );
+
+                movements.setMovementBlockType(
+                        sourcePosition,
+                        blockTypes.get(sourcePosition).getId()
+                );
+
+                movements.setMovementBlockRotation(
+                        sourcePosition,
+                        rotations.get(sourcePosition)
                 );
             }
 
@@ -1152,7 +1187,132 @@ public class ShifterLogic {
                 }
 
                 case COMMITTING -> {
-                    // später
+
+                    for (ShifterMovementResource.MovementEntry movementEntry
+                            : movement.entries()) {
+
+                        Vector3i source =
+                                movementEntry.sourcePosition();
+
+                        String blockTypeKey =
+                                movements.movementBlockType(source);
+
+                        Integer rotationIndex =
+                                movements.movementBlockRotation(source);
+
+                        if (blockTypeKey == null
+                                || rotationIndex == null) {
+                            continue;
+                        }
+
+                        Vector3i target =
+                                movementEntry.targetPosition();
+
+                        BlockType blockType =
+                                BlockType.getAssetMap()
+                                        .getAsset(blockTypeKey);
+
+                        if (blockType == null) {
+                            continue;
+                        }
+
+                        long targetChunkIndex =
+                                ChunkUtil.indexChunkFromBlock(
+                                        target.x(),
+                                        target.z()
+                                );
+
+                        WorldChunk targetChunk =
+                                world.getChunkIfLoaded(
+                                        targetChunkIndex
+                                );
+
+                        if (targetChunk == null) {
+                            return;
+                        }
+
+                        Holder<ChunkStore> components =
+                                movements.movementBlockComponents(source);
+
+                        int settings = 4;
+
+                        if (components != null) {
+                            settings |= 2;
+                        }
+
+                        int blockId =
+                                BlockType.getAssetMap()
+                                        .getIndex(blockTypeKey);
+
+                        targetChunk.setBlock(
+                                target.x(),
+                                target.y(),
+                                target.z(),
+                                blockId,
+                                blockType,
+                                rotationIndex,
+                                0,
+                                settings
+                        );
+
+                        if (components != null) {
+                            targetChunk.setState(
+                                    target.x(),
+                                    target.y(),
+                                    target.z(),
+                                    blockType,
+                                    rotationIndex,
+                                    components.clone()
+                            );
+                        }
+
+                        Ref<EntityStore> visualEntity =
+                                movements.movementVisualEntity(source);
+
+                        if (visualEntity != null
+                                && visualEntity.isValid()) {
+
+                            commandBuffer.removeEntity(
+                                    visualEntity,
+                                    RemoveReason.REMOVE
+                            );
+                        }
+
+                        movements.clearMovementRuntime(
+                                source
+                        );
+                    }
+
+                    // Movement energy -> normal active Shifter energy.
+                    NetworkResource networks =
+                            world.getChunkStore()
+                                    .getStore()
+                                    .getResource(
+                                            ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
+                                    );
+
+                    long networkId =
+                            networks.networkAt(shifterPosition);
+
+                    if (networkId != NetworkResource.NO_NETWORK) {
+
+                        networks.setEnergyDelta(
+                                networkId,
+                                shifterPosition,
+                                -BASE_ENERGY_COST
+                        );
+
+                        if (!networks.isFailing(networkId)) {
+                            EnergyManager.checkNetwork(
+                                    world,
+                                    shifterPosition
+                            );
+                        }
+                    }
+
+                    movements.finishMovement(
+                            shifterPosition
+                    );
                 }
 
                 case ROLLING_BACK -> {
@@ -1352,6 +1512,39 @@ public class ShifterLogic {
         return sectionRef.getStore().getComponent(
                 sectionRef,
                 BlockSection.getComponentType()
+        );
+    }
+
+    private static @Nullable WorldChunk loadedChunkAt(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        return world.getChunkIfLoaded(
+                ChunkUtil.indexChunkFromBlock(
+                        position.x(),
+                        position.z()
+                )
+        );
+    }
+
+    private static @Nullable BlockType blockTypeAtLoaded(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        WorldChunk chunk =
+                loadedChunkAt(
+                        world,
+                        position
+                );
+
+        if (chunk == null) {
+            return null;
+        }
+
+        return chunk.getBlockType(
+                position.x(),
+                position.y(),
+                position.z()
         );
     }
 

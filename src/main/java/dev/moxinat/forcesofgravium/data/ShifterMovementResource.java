@@ -140,6 +140,12 @@ public final class ShifterMovementResource
     private final Map<Vector3i, Ref<EntityStore>> movementVisualEntities =
             new HashMap<>();
 
+    private final Map<Vector3i, String> movementBlockTypes =
+            new HashMap<>();
+
+    private final Map<Vector3i, Integer> movementBlockRotations =
+            new HashMap<>();
+
     private final Map<Vector3i, Vector3i> heldBlocks =
             new HashMap<>();
 
@@ -455,6 +461,45 @@ public final class ShifterMovementResource
         );
     }
 
+    public void setMovementBlockType(
+            @Nonnull Vector3i sourcePosition,
+            @Nonnull String blockTypeKey
+    ) {
+        movementBlockTypes.put(
+                new Vector3i(sourcePosition),
+                blockTypeKey
+        );
+    }
+
+
+    public @Nullable String movementBlockType(
+            @Nonnull Vector3i sourcePosition
+    ) {
+        return movementBlockTypes.get(
+                sourcePosition
+        );
+    }
+
+
+    public void setMovementBlockRotation(
+            @Nonnull Vector3i sourcePosition,
+            int rotationIndex
+    ) {
+        movementBlockRotations.put(
+                new Vector3i(sourcePosition),
+                rotationIndex
+        );
+    }
+
+
+    public @Nullable Integer movementBlockRotation(
+            @Nonnull Vector3i sourcePosition
+    ) {
+        return movementBlockRotations.get(
+                sourcePosition
+        );
+    }
+
 
     public @Nullable Holder<ChunkStore> movementBlockComponents(
             @Nonnull Vector3i sourcePosition
@@ -493,6 +538,14 @@ public final class ShifterMovementResource
         );
 
         movementVisualEntities.remove(
+                sourcePosition
+        );
+
+        movementBlockTypes.remove(
+                sourcePosition
+        );
+
+        movementBlockRotations.remove(
                 sourcePosition
         );
     }
