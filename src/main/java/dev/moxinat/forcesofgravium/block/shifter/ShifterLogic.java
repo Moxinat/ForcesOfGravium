@@ -1104,6 +1104,9 @@ public class ShifterLogic {
             Map<Vector3i, Ref<EntityStore>> visualEntities =
                     new LinkedHashMap<>();
 
+            Map<Vector3i, UUID> visualEntityUuids =
+                    new LinkedHashMap<>();
+
             for (Vector3i sourcePosition
                     : blocksToPrepare.keySet()) {
 
@@ -1120,6 +1123,15 @@ public class ShifterLogic {
                                 sourcePosition
                         );
 
+                UUIDComponent uuidComponent =
+                        visualHolder.getComponent(
+                                UUIDComponent.getComponentType()
+                        );
+
+                if (uuidComponent == null) {
+                    return;
+                }
+
                 Ref<EntityStore> visualRef =
                         commandBuffer.addEntity(
                                 visualHolder,
@@ -1129,6 +1141,11 @@ public class ShifterLogic {
                 visualEntities.put(
                         new Vector3i(sourcePosition),
                         visualRef
+                );
+
+                visualEntityUuids.put(
+                        new Vector3i(sourcePosition),
+                        uuidComponent.getUuid()
                 );
             }
 
@@ -1205,7 +1222,7 @@ public class ShifterLogic {
                 movements.setMovementVisualEntity(
                         sourcePosition,
                         visualEntities.get(sourcePosition),
-                        commandBuffer
+                        visualEntityUuids.get(sourcePosition)
                 );
 
                 movements.setMovementBlockType(

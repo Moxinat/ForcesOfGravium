@@ -29,6 +29,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 
 public final class ShifterMovementResource
@@ -671,14 +672,20 @@ public final class ShifterMovementResource
     public void setMovementVisualEntity(
             @Nonnull Vector3i sourcePosition,
             @Nonnull Ref<EntityStore> entityRef,
-            @Nonnull ComponentAccessor<EntityStore> componentAccessor
+            @Nonnull UUID entityUuid
     ) {
         PersistentRef persistentRef =
                 new PersistentRef();
 
+        /*
+         * The Ref returned by CommandBuffer.addEntity is not readable
+         * through the command buffer until the queued add is applied.
+         * The UUID already exists on the holder before addEntity, so
+         * bind the persistent reference without dereferencing the Ref.
+         */
         persistentRef.setEntity(
                 entityRef,
-                componentAccessor
+                entityUuid
         );
 
         movementVisualEntities.put(
