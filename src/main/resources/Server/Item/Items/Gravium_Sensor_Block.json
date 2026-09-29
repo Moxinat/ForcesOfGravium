@@ -44,7 +44,7 @@
         },
         "forcesofgravium:node": {
           "SignalInputSides": 16,
-          "SignalOutputSides": 1,
+          "SignalOutputSides": 2,
           "ControlInputSides": 0,
           "PreviousInstantState": "Off",
           "InstantState": "Off",
@@ -154,6 +154,8 @@
     ],
 
     "BlockBreakingDecalId": "Breaking_Decals_Rock",
+
+    "RotationYawPlacementOffset": "OneEighty",
 
     "Interactions": {
       "Use": {

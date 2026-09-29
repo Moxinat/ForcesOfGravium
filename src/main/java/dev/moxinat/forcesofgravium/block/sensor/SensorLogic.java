@@ -271,7 +271,7 @@ public final class SensorLogic {
                     ConnectableNeighborResolver.adjacentPositionForLocalSide(
                             world,
                             sensorPosition,
-                            ConnectableRegistry.SIDE_BACK
+                            ConnectableRegistry.SIDE_FRONT
                     );
 
             BlockType observedBlock =
@@ -474,7 +474,7 @@ public final class SensorLogic {
                 ConnectableNeighborResolver.adjacentPositionForLocalSide(
                         world,
                         sensorPosition,
-                        ConnectableRegistry.SIDE_BACK
+                        ConnectableRegistry.SIDE_FRONT
                 );
 
         ItemContainerBlock itemContainerBlock =
@@ -538,7 +538,7 @@ public final class SensorLogic {
                 ConnectableNeighborResolver.adjacentPositionForLocalSide(
                         world,
                         sensorPosition,
-                        ConnectableRegistry.SIDE_BACK
+                        ConnectableRegistry.SIDE_FRONT
                 );
 
         BlockType blockType =
@@ -832,7 +832,7 @@ public final class SensorLogic {
                     ConnectableNeighborResolver.adjacentPositionForLocalSide(
                             world,
                             neighbor,
-                            ConnectableRegistry.SIDE_BACK
+                            ConnectableRegistry.SIDE_FRONT
                     );
 
             if (sensorObservedPosition.equals(observedPosition)) {
@@ -867,7 +867,7 @@ public final class SensorLogic {
                 ConnectableNeighborResolver.adjacentPositionForLocalSide(
                         world,
                         sensorPosition,
-                        ConnectableRegistry.SIDE_BACK
+                        ConnectableRegistry.SIDE_FRONT
                 );
 
         String volumeId = triggerVolumeId(sensorPosition);
@@ -1015,7 +1015,7 @@ public final class SensorLogic {
                     ConnectableNeighborResolver.adjacentPositionForLocalSide(
                             world,
                             neighbor,
-                            ConnectableRegistry.SIDE_BACK
+                            ConnectableRegistry.SIDE_FRONT
                     );
 
             if (!sensorObservedPosition.equals(observedPosition)) {
