@@ -14,6 +14,7 @@ import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
 import dev.moxinat.forcesofgravium.block.shifter.ShifterLogic;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
+import dev.moxinat.forcesofgravium.data.Nodes;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 import dev.moxinat.forcesofgravium.dispatcher.ConnectableVisualDispatcher;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
@@ -365,11 +366,19 @@ public final class ConnectableBlockLifecycleSystem {
             @Nonnull Vector3i position,
             int energyDelta
     ) {
+        Nodes.mutate(
+                world,
+                position,
+                node -> node.setDirty(true)
+        );
+
         ConnectableNetworkManager.onNodePlaced(
                 world,
                 position,
                 energyDelta
         );
+
+        SensorLogic.restoreRuntime(world, position);
 
         EnergyManager.checkNetwork(
                 world,
