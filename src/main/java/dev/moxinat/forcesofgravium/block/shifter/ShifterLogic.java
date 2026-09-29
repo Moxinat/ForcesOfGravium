@@ -1365,7 +1365,13 @@ public class ShifterLogic {
                                 );
 
                         if (targetSectionRef == null) {
-                            return;
+                            /*
+                             * This block is currently outside loaded
+                             * sections. Keep its movement data so it can
+                             * be committed on a later tick, while the
+                             * remaining blocks continue independently.
+                             */
+                            continue;
                         }
 
                         Store<ChunkStore> chunkStore =
@@ -1451,6 +1457,19 @@ public class ShifterLogic {
                         );
                     }
 
+                    /*
+                     * A Shifter remains busy until every one of its
+                     * movement entries has actually been committed.
+                     * Entries whose target was unloaded still retain
+                     * their movement block data and are retried later.
+                     */
+                    if (hasPendingMovementBlocks(
+                            movements,
+                            movement
+                    )) {
+                        continue;
+                    }
+
                     // Movement energy -> normal active Shifter energy.
                     NetworkResource networks =
                             world.getChunkStore()
@@ -1517,7 +1536,13 @@ public class ShifterLogic {
                                 );
 
                         if (sourceSectionRef == null) {
-                            return;
+                            /*
+                             * This source is currently outside loaded
+                             * sections. Keep its movement data so it can
+                             * be restored on a later tick, while the
+                             * remaining blocks continue independently.
+                             */
+                            continue;
                         }
 
                         Store<ChunkStore> chunkStore =
@@ -1605,6 +1630,17 @@ public class ShifterLogic {
                         );
                     }
 
+                    /*
+                     * The rollback is complete only after every block
+                     * has been restored. Unloaded sources remain pending.
+                     */
+                    if (hasPendingMovementBlocks(
+                            movements,
+                            movement
+                    )) {
+                        continue;
+                    }
+
                     NetworkResource networks =
                             world.getChunkStore()
                                     .getStore()
@@ -1637,6 +1673,23 @@ public class ShifterLogic {
                 }
             }
         }
+    }
+
+    private static boolean hasPendingMovementBlocks(
+            @Nonnull ShifterMovementResource movements,
+            @Nonnull ShifterMovementResource.ActiveMovement movement
+    ) {
+        for (ShifterMovementResource.MovementEntry movementEntry
+                : movement.entries()) {
+
+            if (movements.movementBlockType(
+                    movementEntry.sourcePosition()
+            ) != null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static @Nonnull Holder<EntityStore> createMovingBlockVisual(
