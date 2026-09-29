@@ -1002,7 +1002,10 @@ public class ShifterLogic {
 
                 // Should never already exist because active movement
                 // positions are reserved.
-                if (movements.movementVisualEntity(sourcePosition) != null) {
+                if (movements.movementVisualEntity(
+                        sourcePosition,
+                        commandBuffer
+                ) != null) {
                     return;
                 }
 
@@ -1201,7 +1204,8 @@ public class ShifterLogic {
 
                 movements.setMovementVisualEntity(
                         sourcePosition,
-                        visualEntities.get(sourcePosition)
+                        visualEntities.get(sourcePosition),
+                        commandBuffer
                 );
 
                 movements.setMovementBlockType(
@@ -1279,7 +1283,10 @@ public class ShifterLogic {
                                 movementEntry.sourcePosition();
 
                         Ref<EntityStore> visualEntity =
-                                movements.movementVisualEntity(source);
+                                movements.movementVisualEntity(
+                                        source,
+                                        commandBuffer
+                                );
 
                         if (visualEntity == null
                                 || !visualEntity.isValid()) {
@@ -1441,7 +1448,10 @@ public class ShifterLogic {
                         }
 
                         Ref<EntityStore> visualEntity =
-                                movements.movementVisualEntity(source);
+                                movements.movementVisualEntity(
+                                        source,
+                                        commandBuffer
+                                );
 
                         if (visualEntity != null
                                 && visualEntity.isValid()) {
@@ -1614,7 +1624,10 @@ public class ShifterLogic {
                         }
 
                         Ref<EntityStore> visualEntity =
-                                movements.movementVisualEntity(source);
+                                movements.movementVisualEntity(
+                                        source,
+                                        commandBuffer
+                                );
 
                         if (visualEntity != null
                                 && visualEntity.isValid()) {

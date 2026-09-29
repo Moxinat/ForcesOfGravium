@@ -5,10 +5,13 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.codec.store.StoredCodec;
+import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.math.vector.Vector3iUtil;
+import com.hypixel.hytale.server.core.entity.reference.PersistentRef;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -58,6 +61,36 @@ public final class ShifterMovementResource
             ArrayCodec.ofBuilderCodec(
                     HeldBlockData.CODEC,
                     HeldBlockData[]::new
+            );
+
+    private static final ArrayCodec<MovementBlockComponentsData> MOVEMENT_BLOCK_COMPONENTS_ARRAY_CODEC =
+            ArrayCodec.ofBuilderCodec(
+                    MovementBlockComponentsData.CODEC,
+                    MovementBlockComponentsData[]::new
+            );
+
+    private static final ArrayCodec<MovementVisualData> MOVEMENT_VISUAL_ARRAY_CODEC =
+            ArrayCodec.ofBuilderCodec(
+                    MovementVisualData.CODEC,
+                    MovementVisualData[]::new
+            );
+
+    private static final ArrayCodec<MovementBlockTypeData> MOVEMENT_BLOCK_TYPE_ARRAY_CODEC =
+            ArrayCodec.ofBuilderCodec(
+                    MovementBlockTypeData.CODEC,
+                    MovementBlockTypeData[]::new
+            );
+
+    private static final ArrayCodec<MovementBlockRotationData> MOVEMENT_BLOCK_ROTATION_ARRAY_CODEC =
+            ArrayCodec.ofBuilderCodec(
+                    MovementBlockRotationData.CODEC,
+                    MovementBlockRotationData[]::new
+            );
+
+    private static final ArrayCodec<MovementNodeEnergyData> MOVEMENT_NODE_ENERGY_ARRAY_CODEC =
+            ArrayCodec.ofBuilderCodec(
+                    MovementNodeEnergyData.CODEC,
+                    MovementNodeEnergyData[]::new
             );
 
 
@@ -118,6 +151,56 @@ public final class ShifterMovementResource
                     )
                     .add()
 
+                    .append(
+                            new KeyedCodec<>(
+                                    "MovementBlockComponents",
+                                    MOVEMENT_BLOCK_COMPONENTS_ARRAY_CODEC
+                            ),
+                            ShifterMovementResource::setMovementBlockComponentsData,
+                            ShifterMovementResource::getMovementBlockComponentsData
+                    )
+                    .add()
+
+                    .append(
+                            new KeyedCodec<>(
+                                    "MovementVisuals",
+                                    MOVEMENT_VISUAL_ARRAY_CODEC
+                            ),
+                            ShifterMovementResource::setMovementVisualData,
+                            ShifterMovementResource::getMovementVisualData
+                    )
+                    .add()
+
+                    .append(
+                            new KeyedCodec<>(
+                                    "MovementBlockTypes",
+                                    MOVEMENT_BLOCK_TYPE_ARRAY_CODEC
+                            ),
+                            ShifterMovementResource::setMovementBlockTypeData,
+                            ShifterMovementResource::getMovementBlockTypeData
+                    )
+                    .add()
+
+                    .append(
+                            new KeyedCodec<>(
+                                    "MovementBlockRotations",
+                                    MOVEMENT_BLOCK_ROTATION_ARRAY_CODEC
+                            ),
+                            ShifterMovementResource::setMovementBlockRotationData,
+                            ShifterMovementResource::getMovementBlockRotationData
+                    )
+                    .add()
+
+                    .append(
+                            new KeyedCodec<>(
+                                    "MovementNodeEnergyDeltas",
+                                    MOVEMENT_NODE_ENERGY_ARRAY_CODEC
+                            ),
+                            ShifterMovementResource::setMovementNodeEnergyData,
+                            ShifterMovementResource::getMovementNodeEnergyData
+                    )
+                    .add()
+
                     .build();
 
 
@@ -137,7 +220,7 @@ public final class ShifterMovementResource
     private final Map<Vector3i, Holder<ChunkStore>> movementBlockComponents =
             new HashMap<>();
 
-    private final Map<Vector3i, Ref<EntityStore>> movementVisualEntities =
+    private final Map<Vector3i, PersistentRef> movementVisualEntities =
             new HashMap<>();
 
     private final Map<Vector3i, String> movementBlockTypes =
@@ -185,6 +268,53 @@ public final class ShifterMovementResource
             activeMovements.put(
                     new Vector3i(entry.getKey()),
                     new ActiveMovement(entry.getValue())
+            );
+        }
+
+        for (Map.Entry<Vector3i, Holder<ChunkStore>> entry
+                : other.movementBlockComponents.entrySet()) {
+
+            movementBlockComponents.put(
+                    new Vector3i(entry.getKey()),
+                    entry.getValue().clone()
+            );
+        }
+
+        for (Map.Entry<Vector3i, PersistentRef> entry
+                : other.movementVisualEntities.entrySet()) {
+
+            movementVisualEntities.put(
+                    new Vector3i(entry.getKey()),
+                    new PersistentRef(
+                            entry.getValue().getUuid()
+                    )
+            );
+        }
+
+        for (Map.Entry<Vector3i, String> entry
+                : other.movementBlockTypes.entrySet()) {
+
+            movementBlockTypes.put(
+                    new Vector3i(entry.getKey()),
+                    entry.getValue()
+            );
+        }
+
+        for (Map.Entry<Vector3i, Integer> entry
+                : other.movementBlockRotations.entrySet()) {
+
+            movementBlockRotations.put(
+                    new Vector3i(entry.getKey()),
+                    entry.getValue()
+            );
+        }
+
+        for (Map.Entry<Vector3i, Integer> entry
+                : other.movementNodeEnergyDeltas.entrySet()) {
+
+            movementNodeEnergyDeltas.put(
+                    new Vector3i(entry.getKey()),
+                    entry.getValue()
             );
         }
 
@@ -540,21 +670,38 @@ public final class ShifterMovementResource
 
     public void setMovementVisualEntity(
             @Nonnull Vector3i sourcePosition,
-            @Nonnull Ref<EntityStore> entityRef
+            @Nonnull Ref<EntityStore> entityRef,
+            @Nonnull ComponentAccessor<EntityStore> componentAccessor
     ) {
+        PersistentRef persistentRef =
+                new PersistentRef();
+
+        persistentRef.setEntity(
+                entityRef,
+                componentAccessor
+        );
+
         movementVisualEntities.put(
                 new Vector3i(sourcePosition),
-                entityRef
+                persistentRef
         );
     }
 
 
     public @Nullable Ref<EntityStore> movementVisualEntity(
-            @Nonnull Vector3i sourcePosition
+            @Nonnull Vector3i sourcePosition,
+            @Nonnull ComponentAccessor<EntityStore> componentAccessor
     ) {
-        return movementVisualEntities.get(
-                sourcePosition
-        );
+        PersistentRef persistentRef =
+                movementVisualEntities.get(
+                        sourcePosition
+                );
+
+        return persistentRef == null
+                ? null
+                : persistentRef.getEntity(
+                        componentAccessor
+                );
     }
 
 
@@ -717,6 +864,247 @@ public final class ShifterMovementResource
     }
 
 
+    private MovementBlockComponentsData[] getMovementBlockComponentsData() {
+
+        MovementBlockComponentsData[] result =
+                new MovementBlockComponentsData[
+                        movementBlockComponents.size()
+                ];
+
+        int index = 0;
+
+        for (Map.Entry<Vector3i, Holder<ChunkStore>> entry
+                : movementBlockComponents.entrySet()) {
+
+            result[index++] =
+                    new MovementBlockComponentsData(
+                            entry.getKey(),
+                            entry.getValue()
+                    );
+        }
+
+        return result;
+    }
+
+
+    private void setMovementBlockComponentsData(
+            MovementBlockComponentsData[] loaded
+    ) {
+        movementBlockComponents.clear();
+
+        if (loaded == null) {
+            return;
+        }
+
+        for (MovementBlockComponentsData data : loaded) {
+
+            if (data == null
+                    || data.sourcePosition == null
+                    || data.components == null) {
+                continue;
+            }
+
+            movementBlockComponents.put(
+                    new Vector3i(data.sourcePosition),
+                    data.components
+            );
+        }
+    }
+
+
+    private MovementVisualData[] getMovementVisualData() {
+
+        MovementVisualData[] result =
+                new MovementVisualData[
+                        movementVisualEntities.size()
+                ];
+
+        int index = 0;
+
+        for (Map.Entry<Vector3i, PersistentRef> entry
+                : movementVisualEntities.entrySet()) {
+
+            result[index++] =
+                    new MovementVisualData(
+                            entry.getKey(),
+                            new PersistentRef(
+                                    entry.getValue().getUuid()
+                            )
+                    );
+        }
+
+        return result;
+    }
+
+
+    private void setMovementVisualData(
+            MovementVisualData[] loaded
+    ) {
+        movementVisualEntities.clear();
+
+        if (loaded == null) {
+            return;
+        }
+
+        for (MovementVisualData data : loaded) {
+
+            if (data == null
+                    || data.sourcePosition == null
+                    || data.persistentRef == null
+                    || !data.persistentRef.isValid()) {
+                continue;
+            }
+
+            movementVisualEntities.put(
+                    new Vector3i(data.sourcePosition),
+                    data.persistentRef
+            );
+        }
+    }
+
+
+    private MovementBlockTypeData[] getMovementBlockTypeData() {
+
+        MovementBlockTypeData[] result =
+                new MovementBlockTypeData[
+                        movementBlockTypes.size()
+                ];
+
+        int index = 0;
+
+        for (Map.Entry<Vector3i, String> entry
+                : movementBlockTypes.entrySet()) {
+
+            result[index++] =
+                    new MovementBlockTypeData(
+                            entry.getKey(),
+                            entry.getValue()
+                    );
+        }
+
+        return result;
+    }
+
+
+    private void setMovementBlockTypeData(
+            MovementBlockTypeData[] loaded
+    ) {
+        movementBlockTypes.clear();
+
+        if (loaded == null) {
+            return;
+        }
+
+        for (MovementBlockTypeData data : loaded) {
+
+            if (data == null
+                    || data.sourcePosition == null
+                    || data.blockTypeKey == null) {
+                continue;
+            }
+
+            movementBlockTypes.put(
+                    new Vector3i(data.sourcePosition),
+                    data.blockTypeKey
+            );
+        }
+    }
+
+
+    private MovementBlockRotationData[] getMovementBlockRotationData() {
+
+        MovementBlockRotationData[] result =
+                new MovementBlockRotationData[
+                        movementBlockRotations.size()
+                ];
+
+        int index = 0;
+
+        for (Map.Entry<Vector3i, Integer> entry
+                : movementBlockRotations.entrySet()) {
+
+            result[index++] =
+                    new MovementBlockRotationData(
+                            entry.getKey(),
+                            entry.getValue()
+                    );
+        }
+
+        return result;
+    }
+
+
+    private void setMovementBlockRotationData(
+            MovementBlockRotationData[] loaded
+    ) {
+        movementBlockRotations.clear();
+
+        if (loaded == null) {
+            return;
+        }
+
+        for (MovementBlockRotationData data : loaded) {
+
+            if (data == null
+                    || data.sourcePosition == null) {
+                continue;
+            }
+
+            movementBlockRotations.put(
+                    new Vector3i(data.sourcePosition),
+                    data.rotationIndex
+            );
+        }
+    }
+
+
+    private MovementNodeEnergyData[] getMovementNodeEnergyData() {
+
+        MovementNodeEnergyData[] result =
+                new MovementNodeEnergyData[
+                        movementNodeEnergyDeltas.size()
+                ];
+
+        int index = 0;
+
+        for (Map.Entry<Vector3i, Integer> entry
+                : movementNodeEnergyDeltas.entrySet()) {
+
+            result[index++] =
+                    new MovementNodeEnergyData(
+                            entry.getKey(),
+                            entry.getValue()
+                    );
+        }
+
+        return result;
+    }
+
+
+    private void setMovementNodeEnergyData(
+            MovementNodeEnergyData[] loaded
+    ) {
+        movementNodeEnergyDeltas.clear();
+
+        if (loaded == null) {
+            return;
+        }
+
+        for (MovementNodeEnergyData data : loaded) {
+
+            if (data == null
+                    || data.sourcePosition == null) {
+                continue;
+            }
+
+            movementNodeEnergyDeltas.put(
+                    new Vector3i(data.sourcePosition),
+                    data.energyDelta
+            );
+        }
+    }
+
+
     // --------------------------------------------------
     // UTILITY
     // --------------------------------------------------
@@ -740,6 +1128,292 @@ public final class ShifterMovementResource
     @Override
     public @Nonnull ShifterMovementResource clone() {
         return new ShifterMovementResource(this);
+    }
+
+
+    // ==================================================
+    // PERSISTED MOVEMENT BLOCK DATA
+    // ==================================================
+
+    private static final class MovementBlockComponentsData {
+
+        private static final BuilderCodec<MovementBlockComponentsData> CODEC =
+                BuilderCodec.builder(
+                                MovementBlockComponentsData.class,
+                                MovementBlockComponentsData::new
+                        )
+
+                        .append(
+                                new KeyedCodec<>(
+                                        "SourcePosition",
+                                        Vector3iUtil.CODEC
+                                ),
+                                (data, value) ->
+                                        data.sourcePosition =
+                                                new Vector3i(value),
+                                data -> data.sourcePosition
+                        )
+                        .add()
+
+                        .append(
+                                new KeyedCodec<>(
+                                        "Components",
+                                        new StoredCodec<>(
+                                                ChunkStore.HOLDER_CODEC_KEY
+                                        )
+                                ),
+                                (data, value) ->
+                                        data.components = value,
+                                data -> data.components
+                        )
+                        .add()
+
+                        .build();
+
+        private Vector3i sourcePosition =
+                new Vector3i();
+
+        private Holder<ChunkStore> components;
+
+
+        public MovementBlockComponentsData() {
+        }
+
+
+        private MovementBlockComponentsData(
+                @Nonnull Vector3i sourcePosition,
+                @Nonnull Holder<ChunkStore> components
+        ) {
+            this.sourcePosition =
+                    new Vector3i(sourcePosition);
+
+            this.components = components;
+        }
+    }
+
+
+    private static final class MovementVisualData {
+
+        private static final BuilderCodec<MovementVisualData> CODEC =
+                BuilderCodec.builder(
+                                MovementVisualData.class,
+                                MovementVisualData::new
+                        )
+
+                        .append(
+                                new KeyedCodec<>(
+                                        "SourcePosition",
+                                        Vector3iUtil.CODEC
+                                ),
+                                (data, value) ->
+                                        data.sourcePosition =
+                                                new Vector3i(value),
+                                data -> data.sourcePosition
+                        )
+                        .add()
+
+                        .append(
+                                new KeyedCodec<>(
+                                        "PersistentRef",
+                                        PersistentRef.CODEC
+                                ),
+                                (data, value) ->
+                                        data.persistentRef = value,
+                                data -> data.persistentRef
+                        )
+                        .add()
+
+                        .build();
+
+        private Vector3i sourcePosition =
+                new Vector3i();
+
+        private PersistentRef persistentRef =
+                new PersistentRef();
+
+
+        public MovementVisualData() {
+        }
+
+
+        private MovementVisualData(
+                @Nonnull Vector3i sourcePosition,
+                @Nonnull PersistentRef persistentRef
+        ) {
+            this.sourcePosition =
+                    new Vector3i(sourcePosition);
+
+            this.persistentRef =
+                    persistentRef;
+        }
+    }
+
+
+    private static final class MovementBlockTypeData {
+
+        private static final BuilderCodec<MovementBlockTypeData> CODEC =
+                BuilderCodec.builder(
+                                MovementBlockTypeData.class,
+                                MovementBlockTypeData::new
+                        )
+
+                        .append(
+                                new KeyedCodec<>(
+                                        "SourcePosition",
+                                        Vector3iUtil.CODEC
+                                ),
+                                (data, value) ->
+                                        data.sourcePosition =
+                                                new Vector3i(value),
+                                data -> data.sourcePosition
+                        )
+                        .add()
+
+                        .append(
+                                new KeyedCodec<>(
+                                        "BlockTypeKey",
+                                        Codec.STRING
+                                ),
+                                (data, value) ->
+                                        data.blockTypeKey = value,
+                                data -> data.blockTypeKey
+                        )
+                        .add()
+
+                        .build();
+
+        private Vector3i sourcePosition =
+                new Vector3i();
+
+        private String blockTypeKey;
+
+
+        public MovementBlockTypeData() {
+        }
+
+
+        private MovementBlockTypeData(
+                @Nonnull Vector3i sourcePosition,
+                @Nonnull String blockTypeKey
+        ) {
+            this.sourcePosition =
+                    new Vector3i(sourcePosition);
+
+            this.blockTypeKey =
+                    blockTypeKey;
+        }
+    }
+
+
+    private static final class MovementBlockRotationData {
+
+        private static final BuilderCodec<MovementBlockRotationData> CODEC =
+                BuilderCodec.builder(
+                                MovementBlockRotationData.class,
+                                MovementBlockRotationData::new
+                        )
+
+                        .append(
+                                new KeyedCodec<>(
+                                        "SourcePosition",
+                                        Vector3iUtil.CODEC
+                                ),
+                                (data, value) ->
+                                        data.sourcePosition =
+                                                new Vector3i(value),
+                                data -> data.sourcePosition
+                        )
+                        .add()
+
+                        .append(
+                                new KeyedCodec<>(
+                                        "RotationIndex",
+                                        Codec.INTEGER
+                                ),
+                                (data, value) ->
+                                        data.rotationIndex = value,
+                                data -> data.rotationIndex
+                        )
+                        .add()
+
+                        .build();
+
+        private Vector3i sourcePosition =
+                new Vector3i();
+
+        private int rotationIndex;
+
+
+        public MovementBlockRotationData() {
+        }
+
+
+        private MovementBlockRotationData(
+                @Nonnull Vector3i sourcePosition,
+                int rotationIndex
+        ) {
+            this.sourcePosition =
+                    new Vector3i(sourcePosition);
+
+            this.rotationIndex =
+                    rotationIndex;
+        }
+    }
+
+
+    private static final class MovementNodeEnergyData {
+
+        private static final BuilderCodec<MovementNodeEnergyData> CODEC =
+                BuilderCodec.builder(
+                                MovementNodeEnergyData.class,
+                                MovementNodeEnergyData::new
+                        )
+
+                        .append(
+                                new KeyedCodec<>(
+                                        "SourcePosition",
+                                        Vector3iUtil.CODEC
+                                ),
+                                (data, value) ->
+                                        data.sourcePosition =
+                                                new Vector3i(value),
+                                data -> data.sourcePosition
+                        )
+                        .add()
+
+                        .append(
+                                new KeyedCodec<>(
+                                        "EnergyDelta",
+                                        Codec.INTEGER
+                                ),
+                                (data, value) ->
+                                        data.energyDelta = value,
+                                data -> data.energyDelta
+                        )
+                        .add()
+
+                        .build();
+
+        private Vector3i sourcePosition =
+                new Vector3i();
+
+        private int energyDelta;
+
+
+        public MovementNodeEnergyData() {
+        }
+
+
+        private MovementNodeEnergyData(
+                @Nonnull Vector3i sourcePosition,
+                int energyDelta
+        ) {
+            this.sourcePosition =
+                    new Vector3i(sourcePosition);
+
+            this.energyDelta =
+                    energyDelta;
+        }
     }
 
 
