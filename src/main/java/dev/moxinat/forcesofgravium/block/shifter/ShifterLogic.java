@@ -50,6 +50,44 @@ public class ShifterLogic {
     private ShifterLogic() {
     }
 
+    public static void handlePlaced(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        BlockType blockType =
+                world.getBlockType(
+                        position
+                );
+
+        if (blockType == null
+                || !ConnectableRegistry.GRAVIUM_SHIFTER_BLOCK_ID.equals(
+                        ConnectableRegistry.rawBlockId(
+                                blockType.getId()
+                        )
+                )) {
+            return;
+        }
+
+        NodeComponent node =
+                BlockModule.getComponent(
+                        ForcesOfGraviumPlugin.NODE_COMPONENT_TYPE,
+                        world,
+                        position.x(),
+                        position.y(),
+                        position.z()
+                );
+
+        if (node == null) {
+            return;
+        }
+
+        ShifterVolumeManager.update(
+                world,
+                position,
+                node.effectiveState()
+        );
+    }
+
     public static void handleStateChange(
             @Nonnull World world,
             @Nonnull Vector3i position

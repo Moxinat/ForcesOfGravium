@@ -380,6 +380,11 @@ public final class ConnectableBlockLifecycleSystem {
 
         SensorLogic.restoreRuntime(world, position);
 
+        ShifterLogic.handlePlaced(
+                world,
+                position
+        );
+
         EnergyManager.checkNetwork(
                 world,
                 position
