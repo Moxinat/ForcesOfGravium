@@ -80,6 +80,12 @@ public class ShifterLogic {
                 node.effectiveState()
         );
 
+        ShifterVolumeManager.update(
+                world,
+                position,
+                node.effectiveState()
+        );
+
 
         // Update base energy consumption.
         NetworkResource networks =
@@ -156,6 +162,11 @@ public class ShifterLogic {
         movements.setShifterState(
                 position,
                 SignalState.OFF
+        );
+
+        ShifterVolumeManager.handleBroken(
+                world,
+                position
         );
     }
 
