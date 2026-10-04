@@ -21,16 +21,25 @@ public final class SourceComponent implements Component<ChunkStore> {
                             component -> component.power
                     )
                     .add()
+                    .append(
+                            new KeyedCodec<>("RemainingActiveTicks", Codec.LONG),
+                            (component, value) -> component.remainingActiveTicks = value,
+                            component -> component.remainingActiveTicks
+                    )
+                    .add()
                     .build();
 
     private int power;
+    private long remainingActiveTicks;
 
     public SourceComponent() {
         power = 0;
+        remainingActiveTicks = 0;
     }
 
     private SourceComponent(SourceComponent other) {
         power = other.power;
+        remainingActiveTicks = other.remainingActiveTicks;
     }
 
     public int power() {
@@ -39,6 +48,20 @@ public final class SourceComponent implements Component<ChunkStore> {
 
     public void setPower(int power) {
         this.power = power;
+    }
+
+    public long remainingActiveTicks() {
+        return remainingActiveTicks;
+    }
+
+    public void setRemainingActiveTicks(long remainingActiveTicks) {
+        this.remainingActiveTicks = remainingActiveTicks;
+    }
+
+    public void tickRemainingActiveTicks() {
+        if (remainingActiveTicks > 0) {
+            remainingActiveTicks--;
+        }
     }
 
     @Override

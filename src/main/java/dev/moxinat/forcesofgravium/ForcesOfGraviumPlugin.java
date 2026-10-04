@@ -97,6 +97,7 @@ public class ForcesOfGraviumPlugin extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new CableItemTransportSystem.ItemTransportSystem());
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ForcesOfGraviumEvents::onPlayerReady);
         this.getEntityStoreRegistry().registerSystem(new ButtonInteractionSystem());
+        this.getChunkStoreRegistry().registerSystem(new ButtonInteractionSystem.TickSystem());
         this.getEntityStoreRegistry().registerSystem(new CurveCasedGravityPowderRotationSystem.UseSystem());
         this.getEntityStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlaceSystem());
         this.getChunkStoreRegistry().registerSystem(new ConnectableBlockLifecycleSystem.PlacedSystem());

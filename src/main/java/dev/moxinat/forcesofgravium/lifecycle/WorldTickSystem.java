@@ -16,7 +16,6 @@ import dev.moxinat.forcesofgravium.dispatcher.NodeControlDispatcher;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 import dev.moxinat.forcesofgravium.signal.ConnectableRecomputeCoordinator;
-import dev.moxinat.forcesofgravium.source.SourceActivationScheduler;
 
 import javax.annotation.Nonnull;
 import java.util.Map;
@@ -51,7 +50,6 @@ public final class WorldTickSystem extends EntityTickingSystem<EntityStore> {
         }
 
         // Every tick
-        SourceActivationScheduler.tickWorld(world);
         ConnectableRecomputeCoordinator.tickWorld(world);
         ConnectablePropagationScheduler.tickWorld(world);
         EnergyManager.tickWorld(world);

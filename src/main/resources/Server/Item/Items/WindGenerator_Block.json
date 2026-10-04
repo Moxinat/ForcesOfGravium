@@ -39,7 +39,8 @@
           "NetworkId": 0
         },
         "forcesofgravium:source": {
-          "Power": 9999999
+          "Power": 9999999,
+          "RemainingActiveTicks": 0
         }
       }
     },

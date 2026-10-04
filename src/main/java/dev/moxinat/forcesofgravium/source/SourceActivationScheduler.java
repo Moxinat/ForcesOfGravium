@@ -5,7 +5,6 @@ import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NetworkResource;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.Nodes;
-import dev.moxinat.forcesofgravium.data.SignalRuntimeResource;
 import dev.moxinat.forcesofgravium.data.SourceComponent;
 import dev.moxinat.forcesofgravium.signal.SignalState;
 import dev.moxinat.forcesofgravium.energy.EnergyManager;
@@ -16,7 +15,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.signal.ConnectablePropagationScheduler;
 
 import javax.annotation.Nonnull;
-import java.util.Map;
 
 public final class SourceActivationScheduler {
 
@@ -58,12 +56,7 @@ public final class SourceActivationScheduler {
                 position
         );
 
-        signalResource(world)
-                .activeSources()
-                .put(
-                        new Vector3i(position),
-                        ticks
-                );
+        source.setRemainingActiveTicks(ticks);
 
         for (Vector3i forwardNeighbor :
                 ConnectableNeighborResolver.allForwardSignalNeighbors(
@@ -83,80 +76,53 @@ public final class SourceActivationScheduler {
         );
     }
 
-    public static void tickWorld(
-            @Nonnull World world
+    public static void deactivate(
+            @Nonnull World world,
+            @Nonnull Vector3i position
     ) {
-        Map<Vector3i, Long> activeSources =
-                signalResource(world).activeSources();
+        NodeComponent node =
+                nodeAt(
+                        world,
+                        position
+                );
 
-        if (activeSources.isEmpty()) {
+        if (node == null) {
             return;
         }
 
-        for (Map.Entry<Vector3i, Long> entry
-                : Map.copyOf(activeSources).entrySet()) {
+        setNetworkEnergyDelta(
+                world,
+                position,
+                networkResource(world).networkAt(position),
+                0
+        );
 
-            Vector3i position =
-                    entry.getKey();
+        Nodes.mutate(world, position, currentNode -> {
+            currentNode.setInstantState(SignalState.OFF);
+            currentNode.setDirty(true);
+        });
 
-            long remainingTicks =
-                    entry.getValue() - 1;
+        EnergyManager.checkNetwork(
+                world,
+                position
+        );
 
-            if (remainingTicks > 0) {
-                activeSources.put(
-                        position,
-                        remainingTicks
-                );
-
-                continue;
-            }
-
-            NodeComponent node =
-                    nodeAt(
-                            world,
-                            position
-                    );
-
-            if (node == null) {
-                continue;
-            }
-
-            activeSources.remove(position);
-
-            setNetworkEnergyDelta(
-                    world,
-                    position,
-                    networkResource(world).networkAt(position),
-                    0
-            );
-
-            Nodes.mutate(world, position, currentNode -> {
-                currentNode.setInstantState(SignalState.OFF);
-                currentNode.setDirty(true);
-            });
-
-            EnergyManager.checkNetwork(
-                    world,
-                    position
-            );
-
-            for (Vector3i forwardNeighbor :
-                    ConnectableNeighborResolver.allForwardSignalNeighbors(
-                            world,
-                            position
-                    )) {
-
-                ConnectableSignalRecalculator.recompute(
+        for (Vector3i forwardNeighbor :
+                ConnectableNeighborResolver.allForwardSignalNeighbors(
                         world,
-                        forwardNeighbor
-                );
-            }
+                        position
+                )) {
 
-            ConnectablePropagationScheduler.scheduleAdoption(
+            ConnectableSignalRecalculator.recompute(
                     world,
-                    position
+                    forwardNeighbor
             );
         }
+
+        ConnectablePropagationScheduler.scheduleAdoption(
+                world,
+                position
+        );
     }
 
     private static void setNetworkEnergyDelta(
@@ -208,17 +174,6 @@ public final class SourceActivationScheduler {
                 .getStore()
                 .getResource(
                         ForcesOfGraviumPlugin.NETWORK_RESOURCE_TYPE
-                );
-    }
-
-    private static SignalRuntimeResource signalResource(
-            @Nonnull World world
-    ) {
-        return world
-                .getChunkStore()
-                .getStore()
-                .getResource(
-                        ForcesOfGraviumPlugin.SIGNAL_RESOURCE_TYPE
                 );
     }
 
