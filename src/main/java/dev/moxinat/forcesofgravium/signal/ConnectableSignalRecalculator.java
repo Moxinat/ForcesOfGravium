@@ -139,25 +139,25 @@ public final class ConnectableSignalRecalculator {
 
                     continue;
                 }
+            }
 
-                long currentNetworkId = networks.networkAt(currentPosition);
+            long currentNetworkId = networks.networkAt(currentPosition);
 
-                if (currentNetworkId != NetworkResource.NO_NETWORK
-                        && networks.energyDelta(
-                                currentNetworkId,
-                                currentPosition
-                        ) > 0) {
-                    SignalState output = currentNode.instantState();
+            if (currentNetworkId != NetworkResource.NO_NETWORK
+                    && networks.energyDelta(
+                            currentNetworkId,
+                            currentPosition
+                    ) > 0) {
+                SignalState output = currentNode.instantState();
 
-                    if (output == SignalState.PUSH) {
-                        frame.resolvedState = SignalState.PUSH;
-                        frame.backwardsStack.clear();
-                        continue;
-                    }
+                if (output == SignalState.PUSH) {
+                    frame.resolvedState = SignalState.PUSH;
+                    frame.backwardsStack.clear();
+                    continue;
+                }
 
-                    if (output == SignalState.PULL) {
-                        frame.resolvedState = SignalState.PULL;
-                    }
+                if (output == SignalState.PULL) {
+                    frame.resolvedState = SignalState.PULL;
                 }
             }
 
