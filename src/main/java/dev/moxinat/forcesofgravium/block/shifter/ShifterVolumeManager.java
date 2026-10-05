@@ -20,7 +20,7 @@ import java.util.List;
 
 public final class ShifterVolumeManager {
 
-    private static final double ENTITY_FORCE = 60.0;
+    private static final double ENTITY_FORCE = 2.0;
 
     private ShifterVolumeManager() {
     }
