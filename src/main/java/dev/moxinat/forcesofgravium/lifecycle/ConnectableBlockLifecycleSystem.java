@@ -417,7 +417,7 @@ public final class ConnectableBlockLifecycleSystem {
             }
         }
 
-        if (hasStableBackwardNeighbor) {
+        if (hasStableBackwardNeighbor || energyDelta > 0) {
             ConnectablePropagationScheduler.scheduleAdoption(
                     world,
                     position
