@@ -1,7 +1,7 @@
 {
     "Group": "Moxinat",
     "Name": "ForcesOfGravium",
-    "Version": "0.1.0-alpha.2",
+    "Version": "0.1.0-alpha.3",
     "Description": "Pre-release version of the ForcesOfGravium mod.",
     "Authors": [
         {
@@ -19,6 +19,6 @@
         "Hytale:TriggerVolumes": "*"
     },
     "OptionalDependencies": {},
-    "ServerVersion": "^0.6.1",
+    "ServerVersion": "^0.7.0",
     "Main": "dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin"
 }
