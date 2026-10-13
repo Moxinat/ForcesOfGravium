@@ -6,7 +6,9 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
+import com.hypixel.hytale.protocol.BlockPosition;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
 import dev.moxinat.forcesofgravium.data.NodeComponent;
 import dev.moxinat.forcesofgravium.data.SiphonComponent;
@@ -581,36 +583,17 @@ public final class GraviumSiphonLogic {
         );
     }
 
-    @SuppressWarnings("deprecation")
-    private static @Nonnull Vector3i baseBlockPosition(@Nonnull World world, @Nonnull Vector3i position) {
-        if (position.y() < 0 || position.y() >= 320) {
-            return position;
-        }
 
-        WorldChunk chunk = world.getNonTickingChunk(ChunkUtil.indexChunkFromBlock(position.x(), position.z()));
-        if (chunk == null) {
-            return position;
-        }
-
-        BlockChunk blockChunk = chunk.getBlockChunk();
-        if (blockChunk == null) {
-            return position;
-        }
-
-        BlockSection section = blockChunk.getSectionAtIndex(ChunkUtil.indexSection(position.y()));
-        if (section == null) {
-            return position;
-        }
-        int filler = section.getFiller(ChunkUtil.indexBlock(position.x(), position.y(), position.z()));
-        if (filler == FillerBlockUtil.NO_FILLER) {
-            return position;
-        }
-
-        return new Vector3i(
-                position.x() - FillerBlockUtil.unpackX(filler),
-                position.y() - FillerBlockUtil.unpackY(filler),
-                position.z() - FillerBlockUtil.unpackZ(filler)
+    private static @Nonnull Vector3i baseBlockPosition(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        BlockPosition base = BlockOperations.resolveBaseBlockPosition(
+                world.getChunkStore(),
+                new BlockPosition(position.x(), position.y(), position.z())
         );
+
+        return new Vector3i(base.x, base.y, base.z);
     }
 
     private record SiphonEndpoint(
