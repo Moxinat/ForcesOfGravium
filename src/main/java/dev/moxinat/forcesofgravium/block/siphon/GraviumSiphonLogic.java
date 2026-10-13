@@ -277,7 +277,7 @@ public final class GraviumSiphonLogic {
     }
 
     private static boolean isDroppableTarget(@Nonnull World world, @Nonnull Vector3i targetPosition) {
-        BlockType blockType = world.getBlockType(targetPosition.x(), targetPosition.y(), targetPosition.z());
+        BlockType blockType = ConnectableNeighborResolver.getBlockType(world, targetPosition.x(), targetPosition.y(), targetPosition.z());
         return blockType != null && blockType.getMaterial() == BlockMaterial.Empty;
     }
 

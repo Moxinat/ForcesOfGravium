@@ -1,5 +1,6 @@
 package dev.moxinat.forcesofgravium.block.button;
 
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
@@ -123,7 +124,7 @@ public final class ButtonInteractionSystem extends EntityEventSystem<EntityStore
                     store.getExternalData().getWorld();
 
             BlockType blockType =
-                    world.getBlockType(
+                    ConnectableNeighborResolver.getBlockType(world, 
                             position.x(),
                             position.y(),
                             position.z()

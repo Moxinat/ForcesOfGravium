@@ -55,7 +55,7 @@ public class ShifterLogic {
             @Nonnull Vector3i position
     ) {
         BlockType blockType =
-                world.getBlockType(
+                ConnectableNeighborResolver.getBlockType(world, 
                         position
                 );
 
@@ -279,7 +279,7 @@ public class ShifterLogic {
 
                     // Check whether there is a block to push.
                     BlockType sourceBlock =
-                            blockTypeAtLoaded(
+                            ConnectableNeighborResolver.getBlockTypeAtLoaded(
                                     world,
                                     sourcePosition
                             );
@@ -298,7 +298,7 @@ public class ShifterLogic {
                     while (true) {
 
                         BlockType targetBlock =
-                                blockTypeAtLoaded(
+                                ConnectableNeighborResolver.getBlockTypeAtLoaded(
                                         world,
                                         targetPosition
                                 );
@@ -363,7 +363,7 @@ public class ShifterLogic {
                             );
 
                     BlockType frontBlock =
-                            blockTypeAtLoaded(
+                            ConnectableNeighborResolver.getBlockTypeAtLoaded(
                                     world,
                                     frontPosition
                             );
@@ -403,7 +403,7 @@ public class ShifterLogic {
                                     .add(direction);
 
                     BlockType sourceBlock =
-                            blockTypeAtLoaded(
+                            ConnectableNeighborResolver.getBlockTypeAtLoaded(
                                     world,
                                     sourcePosition
                             );
@@ -1059,7 +1059,7 @@ public class ShifterLogic {
                 }
 
                 BlockType blockType =
-                        blockTypeAtLoaded(
+                        ConnectableNeighborResolver.getBlockTypeAtLoaded(
                                 world,
                                 sourcePosition
                         );
@@ -1994,33 +1994,6 @@ public class ShifterLogic {
                         sectionRef,
                         BlockSection.getComponentType()
                 );
-    }
-
-    private static @Nullable BlockType blockTypeAtLoaded(
-            @Nonnull World world,
-            @Nonnull Vector3i position
-    ) {
-        BlockSection section =
-                blockSectionAt(
-                        world,
-                        position
-                );
-
-        if (section == null) {
-            return null;
-        }
-
-        int blockId =
-                section.get(
-                        ChunkUtil.indexBlock(
-                                position.x(),
-                                position.y(),
-                                position.z()
-                        )
-                );
-
-        return BlockType.getAssetMap()
-                .getAsset(blockId);
     }
 
     private static @Nullable Holder<ChunkStore> takeBlockComponents(

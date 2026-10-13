@@ -360,7 +360,7 @@ public class CableItemTransportSystem {
                 }
 
                 BlockType blockType =
-                        world.getBlockType(
+                        ConnectableNeighborResolver.getBlockType(world, 
                                 cablePosition.x(),
                                 cablePosition.y(),
                                 cablePosition.z()
@@ -507,7 +507,7 @@ public class CableItemTransportSystem {
                         }
 
                         BlockType blockType =
-                                world.getBlockType(x, y, z);
+                                ConnectableNeighborResolver.getBlockType(world, x, y, z);
 
                         if (blockType == null) {
                             return true;

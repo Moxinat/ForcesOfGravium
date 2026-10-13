@@ -47,7 +47,7 @@ public final class GravityPowderBlockRefresher {
         }
 
         BlockType blockType =
-                world.getBlockType(position);
+                ConnectableNeighborResolver.getBlockType(world, position);
 
         if (blockType == null
                 || !ConnectableRegistry.GRAVITY_POWDER_BLOCK_ID

@@ -259,7 +259,7 @@ public class ForcesOfGraviumCommand extends AbstractCommand {
     }
 
     private void sendRotationDebug(CommandContext context, World world, Vector3i p) {
-        BlockType block = world.getBlockType(p.x(), p.y(), p.z());
+        BlockType block = ConnectableNeighborResolver.getBlockType(world, p.x(), p.y(), p.z());
         RotationTuple stored = ConnectableNeighborResolver.rotationFor(world, p);
         context.sendMessage(Message.raw("Rotation debug at " + formatPosition(p)));
         context.sendMessage(Message.raw("block=" + (block != null ? block.getId() : "null")));

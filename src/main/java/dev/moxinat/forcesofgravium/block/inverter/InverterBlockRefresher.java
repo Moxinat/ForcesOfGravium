@@ -1,5 +1,6 @@
 package dev.moxinat.forcesofgravium.block.inverter;
 
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockOperations;
@@ -34,7 +35,7 @@ public final class InverterBlockRefresher {
         }
 
         BlockType blockType =
-                world.getBlockType(
+                ConnectableNeighborResolver.getBlockType(world, 
                         position.x(),
                         position.y(),
                         position.z()

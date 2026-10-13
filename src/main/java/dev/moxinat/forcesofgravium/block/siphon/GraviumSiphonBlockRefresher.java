@@ -1,5 +1,6 @@
 package dev.moxinat.forcesofgravium.block.siphon;
 
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import dev.moxinat.forcesofgravium.ForcesOfGraviumPlugin;
@@ -51,7 +52,7 @@ public final class GraviumSiphonBlockRefresher {
         int z = position.z();
 
         BlockType blockType =
-                world.getBlockType(x, y, z);
+                ConnectableNeighborResolver.getBlockType(world, x, y, z);
 
         if (blockType == null) {
             return;

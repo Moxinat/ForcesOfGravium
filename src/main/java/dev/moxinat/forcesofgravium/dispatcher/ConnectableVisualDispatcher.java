@@ -23,7 +23,7 @@ public final class ConnectableVisualDispatcher {
             @Nonnull Vector3i position
     ) {
         BlockType blockType =
-                world.getBlockType(position);
+                ConnectableNeighborResolver.getBlockType(world, position);
 
         if (blockType == null) {
             return;

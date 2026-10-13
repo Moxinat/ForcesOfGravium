@@ -1,6 +1,8 @@
 package dev.moxinat.forcesofgravium.spatial;
 
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
@@ -13,6 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.registry.ConnectableRegistry;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -20,6 +23,75 @@ import java.util.Set;
 public final class ConnectableNeighborResolver {
 
     private ConnectableNeighborResolver() {
+    }
+
+    /**
+     * Reads a block type from an already loaded chunk section without triggering a load.
+     * Returns null if the section or block type is unavailable.
+     */
+    @Nullable
+    public static BlockType getBlockType(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        return getBlockType(world, position.x(), position.y(), position.z());
+    }
+
+    @Nullable
+    public static BlockType getBlockType(
+            @Nonnull World world,
+            int x,
+            int y,
+            int z
+    ) {
+        return readBlockType(world, x, y, z, false);
+    }
+
+    /**
+     * Preserves the Shifter's previous behavior: non-ticking sections are
+     * unavailable for movement, even when their section reference exists.
+     */
+    @Nullable
+    public static BlockType getBlockTypeAtLoaded(
+            @Nonnull World world,
+            @Nonnull Vector3i position
+    ) {
+        return readBlockType(world, position.x(), position.y(), position.z(), true);
+    }
+
+    @Nullable
+    private static BlockType readBlockType(
+            @Nonnull World world,
+            int x,
+            int y,
+            int z,
+            boolean requireTickingSection
+    ) {
+        ChunkStore chunkStore = world.getChunkStore();
+        Ref<ChunkStore> sectionRef =
+                chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
+
+        if (sectionRef == null || !sectionRef.isValid()) {
+            return null;
+        }
+
+        var store = chunkStore.getStore();
+        if (requireTickingSection
+                && store.getArchetype(sectionRef).contains(
+                        ChunkStore.REGISTRY.getNonTickingComponentType()
+                )) {
+            return null;
+        }
+
+        BlockSection section =
+                store.getComponent(sectionRef, BlockSection.getComponentType());
+
+        if (section == null) {
+            return null;
+        }
+
+        int blockId = section.get(ChunkUtil.indexBlock(x, y, z));
+        return BlockType.getAssetMap().getAsset(blockId);
     }
 
     public static List<Vector3i> positionsAround(Vector3i center) {

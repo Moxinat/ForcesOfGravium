@@ -1,5 +1,6 @@
 package dev.moxinat.forcesofgravium.dispatcher;
 
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.moxinat.forcesofgravium.block.sensor.SensorLogic;
@@ -19,7 +20,7 @@ public final class NodeStateDispatcher {
             @Nonnull Vector3i position
     ) {
         BlockType blockType =
-                world.getBlockType(position);
+                ConnectableNeighborResolver.getBlockType(world, position);
 
         if (blockType == null) {
             return;

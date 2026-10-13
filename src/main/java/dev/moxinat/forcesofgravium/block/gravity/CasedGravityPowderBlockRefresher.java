@@ -1,5 +1,6 @@
 package dev.moxinat.forcesofgravium.block.gravity;
 
+import dev.moxinat.forcesofgravium.spatial.ConnectableNeighborResolver;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.modules.block.BlockModule;
@@ -38,7 +39,7 @@ public final class CasedGravityPowderBlockRefresher {
         int z = position.z();
 
         BlockType currentType =
-                world.getBlockType(x, y, z);
+                ConnectableNeighborResolver.getBlockType(world, x, y, z);
 
         if (currentType == null) {
             return;

@@ -275,7 +275,7 @@ public final class SensorLogic {
                     );
 
             BlockType observedBlock =
-                    world.getBlockType(
+                    ConnectableNeighborResolver.getBlockType(world, 
                             observedPosition.x(),
                             observedPosition.y(),
                             observedPosition.z()
@@ -542,7 +542,7 @@ public final class SensorLogic {
                 );
 
         BlockType blockType =
-                world.getBlockType(
+                ConnectableNeighborResolver.getBlockType(world, 
                         observedPosition.x(),
                         observedPosition.y(),
                         observedPosition.z()
