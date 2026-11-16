@@ -24,7 +24,7 @@
 
     "CustomModelTexture": [
       {
-        "Texture": "BlockTextures/Gravium_Shifter_Texture.png",
+        "Texture": "BlockTextures/Gravium_Shifter_Texture_Off.png",
         "Weight": 1
       }
     ],
@@ -63,7 +63,7 @@
           "CustomModel": "Blocks/Gravium_Shifter/Gravium_Shifter.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/Gravium_Shifter_Texture.png",
+              "Texture": "BlockTextures/Gravium_Shifter_Texture_Off.png",
               "Weight": 1
             }
           ]
@@ -73,7 +73,7 @@
           "CustomModel": "Blocks/Gravium_Shifter/Gravium_Shifter.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/Gravium_Shifter_Texture.png",
+              "Texture": "BlockTextures/Gravium_Shifter_Texture_Push.png",
               "Weight": 1
             }
           ]
@@ -83,7 +83,7 @@
           "CustomModel": "Blocks/Gravium_Shifter/Gravium_Shifter.blockymodel",
           "CustomModelTexture": [
             {
-              "Texture": "BlockTextures/Gravium_Shifter_Texture.png",
+              "Texture": "BlockTextures/Gravium_Shifter_Texture_Pull.png",
               "Weight": 1
             }
           ]
