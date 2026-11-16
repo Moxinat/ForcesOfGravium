@@ -81,6 +81,18 @@ public class ShifterLogic {
             return;
         }
 
+        ShifterMovementResource movements =
+                world.getChunkStore()
+                        .getStore()
+                        .getResource(
+                                ForcesOfGraviumPlugin.SHIFTER_MOVEMENT_RESOURCE_TYPE
+                        );
+
+        movements.setShifterState(
+                position,
+                node.effectiveState()
+        );
+
         ShifterVolumeManager.update(
                 world,
                 position,
