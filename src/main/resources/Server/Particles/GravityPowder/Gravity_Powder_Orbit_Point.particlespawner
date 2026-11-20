@@ -56,7 +56,21 @@
         "Z": 0.0
       },
       "RadialTangentImpulse": 1.0,
-      "RadialImpulse": -0.05
+      "RadialAcceleration": -0.8
+    },
+    {
+      "Position": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      },
+      "RadialAxis": {
+        "X": 1.0,
+        "Y": 0.0,
+        "Z": 0.0
+      },
+      "Radius": 0.125,
+      "RadialAcceleration": 1.6
     }
   ],
 
