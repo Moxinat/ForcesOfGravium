@@ -3,22 +3,22 @@
     {
       "SpawnerId": "Gravity_Powder_Orbit_Point",
       "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
-      "RotationOffset": { "Pitch": 0 }
+      "RotationOffset": { "Roll": 0 }
     },
     {
       "SpawnerId": "Gravity_Powder_Orbit_Point",
       "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
-      "RotationOffset": { "Pitch": 90 }
+      "RotationOffset": { "Roll": 90 }
     },
     {
       "SpawnerId": "Gravity_Powder_Orbit_Point",
       "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
-      "RotationOffset": { "Pitch": 180 }
+      "RotationOffset": { "Roll": 180 }
     },
     {
       "SpawnerId": "Gravity_Powder_Orbit_Point",
       "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
-      "RotationOffset": { "Pitch": 270 }
+      "RotationOffset": { "Roll": 270 }
     }
   ],
   "CullDistance": 50
