@@ -1,0 +1,101 @@
+{
+  "Spawners": [
+    {
+      "SpawnerId": "Gravity_Powder_Point",
+      "PositionOffset": { "X": -0.5, "Y": 0.1273, "Z": 0.1273 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Point",
+      "PositionOffset": { "X": -0.5, "Y": 0.1273, "Z": -0.1273 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Point",
+      "PositionOffset": { "X": -0.5, "Y": -0.1273, "Z": 0.1273 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Point",
+      "PositionOffset": { "X": -0.5, "Y": -0.1273, "Z": -0.1273 }
+    },
+
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": -0.25, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 0 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": -0.25, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 90 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": -0.25, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 180 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": -0.25, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 270 }
+    },
+
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 45 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 135 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 225 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 315 }
+    },
+
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": 0.25, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 0 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": 0.25, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 90 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": 0.25, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 180 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Orbit_Point",
+      "PositionOffset": { "X": 0.25, "Y": 0.0, "Z": 0.0 },
+      "RotationOffset": { "Roll": 270 }
+    },
+
+    {
+      "SpawnerId": "Gravity_Powder_Point",
+      "PositionOffset": { "X": 0.5, "Y": 0.1273, "Z": 0.1273 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Point",
+      "PositionOffset": { "X": 0.5, "Y": 0.1273, "Z": -0.1273 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Point",
+      "PositionOffset": { "X": 0.5, "Y": -0.1273, "Z": 0.1273 }
+    },
+    {
+      "SpawnerId": "Gravity_Powder_Point",
+      "PositionOffset": { "X": 0.5, "Y": -0.1273, "Z": -0.1273 }
+    }
+  ],
+  "CullDistance": 50
+}
