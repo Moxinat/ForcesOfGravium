@@ -5,7 +5,7 @@
   "EmitOffset": {
     "X": { "Min": 0.0, "Max": 0.0 },
     "Y": { "Min": 0.25, "Max": 0.25 },
-    "Z": { "Min": 0.0, "Max": 0.0 }
+    "Z": { "Min": 0.00, "Max": 0.00 }
   },
 
   "LifeSpan": 0.0,
@@ -29,18 +29,9 @@
   "LightInfluence": 0.0,
 
   "InitialVelocity": {
-    "Yaw": {
-      "Min": 0.0,
-      "Max": 0.0
-    },
-    "Pitch": {
-      "Min": 0.0,
-      "Max": 0.0
-    },
-    "Speed": {
-      "Min": 0.0,
-      "Max": 0.0
-    }
+    "Yaw": { "Min": 0.0, "Max": 0.0 },
+    "Pitch": { "Min": 0.0, "Max": 0.0 },
+    "Speed": { "Min": 0.0, "Max": 0.0 }
   },
 
   "Attractors": [
@@ -55,8 +46,7 @@
         "Y": 0.0,
         "Z": 0.0
       },
-      "RadialTangentImpulse": 0.6,
-      "RadialImpulse": -0.04
+      "RadialTangentImpulse": 0.6
     }
   ],
 
@@ -83,16 +73,9 @@
 
     "InitialAnimationFrame": {
       "Scale": {
-        "X": {
-          "Min": 0.10,
-          "Max": 0.10
-        },
-        "Y": {
-          "Min": 0.10,
-          "Max": 0.10
-        }
+        "X": { "Min": 0.10, "Max": 0.10 },
+        "Y": { "Min": 0.10, "Max": 0.10 }
       },
-
       "Color": "#2F80FF",
       "Opacity": 1.0
     }
