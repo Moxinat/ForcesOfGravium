@@ -56,7 +56,7 @@
         "Z": 0.0
       },
       "RadialTangentImpulse": 0.6,
-      "RadialImpulse": -0.2
+      "RadialImpulse": -0.04
     }
   ],
 
@@ -84,12 +84,12 @@
     "InitialAnimationFrame": {
       "Scale": {
         "X": {
-          "Min": 0.06,
-          "Max": 0.06
+          "Min": 0.10,
+          "Max": 0.10
         },
         "Y": {
-          "Min": 0.06,
-          "Max": 0.06
+          "Min": 0.10,
+          "Max": 0.10
         }
       },
 
