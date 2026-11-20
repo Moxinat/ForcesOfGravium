@@ -11,16 +11,16 @@
   "LifeSpan": 0.0,
 
   "SpawnRate": {
-    "Min": 1.0,
-    "Max": 1.0
+    "Min": 10.0,
+    "Max": 10.0
   },
 
   "SpawnBurst": false,
   "MaxConcurrentParticles": 1,
 
   "ParticleLifeSpan": {
-    "Min": 1.0,
-    "Max": 1.0
+    "Min": 10.0,
+    "Max": 10.0
   },
 
   "ParticleRotationInfluence": "Billboard",
@@ -87,27 +87,27 @@
     "Animation": {
       "0": {
         "Opacity": 1.0,
-        "Color": "#ffffff"
+        "Color": "#2F80FF"
       },
       "100": {
         "Opacity": 1.0,
-        "Color": "#ffffff"
+        "Color": "#2F80FF"
       }
     },
 
     "InitialAnimationFrame": {
       "Scale": {
         "X": {
-          "Min": 0.03,
-          "Max": 0.03
+          "Min": 0.06,
+          "Max": 0.06
         },
         "Y": {
-          "Min": 0.03,
-          "Max": 0.03
+          "Min": 0.06,
+          "Max": 0.06
         }
       },
 
-      "Color": "#ffffff",
+      "Color": "#2F80FF",
       "Opacity": 1.0
     }
   }
