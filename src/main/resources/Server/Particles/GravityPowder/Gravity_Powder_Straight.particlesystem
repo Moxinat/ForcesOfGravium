@@ -7,15 +7,8 @@
     {
       "SpawnerId": "Gravity_Powder_Orbit_Point_90",
       "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 }
-    },
-    {
-      "SpawnerId": "Gravity_Powder_Orbit_Point_180",
-      "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 }
-    },
-    {
-      "SpawnerId": "Gravity_Powder_Orbit_Point_270",
-      "PositionOffset": { "X": 0.0, "Y": 0.0, "Z": 0.0 }
     }
+
   ],
   "CullDistance": 50
 }

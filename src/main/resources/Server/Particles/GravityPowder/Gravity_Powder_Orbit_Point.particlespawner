@@ -46,7 +46,8 @@
         "Y": 0.0,
         "Z": 0.0
       },
-      "RadialTangentImpulse": 0.6
+      "RadialTangentImpulse": 0.6,
+      "RadialAcceleration": 0
     }
   ],
 
