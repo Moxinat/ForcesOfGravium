@@ -23,8 +23,8 @@
   "MaxConcurrentParticles": 4,
 
   "ParticleLifeSpan": {
-    "Min": 10,
-    "Max": 10
+    "Min": 9999,
+    "Max": 9999
   },
 
   "ParticleRotationInfluence": "Billboard",
