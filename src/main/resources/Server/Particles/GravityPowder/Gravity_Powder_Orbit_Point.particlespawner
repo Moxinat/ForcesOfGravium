@@ -3,24 +3,28 @@
   "Shape": "Sphere",
 
   "EmitOffset": {
-    "X": { "Min": 0.0, "Max": 0.0 },
     "Y": { "Min": 0.25, "Max": 0.25 },
-    "Z": { "Min": 0.00, "Max": 0.00 }
+    "Z": { "Min": 0.25, "Max": 0.25 }
   },
 
   "LifeSpan": 0.0,
 
-  "SpawnRate": {
-    "Min": 10.0,
-    "Max": 10.0
+  "TotalParticles": {
+    "Min": 4,
+    "Max": 4
   },
 
-  "SpawnBurst": false,
-  "MaxConcurrentParticles": 1,
+  "SpawnRate": {
+    "Min": 4.0,
+    "Max": 4.0
+  },
+
+  "SpawnBurst": true,
+  "MaxConcurrentParticles": 4,
 
   "ParticleLifeSpan": {
-    "Min": 10.0,
-    "Max": 10.0
+    "Min": 9999.0,
+    "Max": 9999.0
   },
 
   "ParticleRotationInfluence": "Billboard",
@@ -47,7 +51,7 @@
         "Z": 0.0
       },
       "RadialTangentImpulse": 0.6,
-      "RadialAcceleration": 0
+      "RadialAcceleration": 0.0
     }
   ],
 
